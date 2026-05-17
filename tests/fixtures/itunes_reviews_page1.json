@@ -1,0 +1,101 @@
+{
+  "feed": {
+    "entry": [
+      {
+        "im:name": {"label": "WhatsApp Messenger"},
+        "im:image": [{"label": "https://example.com/icon.png"}],
+        "id": {"label": "https://apps.apple.com/hk/app/whatsapp/id310633997"}
+      },
+      {
+        "author": {
+          "uri": {"label": "https://itunes.apple.com/hk/reviews/id1"},
+          "name": {"label": "Mary HK"}
+        },
+        "im:version": {"label": "24.5.1"},
+        "im:rating": {"label": "5"},
+        "im:voteSum": {"label": "0"},
+        "im:voteCount": {"label": "0"},
+        "title": {"label": "好用"},
+        "content": {
+          "label": "用咗好多年, 一直都好穩定. 強烈推薦比朋友.",
+          "attributes": {"type": "text"}
+        },
+        "link": {"attributes": {"rel": "related", "href": "https://example.com"}},
+        "id": {"label": "11234567890"},
+        "updated": {"label": "2025-03-15T08:30:00-07:00"}
+      },
+      {
+        "author": {
+          "uri": {"label": "https://itunes.apple.com/hk/reviews/id2"},
+          "name": {"label": "John Tsang"}
+        },
+        "im:version": {"label": "24.5.0"},
+        "im:rating": {"label": "1"},
+        "im:voteSum": {"label": "0"},
+        "im:voteCount": {"label": "0"},
+        "title": {"label": "Battery drain"},
+        "content": {
+          "label": "Latest update drains my battery so fast. Please fix.",
+          "attributes": {"type": "text"}
+        },
+        "link": {"attributes": {"rel": "related", "href": "https://example.com"}},
+        "id": {"label": "11234567891"},
+        "updated": {"label": "2025-03-10T11:45:00-07:00"}
+      },
+      {
+        "author": {
+          "uri": {"label": "https://itunes.apple.com/hk/reviews/id3"},
+          "name": {"label": "Anon User"}
+        },
+        "im:version": {"label": "24.4.0"},
+        "im:rating": {"label": "4"},
+        "im:voteSum": {"label": "0"},
+        "im:voteCount": {"label": "0"},
+        "title": {"label": "Pretty good"},
+        "content": {
+          "label": "Works as expected. Notifications sometimes delayed on iOS 18.",
+          "attributes": {"type": "text"}
+        },
+        "link": {"attributes": {"rel": "related", "href": "https://example.com"}},
+        "id": {"label": "11234567892"},
+        "updated": {"label": "2025-02-20T03:12:00-07:00"}
+      },
+      {
+        "author": {
+          "uri": {"label": "https://itunes.apple.com/hk/reviews/id4"},
+          "name": {"label": "陳小姐"}
+        },
+        "im:version": {"label": "24.3.5"},
+        "im:rating": {"label": "3"},
+        "im:voteSum": {"label": "0"},
+        "im:voteCount": {"label": "0"},
+        "title": {"label": "幾好用但有bug"},
+        "content": {
+          "label": "整體上幾好用, 但係 send 短片有時會 fail, 希望快啲 fix. 另外 search 功能慢咗好多.",
+          "attributes": {"type": "text"}
+        },
+        "link": {"attributes": {"rel": "related", "href": "https://example.com"}},
+        "id": {"label": "11234567893"},
+        "updated": {"label": "2025-01-30T22:05:00-07:00"}
+      },
+      {
+        "author": {
+          "uri": {"label": "https://itunes.apple.com/hk/reviews/id5"},
+          "name": {"label": "Kev Lam"}
+        },
+        "im:version": {"label": "24.3.5"},
+        "im:rating": {"label": "5"},
+        "im:voteSum": {"label": "0"},
+        "im:voteCount": {"label": "0"},
+        "title": {"label": "Best for staying in touch with family overseas"},
+        "content": {
+          "label": "Use this every day to call relatives in Canada and UK. Voice and video quality is consistently better than alternatives I tried.",
+          "attributes": {"type": "text"}
+        },
+        "link": {"attributes": {"rel": "related", "href": "https://example.com"}},
+        "id": {"label": "11234567894"},
+        "updated": {"label": "2025-01-15T14:20:00-07:00"}
+      }
+    ]
+  }
+}
