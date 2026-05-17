@@ -1,10 +1,18 @@
-"""Full pipeline demo: synthetic data -> embed -> cluster -> diag."""
-import sys, json, os, hashlib
+"""Full pipeline demo: synthetic data -> embed -> cluster -> diag.
+
+Run with::
+
+    pip install -e ".[dev]"
+    python -m scripts.demo_pipeline
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+from datetime import datetime, timezone
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
-from datetime import datetime, timezone
 import numpy as np
 
 now = datetime.now(timezone.utc)

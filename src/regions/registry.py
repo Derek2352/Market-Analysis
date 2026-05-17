@@ -230,6 +230,28 @@ REGIONS: dict[str, RegionConfig] = {
                     "constraint). Kept as reference scraper after Phase 1 pivot to LIHKG."
                 ),
             ),
+            SourceConfig(
+                source_id="google_play_hk",
+                category=SourceCategory.REVIEWS,
+                priority=4,
+                access_method=AccessMethod.PUBLIC_JSON,
+                tos_risk=TosRisk.HIGH,
+                auth_required=False,
+                signal_type=SignalType.EXPERIENCE,
+                persona_value=3,
+                journey_value=4,
+                tos_scraping_stance=ToSStance.PROHIBITED,
+                last_checked=_AUDIT_DATE,
+                last_verified_working=_AUDIT_DATE,
+                notes=(
+                    "Google Play HK reviews via the `google-play-scraper` library, "
+                    "which hits Google Play's anonymous internal API (no key, no "
+                    "OAuth — satisfies the no-API constraint). Google Play Terms "
+                    "of Service prohibit automated access; flagged. User assumes "
+                    "ToS responsibility under their jurisdiction. Mirror of "
+                    "app_store_hk for non-iOS coverage."
+                ),
+            ),
             # ---- news_comments -------------------------------------------
             SourceConfig(
                 source_id="hk01",

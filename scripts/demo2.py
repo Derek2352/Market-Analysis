@@ -1,14 +1,27 @@
-"""Demo: embed + cluster with proper keywords."""
-import sys
-sys.path.insert(0, "src")
-import json, numpy as np, duckdb, hashlib
-from pathlib import Path
-from datetime import datetime, timezone
+"""Demo: embed + cluster on synthetic MTR Mobile posts.
 
-from src.pipeline.embed import EmbeddingStore
+Prerequisites:
+    pip install -e ".[dev]"
+
+Run with:
+    python -m scripts.demo2
+
+Imports `src.pipeline` and `src.schemas` via the installed package — no
+sys.path hacks. Writes a one-shot DB to data/synthetic_demo/demo2.duckdb.
+"""
+from __future__ import annotations
+
+import hashlib
+from datetime import datetime, timezone
+from pathlib import Path
+
+import duckdb
+import numpy as np
+
 from src.pipeline.cluster import cluster_embeddings
-from src.schemas.raw import RawPost
+from src.pipeline.embed import EmbeddingStore
 from src.schemas.enums import SignalType, SourceCategory
+from src.schemas.raw import RawPost
 
 data_dir = Path("data/synthetic_demo")
 db_path = data_dir / "demo2.duckdb"
