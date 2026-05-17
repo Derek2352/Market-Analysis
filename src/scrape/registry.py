@@ -4,11 +4,14 @@ from collections.abc import Callable
 
 from src.scrape.app_store_hk import AppStoreHKScraper
 from src.scrape.base import SourceScraper
+from src.scrape.lihkg import LIHKGScraper
+from src.scrape.openrice import OpenriceScraper
 
-# Phase 1 ships exactly one scraper. Adding a new source = adding one entry
-# here and one file under src/scrape/.
+# Each source has one entry here and one file under src/scrape/.
 _FACTORIES: dict[str, Callable[[], SourceScraper]] = {
     "app_store_hk": AppStoreHKScraper,
+    "lihkg": LIHKGScraper,
+    "openrice": OpenriceScraper,
 }
 
 
