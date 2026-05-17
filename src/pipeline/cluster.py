@@ -68,6 +68,7 @@ def cluster_embeddings(
     lang_map: dict[str, str] | None = None,
     sentiment_map: dict[str, int] | None = None,
     temporal_map: dict[str, str] | None = None,
+    post_texts: dict[str, str] | None = None,
 ) -> ClusteringResult:
     """Cluster embeddings using UMAP → HDBSCAN.
 
@@ -116,8 +117,13 @@ def cluster_embeddings(
         top5_idx = np.argsort(distances)[:5]
         representative = [cluster_ids[i] for i in top5_idx]
 
-        # Keyword summary via c-TF-IDF
-        keywords = _extract_keywords(cluster_ids, cluster_vectors, vectors, all_labels=labels)
+        # Keyword summary via c-TF-IDF (real computation if texts available)
+        if post_texts:
+            keywords = _compute_ctfidf_for_cluster(
+                cluster_ids, post_texts, all_ids=post_ids, top_n=10
+            )
+        else:
+            keywords = [f"cluster_{lbl}" for _ in range(min(10, len(cluster_ids)))]
 
         # Distributions
         src_dist = _build_distribution(cluster_ids, source_map)
@@ -229,20 +235,27 @@ def _build_distribution(
     return dict(sorted(dist.items(), key=lambda x: -x[1]))
 
 
-def _extract_keywords(
+def _compute_ctfidf_for_cluster(
     cluster_ids: list[str],
-    cluster_vectors: np.ndarray,
-    all_vectors: np.ndarray,
-    all_labels: np.ndarray,
+    post_texts: dict[str, str],
+    all_ids: list[str],
     top_n: int = 10,
 ) -> list[str]:
-    """Extract top keywords via class-based TF-IDF.
+    """Compute c-TF-IDF keywords for one cluster vs all other posts.
 
-    Simplified implementation: returns placeholder keywords since full c-TF-IDF
-    requires access to original text data.  The keywords are computed from the
-    embedding centroid's nearest-neighbor post IDs as a heuristic.
-
-    Full c-TF-IDF implementation with actual text is in the diagnostic module.
+    Treats this cluster's text as one document, all other posts as another,
+    then computes TF-IDF to find words distinctive to this cluster.
     """
-    # Placeholder — full c-TF-IDF is computed in diagnostics with access to text
-    return [f"topic_{i}" for i in range(min(top_n, len(cluster_ids)))]
+    from sklearn.feature_extraction.text import TfidfVectorizer
+
+    cluster_doc = " ".join(post_texts.get(pid, "") for pid in cluster_ids)
+    other_ids = [pid for pid in all_ids if pid not in set(cluster_ids)]
+    other_doc = " ".join(post_texts.get(pid, "") for pid in other_ids) if other_ids else ""
+
+    docs = [cluster_doc, other_doc] if other_doc else [cluster_doc]
+    vectorizer = TfidfVectorizer(max_features=1000, stop_words="english", ngram_range=(1, 2))
+    tfidf = vectorizer.fit_transform(docs)
+    names = vectorizer.get_feature_names_out()
+    row = tfidf[0].toarray().flatten()
+    top = row.argsort()[-top_n:][::-1]
+    return [names[i] for i in top]

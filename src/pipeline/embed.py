@@ -228,11 +228,11 @@ class EmbeddingStore:
             )
         """)
 
-        # VSS index for fast similarity search
+        # HNSW index for fast similarity search (DuckDB VSS extension)
         try:
             self._con.execute(
                 "CREATE INDEX IF NOT EXISTS idx_embeddings_vector "
-                "ON embeddings USING vss (vector)"
+                "ON embeddings USING hnsw (vector)"
             )
         except Exception:
             _log.warning("embed.vss_index_create_failed")

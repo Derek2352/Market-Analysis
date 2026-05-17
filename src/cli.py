@@ -234,13 +234,29 @@ def cluster(
     typer.echo(f"Clustering {len(rows)} embeddings for {topic} ({region})")
 
     source_map = dict(zip(post_ids, sources))
+
+    # Load post texts for c-TF-IDF keywords
+    topic_slug = _slugify(topic)
+    raw_dir = _DATA_DIR / "raw" / topic_slug / region
+    post_texts: dict[str, str] = {}
+    for rf in sorted(raw_dir.glob("*.json")):
+        if rf.name.endswith("._run.json"):
+            continue
+        with open(rf) as f:
+            raw_posts = json.load(f)
+        for p in raw_posts:
+            pid = p.get("id", "")
+            text = f"{p.get('title', '') or ''}\n{p.get('body', '') or ''}"
+            if pid and pid in set(post_ids):
+                post_texts[pid] = text
+
     result = cluster_embeddings(
         vectors, post_ids, topic, region,
         config=cfg,
         source_map=source_map,
+        post_texts=post_texts if post_texts else None,
     )
 
-    topic_slug = _slugify(topic)
     out_dir = _DATA_DIR / "clusters" / topic_slug / region
     out_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -298,11 +314,7 @@ def diag(
             if pid:
                 post_texts[pid] = text
 
-    typer.echo("Computing c-TF-IDF keywords...")
-    keywords = compute_ctfidf_keywords(result.clusters, post_texts)
-    for c in result.clusters:
-        c.keyword_summary = keywords.get(c.cluster_id, [])
-
+    typer.echo("Generating diagnostics report...")
     out_path = clusters_dir / "diagnostics.md"
     report = generate_report(result, post_texts, out_path, params=result.params)
     typer.echo(f"Report saved: {out_path}")
