@@ -23,6 +23,7 @@ try:
     from src.pipeline.embed import EmbeddingStore
     from src.pipeline.cluster import cluster_embeddings, load_config
     from src.pipeline.cluster_diag import compute_ctfidf_keywords, generate_report
+    from src.pipeline.synthesize import generate_persona, generate_journey
 except ImportError:
     _PIPELINE_AVAILABLE = False
 
@@ -63,6 +64,10 @@ def scrape(
     since: Annotated[
         str, typer.Option("--since", help="Relative window, e.g. 90d, 24h, 2w, 6m.")
     ] = "90d",
+    subreddits: Annotated[
+        str,
+        typer.Option("--subreddits", help="Comma-separated subreddits (for reddit_old source)."),
+    ] = "",
 ) -> None:
     """Scrape one or more sources for `topic` in `region`."""
     region_cfg = get_region(region)
@@ -104,7 +109,11 @@ def scrape(
                 source=source_id,
                 run_id=run_id,
             )
-            scraper = get_scraper(source_id)
+            # Pass subreddits for reddit_old scraper
+            scraper_kwargs = {}
+            if source_id == "reddit_old" and subreddits:
+                scraper_kwargs["subreddits"] = [s.strip() for s in subreddits.split(",") if s.strip()]
+            scraper = get_scraper(source_id, **scraper_kwargs)
             emitted = 0
             duplicates = 0
             try:
@@ -319,6 +328,160 @@ def diag(
     report = generate_report(result, post_texts, out_path, params=result.params)
     typer.echo(f"Report saved: {out_path}")
     typer.echo(report)
+
+
+@app.command()
+def persona(
+    topic: Annotated[str, typer.Option(..., "--topic")],
+    region: Annotated[str, typer.Option(..., "--region")],
+    cluster_id: Annotated[
+        str,
+        typer.Option("--cluster", help="Specific cluster ID. Omit to generate for all clusters."),
+    ] = "",
+) -> None:
+    """Generate personas from clustered posts via Claude."""
+    if not _PIPELINE_AVAILABLE:
+        typer.echo("Pipeline deps not installed.", err=True)
+        raise typer.Exit(code=1)
+
+    topic_slug = _slugify(topic)
+    clusters_dir = _DATA_DIR / "clusters" / topic_slug / region
+
+    if not clusters_dir.exists():
+        typer.echo(f"No clusters at {clusters_dir}. Run cluster first.", err=True)
+        raise typer.Exit(code=1)
+
+    cluster_files = sorted(clusters_dir.glob("clusters_*.json"))
+    if not cluster_files:
+        typer.echo(f"No cluster results at {clusters_dir}", err=True)
+        raise typer.Exit(code=1)
+
+    import json
+
+    latest = cluster_files[-1]
+    with open(latest) as f:
+        data = json.load(f)
+
+    result = ClusteringResult(**data)
+
+    # Load post texts and metadata
+    raw_dir = _DATA_DIR / "raw" / topic_slug / region
+    post_texts: dict[str, str] = {}
+    post_metadata: dict[str, dict] = {}
+    for rf in sorted(raw_dir.glob("*.json")):
+        if rf.name.endswith("._run.json"):
+            continue
+        with open(rf) as f:
+            posts = json.load(f)
+        for p in posts:
+            pid = p.get("id", "")
+            if not pid:
+                continue
+            post_texts[pid] = f"{p.get('title', '') or ''}\n{p.get('body', '') or ''}"
+            post_metadata[pid] = {
+                "source": p.get("source", ""),
+                "url": p.get("url", ""),
+                "lang": p.get("language_detected", "en"),
+            }
+
+    targets = [c for c in result.clusters if not cluster_id or c.cluster_id == cluster_id]
+    if not targets:
+        typer.echo(f"Cluster {cluster_id} not found. Available: {[c.cluster_id for c in result.clusters]}")
+        raise typer.Exit(code=1)
+
+    personas_out = _DATA_DIR / "personas" / topic_slug / region
+    personas_out.mkdir(parents=True, exist_ok=True)
+
+    for c in targets:
+        typer.echo(f"Generating persona for {c.cluster_id} ({c.size} posts)...")
+        try:
+            p = generate_persona(c, post_texts, post_metadata)
+            out_path = personas_out / f"{p.id}.json"
+            with open(out_path, "w") as f:
+                json.dump(p.model_dump(mode="json"), f, indent=2, default=str)
+            typer.echo(f"  {p.name}: {p.one_liner}")
+            typer.echo(f"  Saved: {out_path}")
+        except Exception as e:
+            typer.echo(f"  Failed: {e}")
+
+
+@app.command()
+def journey(
+    topic: Annotated[str, typer.Option(..., "--topic")],
+    region: Annotated[str, typer.Option(..., "--region")],
+    persona_id: Annotated[str, typer.Option(..., "--persona", help="Persona ID from mkt persona output.")],
+) -> None:
+    """Generate a user journey map for a persona via Claude."""
+    if not _PIPELINE_AVAILABLE:
+        typer.echo("Pipeline deps not installed.", err=True)
+        raise typer.Exit(code=1)
+
+    topic_slug = _slugify(topic)
+    personas_dir = _DATA_DIR / "personas" / topic_slug / region
+
+    persona_path = personas_dir / f"{persona_id}.json"
+    if not persona_path.exists():
+        typer.echo(f"Persona not found: {persona_path}", err=True)
+        raise typer.Exit(code=1)
+
+    import json
+    with open(persona_path) as f:
+        pdata = json.load(f)
+
+    from src.schemas.synthesis import Persona as PersonaModel
+    persona_obj = PersonaModel(**pdata)
+
+    # Load cluster
+    clusters_dir = _DATA_DIR / "clusters" / topic_slug / region
+    cluster_files = sorted(clusters_dir.glob("clusters_*.json"))
+    with open(cluster_files[-1]) as f:
+        cdata = json.load(f)
+
+    cluster = None
+    for c in cdata.get("clusters", []):
+        if c.get("cluster_id") == persona_obj.cluster_id:
+            cluster = Cluster(**c)
+            break
+
+    if not cluster:
+        typer.echo(f"Cluster {persona_obj.cluster_id} not found.", err=True)
+        raise typer.Exit(code=1)
+
+    # Load text/metadata
+    raw_dir = _DATA_DIR / "raw" / topic_slug / region
+    post_texts: dict[str, str] = {}
+    post_metadata: dict[str, dict] = {}
+    for rf in sorted(raw_dir.glob("*.json")):
+        if rf.name.endswith("._run.json"):
+            continue
+        with open(rf) as f:
+            posts = json.load(f)
+        for p in posts:
+            pid = p.get("id", "")
+            if not pid:
+                continue
+            post_texts[pid] = f"{p.get('title', '') or ''}\n{p.get('body', '') or ''}"
+            post_metadata[pid] = {
+                "source": p.get("source", ""),
+                "url": p.get("url", ""),
+                "lang": p.get("language_detected", "en"),
+            }
+
+    typer.echo(f"Generating journey map for {persona_obj.name}...")
+    try:
+        jm = generate_journey(persona_obj, cluster, post_texts, post_metadata)
+        journeys_out = _DATA_DIR / "journeys" / topic_slug / region
+        journeys_out.mkdir(parents=True, exist_ok=True)
+        out_path = journeys_out / f"{jm.id}.json"
+        with open(out_path, "w") as f:
+            json.dump(jm.model_dump(mode="json"), f, indent=2, default=str)
+        typer.echo(f"Journey map saved: {out_path}")
+        for s in jm.stages:
+            emoji = {"Awareness": "👁", "Consideration": "🤔", "Decision": "✅",
+                     "Onboarding": "🚀", "Use": "🔄", "Loyalty/Churn": "💚"}.get(s.stage, "")
+            typer.echo(f"  {emoji} {s.stage}: {len(s.touchpoints)} touchpoints, {len(s.frictions)} frictions ({s.coverage})")
+    except Exception as e:
+        typer.echo(f"Failed: {e}")
 
 
 if __name__ == "__main__":

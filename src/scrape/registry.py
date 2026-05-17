@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Any
 
 from src.scrape.app_store_hk import AppStoreHKScraper
 from src.scrape.base import SourceScraper
@@ -21,10 +22,10 @@ def available_sources() -> list[str]:
     return sorted(_FACTORIES)
 
 
-def get_scraper(source_id: str) -> SourceScraper:
+def get_scraper(source_id: str, **kwargs: Any) -> SourceScraper:
     if source_id not in _FACTORIES:
         raise KeyError(
             f"Unknown source_id: {source_id!r}. "
             f"Available: {available_sources()}"
         )
-    return _FACTORIES[source_id]()
+    return _FACTORIES[source_id](**kwargs)
