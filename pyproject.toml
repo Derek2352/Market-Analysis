@@ -10,6 +10,7 @@ dependencies = [
     "structlog>=24.1",
     "tenacity>=8.5",
     "py3langid>=0.3",
+    "beautifulsoup4>=4.12",
 ]
 
 [project.optional-dependencies]
