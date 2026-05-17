@@ -1,0 +1,17 @@
+# Clustering parameters for Phase 3.
+# UMAP reduces embedding dimensionality, HDBSCAN finds clusters.
+# Tune these when diagnostics show poor results.
+
+umap:
+  n_neighbors: 15       # Local neighborhood size.  Lower = tighter local structure.
+  min_dist: 0.1         # Minimum distance between points in low-dim space.
+  n_components: 10      # Target dimensions for UMAP output.
+  random_state: 42      # Fixed seed for reproducibility.
+  metric: cosine        # Distance metric. Cosine works well for normalized embeddings.
+
+hdbscan:
+  min_cluster_size: 15  # Smallest cluster to keep.  Raise for fewer, larger clusters.
+  min_samples: 5        # How conservative the clustering is.  Higher = more noise.
+
+outlier_threshold: 0.3  # HDBSCAN probability below this → marked as noise.
+                         # Lower = fewer posts classified as noise.

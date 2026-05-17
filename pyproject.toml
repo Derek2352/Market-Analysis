@@ -11,6 +11,11 @@ dependencies = [
     "tenacity>=8.5",
     "py3langid>=0.3",
     "beautifulsoup4>=4.12",
+    "sentence-transformers>=3.0",
+    "duckdb>=1.1",
+    "umap-learn>=0.5",
+    "hdbscan>=0.8",
+    "scikit-learn>=1.5",
 ]
 
 [project.optional-dependencies]
