@@ -16,6 +16,7 @@ dependencies = [
     "umap-learn>=0.5",
     "hdbscan>=0.8",
     "scikit-learn>=1.5",
+    "google-play-scraper>=1.2",
 ]
 
 [project.optional-dependencies]
