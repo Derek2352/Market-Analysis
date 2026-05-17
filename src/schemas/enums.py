@@ -34,3 +34,19 @@ class SignalType(str, Enum):
     COMPARISON = "comparison"
     COMPLAINT = "complaint"
     RECOMMENDATION = "recommendation"
+
+
+class ToSStance(str, Enum):
+    """How a source's terms of service treat scraping.
+
+    Recorded per source in the registry alongside `robots_txt_allows` and
+    `last_checked` so the user (and the pipeline) can make informed inclusion
+    calls. We do NOT auto-exclude PROHIBITED sources — for non-commercial
+    research, surfacing the flag is more useful than silently dropping data.
+    The scraper just hard-fails on 403 and respects robots.txt regardless.
+    """
+
+    PROHIBITED = "prohibited"                       # ToS explicitly forbids scraping
+    ALLOWED_WITH_CONDITIONS = "allowed_with_conditions"  # explicitly allowed under conditions
+    SILENT = "silent"                                # no explicit position
+    UNKNOWN = "unknown"                              # not reviewed yet
