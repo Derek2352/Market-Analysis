@@ -17,6 +17,7 @@ class Reply(BaseModel):
     author_hash: str
     body: str
     posted_at: datetime
+    language_detected: str | None = None
     parent_reply_id: str | None = None
     engagement_metrics: dict[str, int] = Field(default_factory=dict)
     raw_metadata: dict[str, Any] = Field(default_factory=dict)
@@ -28,9 +29,12 @@ class RawPost(BaseModel):
     Returned by `SourceScraper.search` (replies may be empty) and by
     `SourceScraper.fetch_thread` (replies populated when available).
 
-    `source_category` and `signal_type` are propagated from the source's
-    `SourceConfig` so downstream phases can filter / weight without joining
-    back to the registry.
+    `language` is the source's declared/primary language (carried from
+    `SourceConfig.language`). `language_detected` is the per-post detection
+    result — a single source can emit multiple languages (HK App Store mixes
+    zh-Hant, en, and code-switched Cantonese-in-Chinese), so downstream
+    phases should prefer `language_detected` for clustering and language
+    pipelines.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -40,6 +44,7 @@ class RawPost(BaseModel):
     source_category: SourceCategory
     region: str
     language: str
+    language_detected: str | None = None
     url: HttpUrl
     author_hash: str
     title: str | None = None
