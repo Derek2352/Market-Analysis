@@ -13,8 +13,10 @@ from src.scrape.utils.dedup import DedupIndex
 from src.scrape.utils.logging import configure_logging
 from src.scrape.utils.since import parse_since
 from src.scrape.utils.writer import RunWriter
+from src.scrape.doctor import app as doctor_app
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
+app.add_typer(doctor_app, name="scrape-doctor")
 
 
 @app.callback()
@@ -62,9 +64,8 @@ def scrape(
     unknown = [s for s in source_ids if s not in available_sources()]
     if unknown:
         typer.echo(
-            f"Phase 1 only implements: {available_sources()}. "
-            f"Not yet implemented: {unknown}. "
-            f"Use --sources to restrict (e.g. --sources app_store_hk).",
+            f"Available sources: {available_sources()}. "
+            f"Not implemented: {unknown}. ",
             err=True,
         )
         raise typer.Exit(code=2)
