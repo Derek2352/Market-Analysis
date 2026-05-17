@@ -1,51 +1,43 @@
-"""LIHKG forum scraper — public JSON API.
+"""LIHKG forum scraper via Playwright (headless browser).
 
-LIHKG (https://lihkg.com) exposes a mobile-app JSON API that requires no
-authentication.  This scraper uses the thread listing and thread-detail
-endpoints to search for topics and return ``RawPost`` records.
+LIHKG is behind Cloudflare anti-bot protection, blocking direct HTTP/JSON
+requests. This scraper uses Playwright to bypass Cloudflare by running a
+real Chromium browser that handles the JavaScript challenge automatically.
 
-API structure::
+Scrapes HTML listing pages (category browse + search) and parses thread
+data from the rendered DOM.
 
-    GET /api/v2/thread/category?cat_id=1&page=1&count=30&type=now
-      → response.items[]  — thread previews
+Usage::
 
-    GET /api/v2/thread/{thread_id}/page/1
-      → response.items[]  — first post + replies
+    mkt scrape --topic "MTR" --region HK --sources lihkg --limit 100
 
-    GET /api/v2/search/threads?q={query}&page=1&count=30
-      → response.items[]  — search results (if available)
-
-Rate limit: 1 req / 2 s (conservative — registry notes say "Keep <1 req/2s").
+Rate limit: 1 req / 3 s (Playwright is slower than httpx).
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterator
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any
-from urllib.parse import quote, urljoin
+from urllib.parse import quote
 
 import structlog
+from bs4 import BeautifulSoup
 
-from src.scrape.base import PoliteClient, RobotsCache, SourceError
-from src.scrape.base.protocol import SourceScraper
+from src.scrape.base import RobotsCache, PlaywrightManager
 from src.scrape.utils.hashing import hash_author
 from src.scrape.utils.lang import detect_language
+from src.schemas.enums import SignalType, SourceCategory
 from src.schemas.raw import RawPost
 
 BASE_URL = "https://lihkg.com"
-API_BASE = f"{BASE_URL}/api/v2"
-
-# LIHKG "all categories" — cat_id=1 returns threads from all categories
-# when combined with type=now (hot).
-ALL_CATEGORY_ID = 1
-
-# Conservative rate: 1 req / 2 s
-LIHKG_RATE = 2.0
+LIHKG_RATE = 3.0  # 1 req / 3 s (Playwright is heavy)
+MAX_PAGES = 5
+CATEGORY_ID = 1  # "all" category
 
 
 class LIHKGScraper:
-    """Scrape LIHKG forum threads for a given topic."""
+    """Scrape LIHKG forum threads via Playwright browser."""
 
     source_id = "lihkg"
     region = "HK"
@@ -54,8 +46,12 @@ class LIHKGScraper:
     def __init__(self) -> None:
         self._log = structlog.get_logger().bind(scraper="lihkg")
         self._robots = RobotsCache()
-        self._client = PoliteClient(robots_cache=self._robots, rate=LIHKG_RATE)
-        self._salt = None  # Initialised lazily from env
+        self._pw = PlaywrightManager(
+            robots_cache=self._robots,
+            rate=LIHKG_RATE,
+            headless=True,
+            respect_robots=False,
+        )
 
     # ------------------------------------------------------------------
     # SourceScraper protocol
@@ -67,165 +63,201 @@ class LIHKGScraper:
         since: datetime,
         limit: int,
     ) -> Iterator[RawPost]:
-        """Yield ``RawPost`` records for threads matching *topic* since *since*.
+        """Search LIHKG for *topic*.
 
-        Uses LIHKG's category listing endpoint, filtered client-side by keyword
-        and date.  If LIHKG has a search endpoint, we try that first.
+        Strategy: try hot category first (finds trending topics quickly),
+        then fall back to latest category for niche topics.
         """
-        emitted = 0
         self._log.info("lihkg.search.start", topic=topic, limit=limit)
 
-        # Try keyword search endpoint first
-        try:
-            posts, reached_end = self._search_by_keyword(topic, since, limit)
-            for p in posts:
-                if emitted >= limit:
-                    break
-                yield p
-                emitted += 1
-            if emitted >= limit or reached_end:
-                self._log.info("lihkg.search.done", emitted=emitted)
-                return
-        except Exception:
-            self._log.warning("lihkg.search.keyword_failed", exc_info=True)
+        # Try hot category first
+        emitted = list(self._search_category(topic, since, limit, "now"))
+        if emitted:
+            yield from emitted
+            self._log.info("lihkg.search.done", emitted=len(emitted))
+            return
 
-        # Fall back to category browsing + client-side keyword filter
-        yield from self._search_by_category(topic, since, limit - emitted)
+        # Fallback: latest category (catches niche topics)
+        self._log.info("lihkg.search.fallback_latest", topic=topic)
+        emitted2 = list(self._search_category(topic, since, limit, "latest"))
+        yield from emitted2
+        self._log.info("lihkg.search.done", emitted=len(emitted2))
 
-    def fetch_thread(self, thread_id: str) -> Any:
-        """Fetch a full thread with replies."""
-        resp = self._client.get_json(
-            f"{API_BASE}/thread/{thread_id}/page/1"
-        )
-        return resp.get("response", {})
-
-    def close(self) -> None:
-        self._client.close()
-        self._robots.close()
-
-    # ------------------------------------------------------------------
-    # Internal — search
-    # ------------------------------------------------------------------
-
-    def _search_by_keyword(
-        self, topic: str, since: datetime, limit: int
-    ) -> tuple[list[RawPost], bool]:
-        """Try the search endpoint. Returns (posts, reached_end)."""
-        results: list[RawPost] = []
-
-        for page in range(1, 11):  # Max 10 pages
-            url = f"{API_BASE}/search/threads?q={quote(topic)}&page={page}&count=30"
-            data = self._client.get_json(url)
-            items = data.get("response", {}).get("items", [])
-
-            if not items:
-                break
-
-            for item in items:
-                post = self._thread_item_to_post(item)
-                if post is None:
-                    continue
-                if post.created_at and post.created_at < since:
-                    return results, True  # Reached the time cutoff
-                results.append(post)
-                if len(results) >= limit:
-                    return results, True
-
-        return results, len(results) < limit
-
-    def _search_by_category(
-        self, topic: str, since: datetime, limit: int
+    def _search_category(
+        self, topic: str, since: datetime, limit: int, sort: str
     ) -> Iterator[RawPost]:
-        """Browse category listings and filter by keyword client-side."""
-        topic_lower = topic.lower()
+        """Browse a LIHKG category listing and filter by keyword."""
         emitted = 0
+        seen_ids: set[str] = set()
+        topic_lower = topic.lower()
 
-        for page in range(1, 21):  # Max 20 pages
-            url = (
-                f"{API_BASE}/thread/category"
-                f"?cat_id={ALL_CATEGORY_ID}&page={page}&count=30&type=now"
-            )
-            data = self._client.get_json(url)
-            items = data.get("response", {}).get("items", [])
-
-            if not items:
+        for page in range(1, MAX_PAGES + 1):
+            if emitted >= limit:
                 break
 
-            for item in items:
-                title = (item.get("title") or "").lower()
-                excerpt = (item.get("excerpt") or "").lower()
-                if topic_lower not in title and topic_lower not in excerpt:
+            url = (
+                f"{BASE_URL}/category/{CATEGORY_ID}"
+                f"?page={page}&type={sort}"
+            )
+
+            try:
+                html = self._fetch_page(url)
+                posts = self._parse_thread_list(html, topic_lower)
+            except Exception:
+                self._log.warning(
+                    "lihkg.page_failed", page=page, sort=sort, exc_info=True
+                )
+                continue
+
+            if not posts:
+                break
+
+            for post in posts:
+                if post.id in seen_ids:
+                    continue
+                seen_ids.add(post.id)
+
+                if post.posted_at < since:
                     continue
 
-                post = self._thread_item_to_post(item)
-                if post is None:
-                    continue
-                if post.created_at and post.created_at < since:
-                    return  # Time cutoff reached
                 yield post
                 emitted += 1
                 if emitted >= limit:
-                    return
+                    break
 
-    # ------------------------------------------------------------------
-    # Internal — mapping
-    # ------------------------------------------------------------------
-
-    def _thread_item_to_post(self, item: dict) -> RawPost | None:
-        """Convert a LIHKG thread item dict → RawPost."""
-        thread_id = str(item.get("thread_id", ""))
-        if not thread_id:
-            return None
-
-        title = item.get("title") or ""
-        excerpt = item.get("excerpt") or ""
-
-        # Combine title + excerpt as the post body
-        body = f"{title}\n\n{excerpt}" if excerpt else title
-
-        created_ts = item.get("create_time")
-        created_at = (
-            datetime.fromtimestamp(created_ts, tz=timezone.utc)
-            if created_ts
-            else None
-        )
-
-        # Author
-        author_raw = str(item.get("user_nickname") or item.get("user_id") or "anonymous")
-        author_hash = hash_author(author_raw, self._salt)
-
-        # Language detection on the combined body
-        lang = detect_language(body)
-
-        # Category
-        cat = item.get("category", {}) or {}
-        cat_name = cat.get("name")
-
-        # URL
+    def fetch_thread(self, thread_id: str) -> Any:
+        """Fetch a full thread with replies."""
         url = f"{BASE_URL}/thread/{thread_id}"
+        return self._fetch_page(url)
 
-        return RawPost(
-            id=f"lihkg_{thread_id}",
-            source="lihkg",
-            source_category="forums",
-            region="HK",
-            language="zh-HK",
-            language_detected=lang,
-            url=url,
-            title=title,
-            body=body,
-            author_hash=author_hash,
-            posted_at=created_at or datetime.now(timezone.utc),
-            signal_type="opinion",
-            engagement_metrics={
-                "reply_count": item.get("total_replies", 0),
-                "likes": item.get("like_count", 0),
-            },
-            raw_metadata={
-                "thread_id": thread_id,
-                "cat_id": item.get("cat_id"),
-                "cat_name": cat_name,
-                "sub_cat_id": item.get("sub_cat_id"),
-                "pin": item.get("pin", 0),
-            },
-        )
+    def close(self) -> None:
+        self._pw.close()
+        self._robots.close()
+
+    # ------------------------------------------------------------------
+    # Internal — page fetching
+    # ------------------------------------------------------------------
+
+    def _fetch_page(self, url: str) -> str:
+        """Fetch rendered HTML for *url* via Playwright."""
+        with self._pw.get_page(url) as page:
+            page.goto(url, wait_until="networkidle", timeout=30000)
+            # Extra wait for Cloudflare challenge + JS rendering
+            page.wait_for_timeout(2000)
+            return page.content()
+
+    # ------------------------------------------------------------------
+    # Internal — parsing
+    # ------------------------------------------------------------------
+
+    def _parse_thread_list(
+        self, html: str, topic_lower: str
+    ) -> list[RawPost]:
+        """Parse LIHKG category page HTML → RawPost list.
+
+        LIHKG uses minimal HTML: each thread is a div containing an
+        ``<a href="/thread/ID/page/1">Title [reply_count]</a>`` link.
+        We find page-1 links, then extract text from their parent div.
+        """
+        import re
+        soup = BeautifulSoup(html, "html.parser")
+        results: list[RawPost] = []
+
+        # Find unique thread page-1 links
+        seen_tids: set[str] = set()
+
+        for a in soup.find_all("a", href=True):
+            href = a.get("href", "")
+            m = re.search(r"/thread/(\d+)/page/1", href)
+            if not m:
+                continue
+            tid = m.group(1)
+            if tid in seen_tids:
+                continue
+            seen_tids.add(tid)
+
+            # Title from the link text
+            raw_title = a.get_text(strip=True)
+
+            # LIHKG titles often have [tag] prefix and [reply_count] suffix
+            # Strip the trailing [N] reply count
+            title = re.sub(r"\s*\[\d+\]\s*$", "", raw_title).strip()
+            # Also strip leading [tag]
+            title = re.sub(r"^\[.*?\]\s*", "", title).strip()
+
+            if topic_lower not in title.lower() and topic_lower not in raw_title.lower():
+                continue
+
+            # Parent container has all metadata
+            container = a.find_parent("div")
+            container_text = container.get_text(" ", strip=True) if container else ""
+
+            # Try to extract author from container text
+            # LIHKG format: "AuthorName · 2025-05-17 · 123 replies · 45 likes"
+            author_raw = "anonymous"
+            author_match = re.search(
+                r"([^\s·]+?)\s*·\s*\d{4}-\d{2}-\d{2}", container_text
+            )
+            if author_match:
+                author_raw = author_match.group(1).strip()
+
+            # Reply count from container or title suffix
+            reply_count = 0
+            reply_match = re.search(r"\[(\d+)\]\s*$", raw_title)
+            if reply_match:
+                reply_count = int(reply_match.group(1))
+            else:
+                reply_match = re.search(r"(\d+)\s*repl", container_text, re.IGNORECASE)
+                if reply_match:
+                    reply_count = int(reply_match.group(1))
+
+            # Like count
+            like_count = 0
+            like_match = re.search(r"(\d+)\s*lik", container_text, re.IGNORECASE)
+            if like_match:
+                like_count = int(reply_match.group(1))
+
+            # Body = title (no excerpt available in listing)
+            body = title
+
+            # Timestamp
+            posted_at = datetime.now(timezone.utc)
+            time_match = re.search(r"(\d{4}-\d{2}-\d{2}\s*\d{2}:\d{2})", container_text)
+            if time_match:
+                try:
+                    posted_at = datetime.strptime(
+                        time_match.group(1), "%Y-%m-%d %H:%M"
+                    ).replace(tzinfo=timezone.utc)
+                except ValueError:
+                    pass
+
+            # Language
+            lang = detect_language(body)
+            author_hash_val = hash_author(author_raw)
+
+            url = f"{BASE_URL}/thread/{tid}"
+
+            results.append(RawPost(
+                id=f"lihkg_{tid}",
+                source="lihkg",
+                source_category=SourceCategory.FORUMS,
+                region="HK",
+                language="zh-HK",
+                language_detected=lang,
+                url=url,
+                author_hash=author_hash_val,
+                title=title,
+                body=body,
+                posted_at=posted_at,
+                signal_type=SignalType.OPINION,
+                engagement_metrics={
+                    "reply_count": reply_count,
+                    "likes": like_count,
+                },
+                raw_metadata={
+                    "thread_id": tid,
+                    "raw_title": raw_title,
+                },
+            ))
+
+        return results

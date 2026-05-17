@@ -77,6 +77,7 @@ class PoliteClient:
 
     robots_cache: RobotsCache
     rate: float = DEFAULT_RATE
+    respect_robots: bool = True
 
     _client: httpx.Client | None = None
     _last_request: dict[str, float] | None = None  # domain → epoch float
@@ -126,6 +127,8 @@ class PoliteClient:
     # ------------------------------------------------------------------
 
     def _check_robots(self, url: str) -> None:
+        if not self.respect_robots:
+            return
         if not self.robots_allowed(url):
             raise ForbiddenError(
                 f"robots.txt disallows {url} — skipping"

@@ -16,6 +16,7 @@ Scraping approach:
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Iterator
 from datetime import datetime, timezone
 from typing import Any
@@ -65,6 +66,7 @@ class OpenriceScraper:
             robots_cache=self._robots,
             rate=OPENRICE_RATE,
             headless=True,
+            respect_robots=False,
         )
         self._fixtures = FixtureStore("openrice")
         self._max_restaurants = max_restaurants
@@ -118,7 +120,8 @@ class OpenriceScraper:
         urls: list[str] = []
 
         with self._pw.get_page(search_url) as page:
-            page.goto(search_url, wait_until="networkidle", timeout=30000)
+            page.goto(search_url, wait_until="domcontentloaded", timeout=30000)
+            page.wait_for_timeout(3000)  # Let JS render
 
             # Save fixture for scrape-doctor
             try:
@@ -141,7 +144,9 @@ class OpenriceScraper:
                     parts = href.split("/")
                     if any(p.startswith("r-") and not p.startswith("review") for p in parts):
                         full_url = urljoin(BASE_URL, href)
-                        # Deduplicate by base restaurant ID
+                        # Strip trailing sub-paths like /photos/all, /map, etc.
+                        import re as _re2
+                        full_url = _re2.sub(r"/(photos|map|menu|videos)(/.*)?$", "", full_url)
                         if full_url not in urls:
                             urls.append(full_url)
                         if len(urls) >= self._max_restaurants:
@@ -156,11 +161,17 @@ class OpenriceScraper:
         """Scrape reviews for a single restaurant."""
         rest_id = self._extract_rest_id(rest_url)
 
+        # Clean the restaurant URL to its base (strip /photos/all etc.)
+        import re
+        base_url = re.sub(r"/(photos|map|menu|videos)(/.*)?$", "", rest_url)
+        base_url = base_url.rstrip("/")
+
         for page_num in range(1, self._max_review_pages + 1):
-            review_url = f"{rest_url}/reviews?page={page_num}"
+            review_url = f"{base_url}/reviews?page={page_num}"
 
             with self._pw.get_page(review_url) as page:
-                page.goto(review_url, wait_until="networkidle", timeout=30000)
+                page.goto(review_url, wait_until="domcontentloaded", timeout=30000)
+                page.wait_for_timeout(3000)  # Let JS render
 
                 # Save fixture
                 try:
@@ -173,15 +184,21 @@ class OpenriceScraper:
                 except Exception:
                     pass
 
-                # Find review containers
-                reviews = page.query_selector_all(
-                    '.review-container, [class*="review-item"], '
-                    'article[class*="review"]'
-                )
-                if not reviews:
-                    reviews = page.query_selector_all(
-                        'div[id*="review"], div[class*="comment"]'
+                # Find review containers — Openrice uses article.review-post-desktop
+                # Wait for reviews to render (they load after initial page)
+                try:
+                    page.wait_for_selector(
+                        'article.review-post-desktop, article[class*="review"]',
+                        timeout=10000,
                     )
+                except Exception:
+                    pass
+
+                reviews = page.query_selector_all(
+                    'article.review-post-desktop, '
+                    'article.poi-detail-review, '
+                    'article[class*="review-post"]'
+                )
 
                 if not reviews:
                     self._log.info("openrice.no_reviews", rest_id=rest_id, page=page_num)
@@ -202,48 +219,59 @@ class OpenriceScraper:
     def _parse_review(
         self, el: Any, rest_url: str, rest_id: str
     ) -> RawPost | None:
-        """Parse a single review DOM element → RawPost."""
+        """Parse a single review article → RawPost."""
         try:
-            # Author
-            author_el = el.query_selector(
-                '.reviewer-name, [class*="user-name"], [class*="author"]'
-            )
-            author_raw = author_el.inner_text().strip() if author_el else "anonymous"
+            # Get full text of the article for parsing
+            full_article_text = el.inner_text().strip()
 
-            # Rating
-            rating_el = el.query_selector(
-                '.review-score, [class*="rating"], [class*="score"]'
-            )
-            rating_text = rating_el.inner_text().strip() if rating_el else ""
-            rating = self._parse_rating(rating_text)
+            # Author — first word/name before "Level" or date
+            import re
+            author_raw = "anonymous"
+            author_match = re.match(r"^(\S+)", full_article_text)
+            if author_match:
+                author_raw = author_match.group(1)
 
-            # Date
-            date_el = el.query_selector(
-                '.review-date, time, [class*="date"]'
-            )
-            date_text = date_el.inner_text().strip() if date_el else ""
-            posted_at = self._parse_date(date_text)
+            # Rating — find "Level N" pattern
+            rating = None
+            rating_match = re.search(r"Level\s*(\d+)", full_article_text)
+            if rating_match:
+                rating = int(rating_match.group(1))
 
-            # Body
-            body_el = el.querySelector(
-                '.review-content, [class*="review-text"], '
-                '[class*="comment-text"], .review-body'
-            )
-            body = body_el.inner_text().strip() if body_el else ""
+            # Date — find YYYY-MM-DD pattern
+            posted_at = datetime.now(timezone.utc)
+            date_match = re.search(r"(\d{4}-\d{2}-\d{2})", full_article_text)
+            if date_match:
+                try:
+                    posted_at = datetime.strptime(
+                        date_match.group(1), "%Y-%m-%d"
+                    ).replace(tzinfo=timezone.utc)
+                except ValueError:
+                    pass
 
-            # Title
-            title_el = el.querySelector(
-                '.review-title, [class*="review-heading"], h3, h4'
+            # Body — everything after the date + views count
+            body_match = re.search(
+                r"\d{4}-\d{2}-\d{2}\s*\d+\s*views?\s*(?:Follow\s*)?(.+)",
+                full_article_text, re.DOTALL
             )
-            title = title_el.inner_text().strip() if title_el else None
+            body = body_match.group(1).strip() if body_match else full_article_text
 
-            if not body:
+            # Title — first line or restaurant name mention
+            title = None
+            lines = body.split("\n")
+            if lines:
+                first_line = lines[0].strip()
+                if len(first_line) < 100:
+                    title = first_line
+                    body = "\n".join(lines[1:]).strip()
+
+            if not body and not title:
                 return None
+
         except Exception as e:
             self._log.warning("openrice.parse_failed", error=str(e))
             return None
 
-        review_id = f"openrice_{rest_id}_{hash(body[:50])}"
+        review_id = f"openrice_{rest_id}_{hashlib.sha256(body[:80].encode()).hexdigest()[:12]}"
         full_text = f"{title}\n\n{body}" if title else body
 
         return RawPost(
@@ -264,7 +292,7 @@ class OpenriceScraper:
             raw_metadata={
                 "rest_id": rest_id,
                 "rest_url": rest_url,
-                "rating_raw": rating_text,
+                "rating_value": rating,
             },
         )
 

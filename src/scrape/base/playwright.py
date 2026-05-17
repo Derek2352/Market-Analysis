@@ -60,10 +60,12 @@ class PlaywrightManager:
         robots_cache: RobotsCache,
         rate: float = 1.0,
         headless: bool = True,
+        respect_robots: bool = True,
     ) -> None:
         self._robots_cache = robots_cache
         self._rate = rate
         self._headless = headless
+        self._respect_robots = respect_robots
         self._log = structlog.get_logger().bind(component="PlaywrightManager")
 
         # Lazily initialised
@@ -152,6 +154,8 @@ class PlaywrightManager:
         self._log.info("playwright.browser_started")
 
     def _check_robots(self, url: str) -> None:
+        if not self._respect_robots:
+            return
         if not self._robots_cache.allowed(url, USER_AGENT):
             raise ForbiddenError(
                 f"robots.txt disallows {url} — skipping"

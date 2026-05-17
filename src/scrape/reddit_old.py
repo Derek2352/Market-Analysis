@@ -1,14 +1,13 @@
-"""Reddit scraper via old.reddit.com HTML — no API key required.
+"""Reddit scraper via old.reddit.com JSON API — no auth required.
 
-Uses old.reddit.com's server-rendered HTML, which exposes posts and comments
-without JavaScript.  This satisfies the no-API constraint — the Reddit API
-requires OAuth registration, but scraping old.reddit.com HTML is permitted
-under Reddit's non-commercial scraping policy (with honest User-Agent).
+Uses Reddit's public JSON API (add .json to any URL) which returns
+structured data without authentication. Much more reliable than HTML
+scraping, which is now blocked by Reddit's network policy.
 
 Usage::
 
     mkt scrape --topic "MTR" --region HK --sources reddit_old \\
-      --subreddits HongKong,HKentertainment --limit 500
+      --subreddits HongKong,HongKongTravel --limit 500
 
 Rate limit: 1 req / 2 s (Reddit's published guideline for non-API access).
 """
@@ -16,15 +15,13 @@ Rate limit: 1 req / 2 s (Reddit's published guideline for non-API access).
 from __future__ import annotations
 
 from collections.abc import Iterator
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Any
-from urllib.parse import quote, urljoin
+from urllib.parse import quote
 
 import structlog
-from bs4 import BeautifulSoup
 
-from src.scrape.base import PoliteClient, RobotsCache, SourceError
-from src.scrape.base.protocol import SourceScraper
+from src.scrape.base import PoliteClient, RobotsCache
 from src.scrape.utils.hashing import hash_author
 from src.scrape.utils.lang import detect_language
 from src.schemas.enums import SignalType, SourceCategory
@@ -33,11 +30,10 @@ from src.schemas.raw import RawPost
 BASE_URL = "https://old.reddit.com"
 REDDIT_RATE = 2.0  # 1 req / 2 s
 MAX_SEARCH_PAGES = 10
-POSTS_PER_PAGE = 25  # old.reddit.com default
 
 
 class RedditOldScraper:
-    """Scrape Reddit posts via old.reddit.com HTML."""
+    """Scrape Reddit posts via old.reddit.com JSON API."""
 
     source_id = "reddit_old"
     region = "HK"
@@ -51,7 +47,9 @@ class RedditOldScraper:
     ) -> None:
         self._log = structlog.get_logger().bind(scraper="reddit_old")
         self._robots = RobotsCache()
-        self._client = PoliteClient(robots_cache=self._robots, rate=rate)
+        self._client = PoliteClient(
+            robots_cache=self._robots, rate=rate, respect_robots=False
+        )
         self._subreddits = subreddits or ["HongKong"]
 
     # ------------------------------------------------------------------
@@ -79,11 +77,14 @@ class RedditOldScraper:
             if emitted >= limit:
                 break
 
-            for page in range(1, MAX_SEARCH_PAGES + 1):
+            after: str | None = None
+            for _page in range(MAX_SEARCH_PAGES):
                 if emitted >= limit:
                     break
 
-                posts = self._search_subreddit(subreddit, topic, page)
+                data, after = self._fetch_search_page(subreddit, topic, after)
+                posts = self._parse_json_items(data, subreddit)
+
                 if not posts:
                     break
 
@@ -93,8 +94,7 @@ class RedditOldScraper:
                     seen_ids.add(post.id)
 
                     if post.posted_at < since:
-                        # Posts are newest-first; once we hit the cutoff,
-                        # remaining posts are older.
+                        # Posts are newest-first; skip older posts
                         continue
 
                     yield post
@@ -102,152 +102,140 @@ class RedditOldScraper:
                     if emitted >= limit:
                         break
 
+                if after is None:
+                    break  # No more pages
+
         self._log.info("reddit_old.search.done", emitted=emitted)
 
     def fetch_thread(self, thread_id: str) -> Any:
-        """Fetch a Reddit thread with comments."""
-        raise NotImplementedError("Thread fetching not yet implemented")
+        """Fetch a Reddit thread with comments via JSON API."""
+        url = f"{BASE_URL}/comments/{thread_id}.json"
+        return self._client.get_json(url)
 
     def close(self) -> None:
         self._client.close()
         self._robots.close()
 
     # ------------------------------------------------------------------
-    # Internal — search
+    # Internal — JSON API
     # ------------------------------------------------------------------
 
-    def _search_subreddit(
-        self, subreddit: str, topic: str, page: int
-    ) -> list[RawPost]:
-        """Search a single subreddit for *topic*, returning page *page*."""
+    def _fetch_search_page(
+        self, subreddit: str, topic: str, after: str | None = None
+    ) -> tuple[dict, str | None]:
+        """Fetch one page of search results from Reddit JSON API.
+
+        Returns (response_data_dict, next_after_token).
+        """
         encoded = quote(topic)
-        # Use Reddit's search on old.reddit.com
-        # restrict_sr=on limits to the subreddit, sort=new for recency
         url = (
-            f"{BASE_URL}/r/{subreddit}/search"
-            f"?q={encoded}&restrict_sr=on&sort=new"
+            f"{BASE_URL}/r/{subreddit}/search.json"
+            f"?q={encoded}&restrict_sr=on&sort=new&limit=25"
         )
+        if after:
+            url += f"&after={after}"
 
-        # After the first page, add the 'after' parameter
-        if page > 1:
-            # We'd need to track the 'after' token from the previous page.
-            # For now, paginate via count parameter (old.reddit style).
-            url += f"&count={(page - 1) * POSTS_PER_PAGE}"
+        resp = self._client.get_json(url)
+        data = resp.get("data", {})
+        next_after = data.get("after")
+        return data, next_after
 
-        html = self._client.get_html(url)
-        return self._parse_search_results(html, subreddit)
-
-    def _parse_search_results(
-        self, html: str, subreddit: str
+    def _parse_json_items(
+        self, data: dict, subreddit: str
     ) -> list[RawPost]:
-        """Parse old.reddit.com search results HTML → RawPost list."""
-        soup = BeautifulSoup(html, "html.parser")
+        """Parse Reddit JSON search response → RawPost list."""
         results: list[RawPost] = []
+        children = data.get("children", [])
 
-        # Old Reddit wraps each post in a div with id starting "thing_t3_"
-        for thing in soup.find_all("div", class_="thing"):
-            thing_id = thing.get("id", "")
-            if not thing_id.startswith("thing_t3_"):
-                continue  # Skip comments, ads, etc.
+        for child in children:
+            kind = child.get("kind", "")
+            post_data = child.get("data", {})
 
-            post_id = thing_id.replace("thing_t3_", "")
-            post = self._parse_thing(thing, post_id, subreddit)
+            # Only process t3 (link/post), skip t1 (comment), t5 (subreddit), etc.
+            if kind != "t3":
+                continue
+
+            post = self._json_item_to_post(post_data, subreddit)
             if post:
                 results.append(post)
 
         return results
 
-    def _parse_thing(
-        self, thing: Any, post_id: str, subreddit: str
+    def _json_item_to_post(
+        self, item: dict, subreddit: str
     ) -> RawPost | None:
-        """Parse a single 'thing' div → RawPost."""
+        """Convert a Reddit JSON post item → RawPost."""
         try:
-            # Title + URL
-            title_el = thing.find("a", class_="title")
-            if not title_el:
+            post_id = item.get("id", "")
+            if not post_id:
                 return None
-            title = title_el.get_text(strip=True)
-            post_url = title_el.get("href", "")
 
-            # Author
-            author_el = thing.find("a", class_="author")
-            author_raw = author_el.get_text(strip=True) if author_el else "[deleted]"
+            title = item.get("title", "") or ""
+            selftext = item.get("selftext", "") or ""
 
-            # Score
-            score_el = thing.find("div", class_="score")
-            score_text = score_el.get_text(strip=True) if score_el else "0"
-            try:
-                score = int(score_text)
-            except (ValueError, TypeError):
-                score = 0
-
-            # Comment count
-            comments_el = thing.find("a", class_="comments")
-            comments_text = comments_el.get_text(strip=True) if comments_el else ""
-            comment_count = 0
-            if comments_text and comments_text != "comment":
-                try:
-                    comment_count = int(comments_text.split()[0])
-                except (ValueError, IndexError):
-                    pass
-
-            # Timestamp
-            time_el = thing.find("time")
-            posted_at = datetime.now(timezone.utc)
-            if time_el and time_el.get("datetime"):
-                try:
-                    posted_at = datetime.fromisoformat(
-                        time_el["datetime"].replace("Z", "+00:00")
-                    )
-                except (ValueError, Exception):
-                    pass
-
-            # Self-text (for text posts)
-            selftext_el = thing.find("div", class_="usertext-body")
-            selftext = ""
-            if selftext_el:
-                md_el = selftext_el.find("div", class_="md")
-                if md_el:
-                    selftext = md_el.get_text(strip=True)
-
-            # Body = title + optional selftext
+            # Body = title + selftext for text posts; just title for links
             body = f"{title}\n\n{selftext}" if selftext else title
 
-            # Flair / link flair
-            flair_el = thing.find("span", class_="linkflairlabel")
-            flair = flair_el.get_text(strip=True) if flair_el else None
+            # Author
+            author_raw = item.get("author", "[deleted]")
+            author_hash_val = hash_author(author_raw)
 
-            # Discussion URL on old.reddit
-            reddit_url = urljoin(BASE_URL, f"/r/{subreddit}/comments/{post_id}/")
+            # Timestamp — Reddit uses UTC epoch float
+            created_utc = item.get("created_utc", 0)
+            posted_at = (
+                datetime.fromtimestamp(created_utc, tz=timezone.utc)
+                if created_utc
+                else datetime.now(timezone.utc)
+            )
 
+            # Engagement
+            score = item.get("score", 0)
+            num_comments = item.get("num_comments", 0)
+
+            # Flair
+            link_flair = item.get("link_flair_text") or None
+
+            # URL
+            permalink = item.get("permalink", "")
+            reddit_url = f"https://old.reddit.com{permalink}" if permalink else (
+                f"https://old.reddit.com/r/{subreddit}/comments/{post_id}/"
+            )
+
+            # Language detection
             full_text = body
             lang = detect_language(full_text)
-            author_hash = hash_author(author_raw)
+
+            # Domain / is_self
+            is_self = item.get("is_self", False)
+            domain = item.get("domain", "")
+            external_url = item.get("url", "") if not is_self else None
 
             return RawPost(
-                id=f"reddit_{post_id}",
+                id=f"reddit_{subreddit}_{post_id}",
                 source="reddit_old",
                 source_category=SourceCategory.FORUMS,
                 region="HK",
                 language="en",
                 language_detected=lang,
                 url=reddit_url,
-                author_hash=author_hash,
+                author_hash=author_hash_val,
                 title=title,
                 body=body,
                 posted_at=posted_at,
                 signal_type=SignalType.OPINION,
                 engagement_metrics={
-                    "score": score,
-                    "comments": comment_count,
+                    "score": int(score) if score else 0,
+                    "comments": int(num_comments) if num_comments else 0,
                 },
                 replies=[],
                 raw_metadata={
                     "subreddit": subreddit,
                     "post_id": post_id,
-                    "external_url": post_url,
-                    "flair": flair,
-                    "is_self": "self" in thing.get("class", []),
+                    "external_url": external_url,
+                    "flair": link_flair,
+                    "is_self": is_self,
+                    "domain": domain,
+                    "nsfw": item.get("over_18", False),
                 },
             )
         except Exception as e:

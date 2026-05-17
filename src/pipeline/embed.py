@@ -230,12 +230,16 @@ class EmbeddingStore:
 
         # HNSW index for fast similarity search (DuckDB VSS extension)
         try:
+            # Enable experimental persistence for file-based databases
+            self._con.execute(
+                "SET hnsw_enable_experimental_persistence = true"
+            )
             self._con.execute(
                 "CREATE INDEX IF NOT EXISTS idx_embeddings_vector "
                 "ON embeddings USING hnsw (vector)"
             )
-        except Exception:
-            _log.warning("embed.vss_index_create_failed")
+        except Exception as e:
+            _log.warning("embed.vss_index_create_failed", error=str(e))
 
         return self._con
 
