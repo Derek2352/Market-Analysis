@@ -237,7 +237,8 @@ def _build_coverage(cluster: Cluster, region: str) -> dict[str, Any]:
     """Compute data_source_coverage from the cluster's actual source mix.
 
     Pulls per-source category from the regions registry — never asks the LLM
-    to invent this.
+    to invent this. Phase 6 adds ``category_count`` and ``coverage_tier`` so
+    the UI can render a single badge per persona without counting the array.
     """
     from src.regions.registry import get_region
     from src.schemas.enums import SourceCategory
@@ -258,13 +259,35 @@ def _build_coverage(cluster: Cluster, region: str) -> dict[str, Any]:
     all_categories = {c.value for c in SourceCategory}
     missing = sorted(all_categories - present)
 
+    category_count = len(present)
+    coverage_tier = _coverage_tier(category_count)
+
     return {
         "categories_present": sorted(present),
         "categories_missing": missing,
         "sources_used": sources_used,
         "doc_counts": dict(cluster.source_distribution),
+        "category_count": category_count,
+        "coverage_tier": coverage_tier,
         "bias_warning": _bias_warning(present, set(missing), cluster),
     }
+
+
+def _coverage_tier(category_count: int) -> str:
+    """Four-tier mapping for the UI badge.
+
+    1 category   → "single-perspective"  (warning style)
+    2 categories → "limited"              (muted style)
+    3-4          → "balanced"             (neutral)
+    5+           → "high"                 (success)
+    """
+    if category_count <= 1:
+        return "single-perspective"
+    if category_count == 2:
+        return "limited"
+    if category_count <= 4:
+        return "balanced"
+    return "high"
 
 
 def _bias_warning(

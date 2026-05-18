@@ -76,6 +76,17 @@ def scrape(
         str,
         typer.Option("--subreddits", help="Comma-separated subreddits (for reddit_old source)."),
     ] = "",
+    accept_tos_risk: Annotated[
+        bool,
+        typer.Option(
+            "--accept-tos-risk",
+            help=(
+                "Suppress the per-source ToS-prohibition warning. Sources whose "
+                "ToS forbids scraping still run; this flag just hides the "
+                "interactive warning text (useful for scripts and CI)."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Scrape one or more sources for `topic` in `region`."""
     region_cfg = get_region(region)
@@ -93,6 +104,28 @@ def scrape(
             err=True,
         )
         raise typer.Exit(code=2)
+
+    # Enforce opt-in: a source with default_enabled=False must be passed
+    # explicitly via --sources. Defaults never include them.
+    explicit = bool(sources)
+    prohibited: list[tuple[str, str]] = []  # (source_id, last_checked iso)
+    for sid in source_ids:
+        sc = region_cfg.get_source(sid)
+        if sc is None or sc.default_enabled:
+            continue
+        if not explicit:
+            # Should never happen — defaults already filter on default_enabled
+            # — but guard anyway in case a caller passes default_source_ids().
+            continue
+        prohibited.append((sid, str(sc.last_checked) if sc.last_checked else "unknown"))
+
+    if prohibited and not accept_tos_risk:
+        for sid, when in prohibited:
+            typer.echo(
+                f"⚠ {sid} scraping is prohibited by its ToS. You enabled it "
+                f"explicitly. ToS last_checked: {when}. Proceed at your own risk.",
+                err=True,
+            )
 
     since_dt = parse_since(since)
     topic_slug = _slugify(topic)

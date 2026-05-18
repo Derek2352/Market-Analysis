@@ -80,6 +80,7 @@ class DocResponse(BaseModel):
     doc_id: str
     post_id: str
     source: str
+    source_category: str = ""   # forums | reviews | qa | blogs | … — for UI icons
     url: str
     title: str | None = None
     body: str

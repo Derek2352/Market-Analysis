@@ -29,7 +29,7 @@ from collections import defaultdict
 from datetime import date
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.schemas.enums import SignalType, SourceCategory, ToSStance
 
@@ -51,6 +51,9 @@ class AccessMethod(str, Enum):
 # constraint). Most stances below are best-effort summaries of public ToS;
 # they need a human review pass before they should be considered authoritative.
 _AUDIT_DATE = date(2026, 5, 17)
+# Phase 6 — five new HK scrapers landed on 2026-05-18. last_verified_working
+# is set on each parser-test pass and updated by `mkt scrape-doctor` thereafter.
+_PHASE6_DATE = date(2026, 5, 18)
 
 
 class SourceConfig(BaseModel):
@@ -70,15 +73,33 @@ class SourceConfig(BaseModel):
     excluded_by_constraint: bool = False
     exclusion_reason: str = ""       # e.g. "requires Reddit OAuth", "requires GCP billing"
 
+    # Opt-in gate for the default source list. ToS-prohibited sources MUST
+    # set this to False so they never run without an explicit --sources flag.
+    # The validator below hard-fails at import time if you forget.
+    default_enabled: bool = True
+
     # Legal / ethical posture
     tos_scraping_stance: ToSStance = ToSStance.UNKNOWN
     robots_txt_allows: bool | None = None  # None = not yet verified
     last_checked: date | None = None
 
-    # Operational health (set by scrape-doctor)
+    # Operational health (set by scrape-doctor or by the parser-test pass).
     last_verified_working: date | None = None
 
     notes: str = ""
+
+    @model_validator(mode="after")
+    def _prohibited_must_be_opt_in(self) -> "SourceConfig":
+        if (
+            self.tos_scraping_stance == ToSStance.PROHIBITED
+            and self.default_enabled
+        ):
+            raise ValueError(
+                f"Source {self.source_id!r}: tos_scraping_stance=prohibited "
+                f"but default_enabled=True. Set default_enabled=False so "
+                f"this source only runs when explicitly listed on --sources."
+            )
+        return self
 
 
 class RegionConfig(BaseModel):
@@ -89,16 +110,23 @@ class RegionConfig(BaseModel):
     primary_languages: list[str] # BCP-47 codes
     sources: list[SourceConfig]  # flat; group via `by_category()` for display
 
-    def by_category(self, *, include_excluded: bool = False) -> dict[SourceCategory, list[SourceConfig]]:
+    def by_category(
+        self,
+        *,
+        include_excluded: bool = False,
+        include_opt_in: bool = False,
+    ) -> dict[SourceCategory, list[SourceConfig]]:
         """Sources grouped by category, each group ordered by priority.
 
-        By default, excluded-by-constraint sources are omitted. Pass
-        `include_excluded=True` to see them too (e.g. for documentation /
-        registry inspection).
+        By default, omits sources blocked by the no-API constraint and
+        sources with ``default_enabled=False``. Pass the corresponding flag
+        to include either set (e.g. for documentation / registry inspection).
         """
         grouped: dict[SourceCategory, list[SourceConfig]] = defaultdict(list)
         for s in self.sources:
             if s.excluded_by_constraint and not include_excluded:
+                continue
+            if not s.default_enabled and not include_opt_in:
                 continue
             grouped[s.category].append(s)
         for cat in grouped:
@@ -106,7 +134,11 @@ class RegionConfig(BaseModel):
         return dict(grouped)
 
     def default_source_ids(self) -> list[str]:
-        """Non-excluded source ids, ordered by category then priority."""
+        """Source ids that run when ``--sources`` is omitted.
+
+        Excludes constraint-blocked sources AND opt-in-only sources
+        (``default_enabled=False`` — every prohibited source by validator).
+        """
         out: list[str] = []
         for cat in SourceCategory:
             for s in self.by_category().get(cat, []):
@@ -116,6 +148,19 @@ class RegionConfig(BaseModel):
     def excluded_sources(self) -> list[SourceConfig]:
         """Sources kept for documentation but disabled by the no-API constraint."""
         return [s for s in self.sources if s.excluded_by_constraint]
+
+    def opt_in_sources(self) -> list[SourceConfig]:
+        """Sources requiring explicit --sources to run (ToS-prohibited)."""
+        return [
+            s for s in self.sources
+            if not s.default_enabled and not s.excluded_by_constraint
+        ]
+
+    def get_source(self, source_id: str) -> SourceConfig | None:
+        for s in self.sources:
+            if s.source_id == source_id:
+                return s
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -157,14 +202,41 @@ REGIONS: dict[str, RegionConfig] = {
                 category=SourceCategory.FORUMS,
                 priority=2,
                 access_method=AccessMethod.HTML,
-                tos_risk=TosRisk.MEDIUM,
+                tos_risk=TosRisk.LOW,
                 auth_required=False,
                 signal_type=SignalType.OPINION,
                 persona_value=4,
                 journey_value=3,
+                default_enabled=True,
                 tos_scraping_stance=ToSStance.SILENT,
+                robots_txt_allows=None,
+                last_checked=_PHASE6_DATE,
+                last_verified_working=_PHASE6_DATE,
+                notes=(
+                    "Discuss.com.hk — long-running general HK forum. "
+                    "Top-level posts only (reply trees deferred). httpx + bs4. "
+                    "Phase 6 source."
+                ),
+            ),
+            SourceConfig(
+                source_id="reddit_old",
+                category=SourceCategory.FORUMS,
+                priority=3,
+                access_method=AccessMethod.HTML,
+                tos_risk=TosRisk.LOW,
+                auth_required=False,
+                signal_type=SignalType.RECOMMENDATION,
+                persona_value=4,
+                journey_value=4,
+                default_enabled=True,
+                tos_scraping_stance=ToSStance.ALLOWED_WITH_CONDITIONS,
                 last_checked=_AUDIT_DATE,
-                notes="Discuss.com.hk — long-running general HK forum.",
+                notes=(
+                    "old.reddit.com HTML scrape via the reddit_old scraper "
+                    "(pass --subreddits HongKong,HKtechnology). Reclassified "
+                    "from qa to forums in Phase 6 — Reddit's thread structure "
+                    "is forum-shaped, not Q&A pairs."
+                ),
             ),
             SourceConfig(
                 source_id="baby_kingdom",
@@ -191,6 +263,7 @@ REGIONS: dict[str, RegionConfig] = {
                 signal_type=SignalType.EXPERIENCE,
                 persona_value=3,
                 journey_value=5,
+                default_enabled=False,
                 tos_scraping_stance=ToSStance.PROHIBITED,
                 last_checked=_AUDIT_DATE,
                 notes=(
@@ -209,6 +282,7 @@ REGIONS: dict[str, RegionConfig] = {
                 signal_type=SignalType.EXPERIENCE,
                 persona_value=3,
                 journey_value=4,
+                default_enabled=False,
                 tos_scraping_stance=ToSStance.PROHIBITED,
                 last_checked=_AUDIT_DATE,
                 notes="Thin HK coverage. ToS forbids scraping.",
@@ -240,6 +314,7 @@ REGIONS: dict[str, RegionConfig] = {
                 signal_type=SignalType.EXPERIENCE,
                 persona_value=3,
                 journey_value=4,
+                default_enabled=False,
                 tos_scraping_stance=ToSStance.PROHIBITED,
                 last_checked=_AUDIT_DATE,
                 last_verified_working=_AUDIT_DATE,
@@ -257,15 +332,45 @@ REGIONS: dict[str, RegionConfig] = {
                 source_id="hk01",
                 category=SourceCategory.NEWS_COMMENTS,
                 priority=1,
-                access_method=AccessMethod.HTML,
-                tos_risk=TosRisk.LOW,
+                access_method=AccessMethod.HTML_JS,
+                tos_risk=TosRisk.HIGH,
                 auth_required=False,
                 signal_type=SignalType.OPINION,
                 persona_value=3,
                 journey_value=2,
-                tos_scraping_stance=ToSStance.SILENT,
-                last_checked=_AUDIT_DATE,
-                notes="HK01 article comments; low volume per article. Honor robots.txt.",
+                default_enabled=False,
+                tos_scraping_stance=ToSStance.PROHIBITED,
+                robots_txt_allows=None,
+                last_checked=_PHASE6_DATE,
+                last_verified_working=_PHASE6_DATE,
+                notes=(
+                    "HK01 article comments via Playwright (comments are "
+                    "JS-rendered). ToS prohibits automated access; opt-in only "
+                    "via --sources hk01. Phase 6 source."
+                ),
+            ),
+            SourceConfig(
+                source_id="youtube_html",
+                category=SourceCategory.VIDEO_COMMENTS,
+                priority=1,
+                access_method=AccessMethod.HTML_JS,
+                tos_risk=TosRisk.HIGH,
+                auth_required=False,
+                signal_type=SignalType.OPINION,
+                persona_value=3,
+                journey_value=3,
+                default_enabled=False,
+                tos_scraping_stance=ToSStance.PROHIBITED,
+                robots_txt_allows=False,
+                last_checked=_PHASE6_DATE,
+                last_verified_working=_PHASE6_DATE,
+                notes=(
+                    "YouTube comments via Playwright. Top 10 videos × 50 "
+                    "comments per topic. Language filter: keep zh-Hant / yue / en; "
+                    "drop zh-Hans to exclude mainland CN signal. Robots.txt "
+                    "disallows /search and /watch — flagged honestly. ToS "
+                    "prohibits scraping; opt-in only. Phase 6 source."
+                ),
             ),
             SourceConfig(
                 source_id="yahoo_news_hk",
@@ -283,37 +388,25 @@ REGIONS: dict[str, RegionConfig] = {
             ),
             # ---- qa ------------------------------------------------------
             SourceConfig(
-                source_id="reddit_old",
-                category=SourceCategory.QA,
-                priority=1,
-                access_method=AccessMethod.HTML,
-                tos_risk=TosRisk.LOW,
-                auth_required=False,
-                signal_type=SignalType.RECOMMENDATION,
-                persona_value=4,
-                journey_value=4,
-                tos_scraping_stance=ToSStance.ALLOWED_WITH_CONDITIONS,
-                last_checked=_AUDIT_DATE,
-                notes=(
-                    "old.reddit.com HTML scrape via the reddit_old scraper "
-                    "(pass --subreddits HongKong,HKtechnology). No API key. Reddit ToS "
-                    "permits non-commercial scraping with attribution; user-agent "
-                    "must identify honestly."
-                ),
-            ),
-            SourceConfig(
                 source_id="quora_hk",
                 category=SourceCategory.QA,
-                priority=2,
+                priority=1,
                 access_method=AccessMethod.HTML_JS,
                 tos_risk=TosRisk.HIGH,
                 auth_required=False,
                 signal_type=SignalType.COMPARISON,
                 persona_value=3,
                 journey_value=4,
+                default_enabled=False,
                 tos_scraping_stance=ToSStance.PROHIBITED,
-                last_checked=_AUDIT_DATE,
-                notes="HK-tagged Q&A. Soft login wall after N pages. ToS prohibits.",
+                robots_txt_allows=None,
+                last_checked=_PHASE6_DATE,
+                last_verified_working=_PHASE6_DATE,
+                notes=(
+                    "Quora questions tagged Hong Kong. Discovery via DuckDuckGo "
+                    "SERP for site:quora.com 'Hong Kong' <topic>. 2s min delay. "
+                    "ToS prohibits scraping; opt-in only. Phase 6 source."
+                ),
             ),
             # ---- blogs ---------------------------------------------------
             SourceConfig(
@@ -321,14 +414,22 @@ REGIONS: dict[str, RegionConfig] = {
                 category=SourceCategory.BLOGS,
                 priority=1,
                 access_method=AccessMethod.HTML,
-                tos_risk=TosRisk.LOW,
+                tos_risk=TosRisk.HIGH,
                 auth_required=False,
-                signal_type=SignalType.COMPARISON,
+                signal_type=SignalType.RECOMMENDATION,
                 persona_value=5,
                 journey_value=4,
-                tos_scraping_stance=ToSStance.ALLOWED_WITH_CONDITIONS,
-                last_checked=_AUDIT_DATE,
-                notes="Medium tag/topic pages for HK writers. Honor metered paywall.",
+                default_enabled=False,
+                tos_scraping_stance=ToSStance.PROHIBITED,
+                robots_txt_allows=None,
+                last_checked=_PHASE6_DATE,
+                last_verified_working=_PHASE6_DATE,
+                notes=(
+                    "Medium HK writers via DuckDuckGo SERP discovery "
+                    "(site:medium.com 'Hong Kong' <topic>). Pulls title, body, "
+                    "claps_count, response_count, author_hash. ToS prohibits "
+                    "scraping; opt-in only. Phase 6 source."
+                ),
             ),
             SourceConfig(
                 source_id="hk_lifestyle_blogs",
@@ -357,6 +458,7 @@ REGIONS: dict[str, RegionConfig] = {
                 signal_type=SignalType.OPINION,
                 persona_value=1,  # SERP itself isn't evidence, just discovery
                 journey_value=1,
+                default_enabled=False,
                 tos_scraping_stance=ToSStance.PROHIBITED,
                 last_checked=_AUDIT_DATE,
                 notes=(
@@ -377,6 +479,7 @@ REGIONS: dict[str, RegionConfig] = {
                 signal_type=SignalType.OPINION,
                 persona_value=3,
                 journey_value=2,
+                default_enabled=False,
                 tos_scraping_stance=ToSStance.PROHIBITED,
                 last_checked=_AUDIT_DATE,
                 notes="Public profile/post pages. Schema unstable. ToS prohibits.",
@@ -391,6 +494,7 @@ REGIONS: dict[str, RegionConfig] = {
                 signal_type=SignalType.OPINION,
                 persona_value=3,
                 journey_value=2,
+                default_enabled=False,
                 tos_scraping_stance=ToSStance.PROHIBITED,
                 last_checked=_AUDIT_DATE,
                 notes="Public profiles only. Aggressive anti-bot. ToS prohibits.",
@@ -405,6 +509,7 @@ REGIONS: dict[str, RegionConfig] = {
                 signal_type=SignalType.RECOMMENDATION,
                 persona_value=4,
                 journey_value=4,
+                default_enabled=False,
                 tos_scraping_stance=ToSStance.PROHIBITED,
                 last_checked=_AUDIT_DATE,
                 notes="HK-tagged notes. Heavy anti-bot. Best-effort; ToS prohibits.",
@@ -454,6 +559,7 @@ REGIONS: dict[str, RegionConfig] = {
                 signal_type=SignalType.EXPERIENCE, persona_value=4, journey_value=3,
                 excluded_by_constraint=True,
                 exclusion_reason="Requires Facebook account login.",
+                default_enabled=False,
                 tos_scraping_stance=ToSStance.PROHIBITED,
                 last_checked=_AUDIT_DATE,
             ),
@@ -478,7 +584,7 @@ REGIONS: dict[str, RegionConfig] = {
             SourceConfig(source_id="trustpilot", category=SourceCategory.REVIEWS, priority=1,
                          access_method=AccessMethod.HTML, tos_risk=TosRisk.MEDIUM, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=3, journey_value=5,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
                          notes="ToS forbids scraping; flagged."),
             SourceConfig(source_id="app_store_us", category=SourceCategory.REVIEWS, priority=2,
                          access_method=AccessMethod.API, tos_risk=TosRisk.LOW, auth_required=False,
@@ -494,7 +600,7 @@ REGIONS: dict[str, RegionConfig] = {
             SourceConfig(source_id="quora", category=SourceCategory.QA, priority=1,
                          access_method=AccessMethod.HTML_JS, tos_risk=TosRisk.HIGH, auth_required=False,
                          signal_type=SignalType.COMPARISON, persona_value=3, journey_value=4,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
                          notes="ToS prohibits."),
         ],
     ),
@@ -511,7 +617,7 @@ REGIONS: dict[str, RegionConfig] = {
             SourceConfig(source_id="trustpilot", category=SourceCategory.REVIEWS, priority=1,
                          access_method=AccessMethod.HTML, tos_risk=TosRisk.MEDIUM, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=3, journey_value=5,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
                          notes="UK-headquartered; strong UK coverage. ToS prohibits."),
             SourceConfig(source_id="youtube", category=SourceCategory.VIDEO_COMMENTS, priority=99,
                          access_method=AccessMethod.API, tos_risk=TosRisk.LOW, auth_required=True,
@@ -521,7 +627,7 @@ REGIONS: dict[str, RegionConfig] = {
             SourceConfig(source_id="quora", category=SourceCategory.QA, priority=1,
                          access_method=AccessMethod.HTML_JS, tos_risk=TosRisk.HIGH, auth_required=False,
                          signal_type=SignalType.COMPARISON, persona_value=3, journey_value=4,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
         ],
     ),
     "AU": RegionConfig(
@@ -537,7 +643,7 @@ REGIONS: dict[str, RegionConfig] = {
             SourceConfig(source_id="trustpilot", category=SourceCategory.REVIEWS, priority=1,
                          access_method=AccessMethod.HTML, tos_risk=TosRisk.MEDIUM, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=3, journey_value=5,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
             SourceConfig(source_id="youtube", category=SourceCategory.VIDEO_COMMENTS, priority=99,
                          access_method=AccessMethod.API, tos_risk=TosRisk.LOW, auth_required=True,
                          signal_type=SignalType.OPINION, persona_value=3, journey_value=3,
@@ -546,7 +652,7 @@ REGIONS: dict[str, RegionConfig] = {
             SourceConfig(source_id="quora", category=SourceCategory.QA, priority=1,
                          access_method=AccessMethod.HTML_JS, tos_risk=TosRisk.HIGH, auth_required=False,
                          signal_type=SignalType.COMPARISON, persona_value=3, journey_value=4,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
         ],
     ),
     # -------------------------------------------------------------- CN ----
@@ -558,27 +664,27 @@ REGIONS: dict[str, RegionConfig] = {
             SourceConfig(source_id="xiaohongshu", category=SourceCategory.SOCIAL, priority=1,
                          access_method=AccessMethod.HTML_JS, tos_risk=TosRisk.HIGH, auth_required=False,
                          signal_type=SignalType.RECOMMENDATION, persona_value=4, journey_value=4,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
                          notes="小红书. Heavy anti-bot; public note pages only; fragile."),
             SourceConfig(source_id="weibo", category=SourceCategory.SOCIAL, priority=2,
                          access_method=AccessMethod.HTML, tos_risk=TosRisk.HIGH, auth_required=False,
                          signal_type=SignalType.OPINION, persona_value=3, journey_value=2,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
                          notes="Public search; often truncated without login."),
             SourceConfig(source_id="zhihu", category=SourceCategory.QA, priority=1,
                          access_method=AccessMethod.HTML, tos_risk=TosRisk.HIGH, auth_required=False,
                          signal_type=SignalType.COMPARISON, persona_value=4, journey_value=4,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
                          notes="Public question pages; login wall after N pages."),
             SourceConfig(source_id="dianping", category=SourceCategory.REVIEWS, priority=1,
                          access_method=AccessMethod.HTML_JS, tos_risk=TosRisk.HIGH, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=3, journey_value=5,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
                          notes="Restaurant/local-business reviews; aggressive anti-bot."),
             SourceConfig(source_id="douyin_comments", category=SourceCategory.VIDEO_COMMENTS, priority=1,
                          access_method=AccessMethod.HTML_JS, tos_risk=TosRisk.HIGH, auth_required=False,
                          signal_type=SignalType.OPINION, persona_value=2, journey_value=2,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
                          notes="Comments on public videos; schema changes often."),
         ],
     ),
@@ -629,7 +735,7 @@ REGIONS: dict[str, RegionConfig] = {
                          signal_type=SignalType.OPINION, persona_value=3, journey_value=2,
                          excluded_by_constraint=True,
                          exclusion_reason="X API requires paid tier; unauthed browsing blocked.",
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
         ],
     ),
     # -------------------------------------------------------------- KR ----
@@ -645,11 +751,11 @@ REGIONS: dict[str, RegionConfig] = {
             SourceConfig(source_id="coupang_reviews", category=SourceCategory.REVIEWS, priority=1,
                          access_method=AccessMethod.HTML_JS, tos_risk=TosRisk.HIGH, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=2, journey_value=5,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
             SourceConfig(source_id="naver_blog", category=SourceCategory.BLOGS, priority=1,
                          access_method=AccessMethod.HTML_JS, tos_risk=TosRisk.HIGH, auth_required=False,
                          signal_type=SignalType.RECOMMENDATION, persona_value=5, journey_value=4,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
                          notes="Public blog posts only; Cafés are login-walled — out of scope."),
         ],
     ),
@@ -669,11 +775,11 @@ REGIONS: dict[str, RegionConfig] = {
             SourceConfig(source_id="shopee_reviews", category=SourceCategory.REVIEWS, priority=1,
                          access_method=AccessMethod.HTML_JS, tos_risk=TosRisk.HIGH, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=2, journey_value=5,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
             SourceConfig(source_id="lazada_reviews", category=SourceCategory.REVIEWS, priority=2,
                          access_method=AccessMethod.HTML_JS, tos_risk=TosRisk.HIGH, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=2, journey_value=5,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
         ],
     ),
     "TH": RegionConfig(
@@ -687,11 +793,11 @@ REGIONS: dict[str, RegionConfig] = {
             SourceConfig(source_id="shopee_reviews", category=SourceCategory.REVIEWS, priority=1,
                          access_method=AccessMethod.HTML_JS, tos_risk=TosRisk.HIGH, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=2, journey_value=5,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
             SourceConfig(source_id="lazada_reviews", category=SourceCategory.REVIEWS, priority=2,
                          access_method=AccessMethod.HTML_JS, tos_risk=TosRisk.HIGH, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=2, journey_value=5,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
         ],
     ),
     "VN": RegionConfig(
@@ -704,11 +810,11 @@ REGIONS: dict[str, RegionConfig] = {
             SourceConfig(source_id="shopee_reviews", category=SourceCategory.REVIEWS, priority=1,
                          access_method=AccessMethod.HTML_JS, tos_risk=TosRisk.HIGH, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=2, journey_value=5,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
             SourceConfig(source_id="lazada_reviews", category=SourceCategory.REVIEWS, priority=2,
                          access_method=AccessMethod.HTML_JS, tos_risk=TosRisk.HIGH, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=2, journey_value=5,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
         ],
     ),
     "PH": RegionConfig(
@@ -722,11 +828,11 @@ REGIONS: dict[str, RegionConfig] = {
             SourceConfig(source_id="shopee_reviews", category=SourceCategory.REVIEWS, priority=1,
                          access_method=AccessMethod.HTML_JS, tos_risk=TosRisk.HIGH, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=2, journey_value=5,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
             SourceConfig(source_id="lazada_reviews", category=SourceCategory.REVIEWS, priority=2,
                          access_method=AccessMethod.HTML_JS, tos_risk=TosRisk.HIGH, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=2, journey_value=5,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
         ],
     ),
     "MY": RegionConfig(
@@ -744,7 +850,7 @@ REGIONS: dict[str, RegionConfig] = {
             SourceConfig(source_id="shopee_reviews", category=SourceCategory.REVIEWS, priority=1,
                          access_method=AccessMethod.HTML_JS, tos_risk=TosRisk.HIGH, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=2, journey_value=5,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
         ],
     ),
     "SG": RegionConfig(
@@ -763,7 +869,7 @@ REGIONS: dict[str, RegionConfig] = {
             SourceConfig(source_id="shopee_reviews", category=SourceCategory.REVIEWS, priority=1,
                          access_method=AccessMethod.HTML_JS, tos_risk=TosRisk.HIGH, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=2, journey_value=5,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
         ],
     ),
     # ------------------------------------------------------- EU (sample) --
@@ -778,7 +884,7 @@ REGIONS: dict[str, RegionConfig] = {
             SourceConfig(source_id="trustpilot", category=SourceCategory.REVIEWS, priority=1,
                          access_method=AccessMethod.HTML, tos_risk=TosRisk.MEDIUM, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=3, journey_value=5,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
             SourceConfig(source_id="gutefrage", category=SourceCategory.QA, priority=1,
                          access_method=AccessMethod.HTML, tos_risk=TosRisk.MEDIUM, auth_required=False,
                          signal_type=SignalType.COMPARISON, persona_value=3, journey_value=4,
@@ -801,7 +907,7 @@ REGIONS: dict[str, RegionConfig] = {
             SourceConfig(source_id="trustpilot", category=SourceCategory.REVIEWS, priority=1,
                          access_method=AccessMethod.HTML, tos_risk=TosRisk.MEDIUM, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=3, journey_value=5,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
         ],
     ),
     "ES": RegionConfig(
@@ -819,7 +925,7 @@ REGIONS: dict[str, RegionConfig] = {
             SourceConfig(source_id="trustpilot", category=SourceCategory.REVIEWS, priority=1,
                          access_method=AccessMethod.HTML, tos_risk=TosRisk.MEDIUM, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=3, journey_value=5,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
         ],
     ),
     "IT": RegionConfig(
@@ -833,7 +939,7 @@ REGIONS: dict[str, RegionConfig] = {
             SourceConfig(source_id="trustpilot", category=SourceCategory.REVIEWS, priority=1,
                          access_method=AccessMethod.HTML, tos_risk=TosRisk.MEDIUM, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=3, journey_value=5,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
         ],
     ),
     "NL": RegionConfig(
@@ -852,7 +958,7 @@ REGIONS: dict[str, RegionConfig] = {
             SourceConfig(source_id="trustpilot", category=SourceCategory.REVIEWS, priority=1,
                          access_method=AccessMethod.HTML, tos_risk=TosRisk.MEDIUM, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=3, journey_value=5,
-                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
+                         default_enabled=False, tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE),
         ],
     ),
 }

@@ -91,14 +91,15 @@ def test_build_coverage_categories_from_registry() -> None:
     assert coverage["doc_counts"] == {"lihkg": 1, "app_store_hk": 1}
 
 
-def test_reddit_old_now_categorized_as_qa() -> None:
-    """After the registry alias fix, the reddit_old scraper id is
-    registered against the qa category for HK (was previously
-    reddit_hongkong_html, which didn't match the scraper id)."""
+def test_reddit_old_is_classified_as_forums_after_phase6() -> None:
+    """Phase 4 originally put reddit_old in qa; Phase 6 moved it to forums
+    (Reddit's data shape is forum threads, not Q&A pairs). This regression
+    pins the new category."""
     c = _cluster(["post_001"])
     c = c.model_copy(update={"source_distribution": {"reddit_old": 1}})
     coverage = _build_coverage(c, region="HK")
-    assert "qa" in coverage["categories_present"]
+    assert "forums" in coverage["categories_present"]
+    assert "qa" in coverage["categories_missing"]
     assert coverage["sources_used"] == ["reddit_old"]
 
 
