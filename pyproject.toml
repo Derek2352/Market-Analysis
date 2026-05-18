@@ -18,6 +18,8 @@ dependencies = [
     "scikit-learn>=1.5",
     "google-play-scraper>=1.2",
     "python-dotenv>=1.0",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
 ]
 
 [project.optional-dependencies]

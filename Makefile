@@ -1,4 +1,4 @@
-.PHONY: install scrape test test-live lint fmt clean
+.PHONY: install scrape test test-live lint fmt clean dev-api
 
 PY ?= python
 VENV ?= .venv
@@ -32,3 +32,6 @@ fmt:
 
 clean:
 	rm -rf .pytest_cache .ruff_cache **/__pycache__
+
+dev-api:
+	$(BIN)/uvicorn src.api.app:app --reload --host 127.0.0.1 --port 8000
