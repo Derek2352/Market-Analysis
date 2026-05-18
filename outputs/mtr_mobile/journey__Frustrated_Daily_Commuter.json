@@ -1,0 +1,411 @@
+{
+  "id": "journey_d7119925e152",
+  "run_id": "20260517T152600Z",
+  "persona_id": "persona_d3e00c9942e3",
+  "language": "en",
+  "data_source_coverage": {
+    "categories_present": [
+      "reviews"
+    ],
+    "categories_missing": [
+      "blogs",
+      "forums",
+      "news_comments",
+      "qa",
+      "social",
+      "video_comments"
+    ],
+    "sources_used": [
+      "app_store_hk",
+      "google_play_hk",
+      "reddit_old"
+    ],
+    "doc_counts": {
+      "app_store_hk": 62,
+      "google_play_hk": 17,
+      "reddit_old": 1
+    },
+    "bias_warning": "77% of evidence from a single source (app_store_hk); no social/video_comments coverage"
+  },
+  "stages": [
+    {
+      "stage": "Awareness",
+      "touchpoints": {
+        "claims": [
+          {
+            "claim": "User hears about the app as the official MTR tool for Hong Kong public transit.",
+            "evidence": [
+              "doc_fd7c824052b8"
+            ],
+            "severity": null
+          }
+        ],
+        "coverage": "ok"
+      },
+      "user_actions": {
+        "claims": [
+          {
+            "claim": "User downloads the app expecting accurate journey planning and ticket info.",
+            "evidence": [
+              "doc_fd7c824052b8"
+            ],
+            "severity": null
+          }
+        ],
+        "coverage": "ok"
+      },
+      "emotions": [
+        {
+          "label": "curious",
+          "intensity": 0.6,
+          "evidence": [
+            "doc_fd7c824052b8"
+          ]
+        }
+      ],
+      "frictions": {
+        "claims": [],
+        "coverage": "unverified"
+      },
+      "opportunities": {
+        "claims": [],
+        "coverage": "unverified"
+      },
+      "coverage": "thin"
+    },
+    {
+      "stage": "Consideration",
+      "touchpoints": {
+        "claims": [
+          {
+            "claim": "User considers the app for checking train schedules and buying tickets.",
+            "evidence": [
+              "doc_a3795fc22740"
+            ],
+            "severity": null
+          }
+        ],
+        "coverage": "ok"
+      },
+      "user_actions": {
+        "claims": [
+          {
+            "claim": "User begins to try basic functions like checking next train arrival.",
+            "evidence": [
+              "doc_ee0e295f9241"
+            ],
+            "severity": null
+          }
+        ],
+        "coverage": "ok"
+      },
+      "emotions": [
+        {
+          "label": "frustrated",
+          "intensity": 0.7,
+          "evidence": [
+            "doc_ee0e295f9241"
+          ]
+        }
+      ],
+      "frictions": {
+        "claims": [
+          {
+            "claim": "Aggressive pop-ups for features and ratings interrupt the user experience, turning a 1-minute task into 10 minutes.",
+            "evidence": [
+              "doc_ee0e295f9241"
+            ],
+            "severity": null
+          }
+        ],
+        "coverage": "ok"
+      },
+      "opportunities": {
+        "claims": [
+          {
+            "claim": "Reduce intrusive pop-ups and allow users to check schedule without interruptions.",
+            "evidence": [
+              "doc_ee0e295f9241"
+            ],
+            "severity": null
+          }
+        ],
+        "coverage": "ok"
+      },
+      "coverage": "ok"
+    },
+    {
+      "stage": "Decision",
+      "touchpoints": {
+        "claims": [
+          {
+            "claim": "User attempts to purchase train tickets or choose routes within the app.",
+            "evidence": [
+              "doc_3aed89d034a2"
+            ],
+            "severity": null
+          }
+        ],
+        "coverage": "ok"
+      },
+      "user_actions": {
+        "claims": [
+          {
+            "claim": "User selects start and end points, tries to pay, but encounters bugs.",
+            "evidence": [
+              "doc_3aed89d034a2"
+            ],
+            "severity": null
+          }
+        ],
+        "coverage": "ok"
+      },
+      "emotions": [
+        {
+          "label": "frustrated",
+          "intensity": 0.9,
+          "evidence": [
+            "doc_3aed89d034a2"
+          ]
+        }
+      ],
+      "frictions": {
+        "claims": [
+          {
+            "claim": "Bug prevents selecting the destination or completing payment, requiring the user to kill and restart the app.",
+            "evidence": [
+              "doc_3aed89d034a2"
+            ],
+            "severity": null
+          }
+        ],
+        "coverage": "ok"
+      },
+      "opportunities": {
+        "claims": [
+          {
+            "claim": "Fix payment and route selection bugs to allow smooth ticket purchase.",
+            "evidence": [
+              "doc_3aed89d034a2"
+            ],
+            "severity": null
+          }
+        ],
+        "coverage": "ok"
+      },
+      "coverage": "thin"
+    },
+    {
+      "stage": "Onboarding",
+      "touchpoints": {
+        "claims": [
+          {
+            "claim": "User tries to register or log in to use the app's features.",
+            "evidence": [
+              "doc_392f8e09a2f6"
+            ],
+            "severity": null
+          }
+        ],
+        "coverage": "ok"
+      },
+      "user_actions": {
+        "claims": [
+          {
+            "claim": "User attempts login or password change, but cannot.",
+            "evidence": [
+              "doc_392f8e09a2f6"
+            ],
+            "severity": null
+          }
+        ],
+        "coverage": "ok"
+      },
+      "emotions": [
+        {
+          "label": "frustrated",
+          "intensity": 0.8,
+          "evidence": [
+            "doc_392f8e09a2f6"
+          ]
+        }
+      ],
+      "frictions": {
+        "claims": [
+          {
+            "claim": "User cannot log in or change password, blocking access to app functions.",
+            "evidence": [
+              "doc_392f8e09a2f6"
+            ],
+            "severity": null
+          }
+        ],
+        "coverage": "ok"
+      },
+      "opportunities": {
+        "claims": [
+          {
+            "claim": "Improve login and account recovery process with clear instructions.",
+            "evidence": [
+              "doc_392f8e09a2f6"
+            ],
+            "severity": null
+          }
+        ],
+        "coverage": "ok"
+      },
+      "coverage": "thin"
+    },
+    {
+      "stage": "Use",
+      "touchpoints": {
+        "claims": [
+          {
+            "claim": "User uses app for real-time train schedules, journey planning, and games.",
+            "evidence": [
+              "doc_a3795fc22740",
+              "doc_80f4e2477f7e"
+            ],
+            "severity": null
+          }
+        ],
+        "coverage": "ok"
+      },
+      "user_actions": {
+        "claims": [
+          {
+            "claim": "User checks train arrival times, but accuracy is bad.",
+            "evidence": [
+              "doc_a3795fc22740"
+            ],
+            "severity": null
+          },
+          {
+            "claim": "User plays Fun Game but the interface swiping causes the game to exit, wasting game tickets.",
+            "evidence": [
+              "doc_80f4e2477f7e"
+            ],
+            "severity": null
+          }
+        ],
+        "coverage": "ok"
+      },
+      "emotions": [
+        {
+          "label": "frustrated",
+          "intensity": 0.9,
+          "evidence": [
+            "doc_a3795fc22740",
+            "doc_80f4e2477f7e"
+          ]
+        }
+      ],
+      "frictions": {
+        "claims": [
+          {
+            "claim": "Train schedule accuracy is poor.",
+            "evidence": [
+              "doc_a3795fc22740"
+            ],
+            "severity": null
+          },
+          {
+            "claim": "Game interface is overly sensitive to swiping gestures, causing progress loss.",
+            "evidence": [
+              "doc_80f4e2477f7e"
+            ],
+            "severity": null
+          }
+        ],
+        "coverage": "ok"
+      },
+      "opportunities": {
+        "claims": [
+          {
+            "claim": "Improve schedule data accuracy and redesign game gesture handling.",
+            "evidence": [
+              "doc_a3795fc22740",
+              "doc_80f4e2477f7e"
+            ],
+            "severity": null
+          }
+        ],
+        "coverage": "ok"
+      },
+      "coverage": "ok"
+    },
+    {
+      "stage": "Loyalty/Churn",
+      "touchpoints": {
+        "claims": [
+          {
+            "claim": "User decides to abandon the app due to persistent issues.",
+            "evidence": [
+              "doc_fb516b8efd33"
+            ],
+            "severity": null
+          }
+        ],
+        "coverage": "ok"
+      },
+      "user_actions": {
+        "claims": [
+          {
+            "claim": "User uninstalls or stops using the app after repeated bugs.",
+            "evidence": [
+              "doc_28d6e8603273"
+            ],
+            "severity": null
+          }
+        ],
+        "coverage": "ok"
+      },
+      "emotions": [
+        {
+          "label": "frustrated",
+          "intensity": 1.0,
+          "evidence": [
+            "doc_fb516b8efd33",
+            "doc_28d6e8603273"
+          ]
+        }
+      ],
+      "frictions": {
+        "claims": [
+          {
+            "claim": "Many bugs persist across versions, driving users away.",
+            "evidence": [
+              "doc_fb516b8efd33"
+            ],
+            "severity": null
+          },
+          {
+            "claim": "Game tickets are lost due to bugs and customer service fails to restore them.",
+            "evidence": [
+              "doc_28d6e8603273"
+            ],
+            "severity": null
+          }
+        ],
+        "coverage": "ok"
+      },
+      "opportunities": {
+        "claims": [
+          {
+            "claim": "Fix critical bugs and provide reliable customer support to retain users.",
+            "evidence": [
+              "doc_fb516b8efd33",
+              "doc_28d6e8603273"
+            ],
+            "severity": null
+          }
+        ],
+        "coverage": "ok"
+      },
+      "coverage": "ok"
+    }
+  ],
+  "generated_at": "2026-05-18T04:19:34.411981Z",
+  "model": "deepseek-chat",
+  "provider": "deepseek"
+}

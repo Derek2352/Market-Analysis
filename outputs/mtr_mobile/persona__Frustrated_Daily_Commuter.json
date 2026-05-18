@@ -1,0 +1,210 @@
+{
+  "id": "persona_d3e00c9942e3",
+  "run_id": "20260517T152600Z",
+  "cluster_id": "cluster_000",
+  "name": "Frustrated Daily Commuter",
+  "one_liner": "A daily commuter who relies on the MTR app for quick journey info and ticket purchases but is plagued by bugs, poor UX, and aggressive prompts.",
+  "language": "en",
+  "demographics": {
+    "age_range": "25-45",
+    "occupation_examples": [
+      "Office worker",
+      "Regular commuter"
+    ],
+    "evidence": [
+      "doc_ee0e295f9241",
+      "doc_3aed89d034a2",
+      "doc_5df9ce4f8ce1"
+    ]
+  },
+  "goals": {
+    "claims": [
+      {
+        "claim": "Quickly check train schedules and arrival times with minimal effort.",
+        "evidence": [
+          "doc_ee0e295f9241"
+        ],
+        "severity": null
+      },
+      {
+        "claim": "Easily buy and manage tickets or passes (e.g., 都會票) within the app.",
+        "evidence": [
+          "doc_3aed89d034a2",
+          "doc_0d4e3be24c8c"
+        ],
+        "severity": null
+      },
+      {
+        "claim": "Redeem rewards (e.g., free rides) without issues.",
+        "evidence": [
+          "doc_17fcafb4f01e",
+          "doc_aeb524c662bb"
+        ],
+        "severity": null
+      }
+    ],
+    "coverage": "ok"
+  },
+  "motivations": {
+    "claims": [
+      {
+        "claim": "Wants a reliable and fast way to plan journeys and avoid delays.",
+        "evidence": [
+          "doc_ee0e295f9241",
+          "doc_5df9ce4f8ce1"
+        ],
+        "severity": null
+      },
+      {
+        "claim": "Hopes to earn and use points/积分 from travel or games for small rewards.",
+        "evidence": [
+          "doc_17fcafb4f01e",
+          "doc_e399b085d911"
+        ],
+        "severity": null
+      },
+      {
+        "claim": "Prefers a simple, intuitive interface like the old version.",
+        "evidence": [
+          "doc_fd7c824052b8",
+          "doc_14b14cbd73bc"
+        ],
+        "severity": null
+      }
+    ],
+    "coverage": "ok"
+  },
+  "pain_points": {
+    "claims": [
+      {
+        "claim": "App is slow, hangs, or crashes frequently, especially during key tasks like viewing maps or redeeming rewards.",
+        "evidence": [
+          "doc_feb0984ea4eb",
+          "doc_ae14d8e22494",
+          "doc_17fcafb4f01e"
+        ],
+        "severity": "high"
+      },
+      {
+        "claim": "Endless pop-ups for features and ratings interrupt the core function of checking arrival times.",
+        "evidence": [
+          "doc_ee0e295f9241"
+        ],
+        "severity": "high"
+      },
+      {
+        "claim": "Poor UX in route selection: cannot easily change just departure or just arrival; always resets both.",
+        "evidence": [
+          "doc_fd7c824052b8",
+          "doc_14b14cbd73bc"
+        ],
+        "severity": "medium"
+      },
+      {
+        "claim": "Game/Fun分 section is buggy: swiping right exits the game screen and consumes tickets without reward.",
+        "evidence": [
+          "doc_80f4e2477f7e",
+          "doc_c7862a5bd6ce"
+        ],
+        "severity": "medium"
+      },
+      {
+        "claim": "Redemption process is broken: coupons disappear, shops cannot scan, tickets cause app crash.",
+        "evidence": [
+          "doc_2daecd9f2a1b",
+          "doc_17fcafb4f01e"
+        ],
+        "severity": "high"
+      }
+    ],
+    "coverage": "ok"
+  },
+  "preferred_channels": {
+    "claims": [
+      {
+        "claim": "Prefers using the mobile app for transit info, but wants the old simpler design back.",
+        "evidence": [
+          "doc_fd7c824052b8",
+          "doc_14b14cbd73bc"
+        ],
+        "severity": null
+      },
+      {
+        "claim": "Calls customer service hotline when app fails, but often gets no real fix.",
+        "evidence": [
+          "doc_17fcafb4f01e",
+          "doc_e399b085d911"
+        ],
+        "severity": null
+      }
+    ],
+    "coverage": "ok"
+  },
+  "behaviors": {
+    "claims": [
+      {
+        "claim": "Uninstalls the app in frustration after repeated bugs (e.g., game ticket loss, crash).",
+        "evidence": [
+          "doc_28d6e8603273"
+        ],
+        "severity": null
+      },
+      {
+        "claim": "Leaves 1-star reviews as retaliation for forced rating pop-ups.",
+        "evidence": [
+          "doc_feb0984ea4eb",
+          "doc_70111fac52aa"
+        ],
+        "severity": null
+      },
+      {
+        "claim": "Tries to use the app for quick glances (e.g., schedule, map) but is blocked by slow loading or intrusive prompts.",
+        "evidence": [
+          "doc_ee0e295f9241",
+          "doc_feb0984ea4eb"
+        ],
+        "severity": null
+      }
+    ],
+    "coverage": "ok"
+  },
+  "representative_quotes": [
+    {
+      "text_original": "The more they update the poorer the app is. Pretending that the updates are fancier more helpful but it totally isnt the case... Such a simple function - trying to check how long the journey from point A to B is. And they couldnt even show the eta duration.",
+      "text_translated": null,
+      "lang": "en",
+      "source": "",
+      "url": "",
+      "doc_id": "doc_5df9ce4f8ce1"
+    }
+  ],
+  "data_source_coverage": {
+    "categories_present": [
+      "reviews"
+    ],
+    "categories_missing": [
+      "blogs",
+      "forums",
+      "news_comments",
+      "qa",
+      "social",
+      "video_comments"
+    ],
+    "sources_used": [
+      "app_store_hk",
+      "google_play_hk",
+      "reddit_old"
+    ],
+    "doc_counts": {
+      "app_store_hk": 62,
+      "google_play_hk": 17,
+      "reddit_old": 1
+    },
+    "bias_warning": "77% of evidence from a single source (app_store_hk); no social/video_comments coverage"
+  },
+  "confidence": 1.0,
+  "cluster_size": 80,
+  "generated_at": "2026-05-18T04:19:03.995625Z",
+  "model": "deepseek-chat",
+  "provider": "deepseek"
+}
