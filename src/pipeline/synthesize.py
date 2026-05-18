@@ -1022,16 +1022,24 @@ def _claim_list_from_raw(
     raw_claims: list[Any] | None,
     *,
     coverage: str = "ok",
+    pack: _EvidencePack | None = None,
 ) -> ClaimList:
     out: list[EvidenceClaim] = []
     for c in raw_claims or []:
         if not isinstance(c, dict):
             continue
+        evidence = [str(x) for x in (c.get("evidence") or [])]
+        n_users, pct, sentiment = 0, 0.0, {}
+        if pack and evidence:
+            n_users, pct, sentiment = _compute_quantitative_grounding(evidence, pack)
         out.append(
             EvidenceClaim(
                 claim=str(c.get("claim", "")).strip(),
-                evidence=[str(x) for x in (c.get("evidence") or [])],
+                evidence=evidence,
                 severity=c.get("severity"),
+                mentioned_by_n_users=n_users,
+                pct_of_cluster=pct,
+                sentiment_scores=sentiment,
             )
         )
     return ClaimList(claims=out, coverage=coverage)
@@ -1080,18 +1088,18 @@ def _build_persona(
         one_liner=str(parsed.get("one_liner", "")).strip(),
         language=str(parsed.get("language", "en")),
         demographics=parsed.get("demographics") or {},
-        goals=_claim_list_from_raw(parsed.get("goals"), coverage=cov("goals")),
+        goals=_claim_list_from_raw(parsed.get("goals"), coverage=cov("goals"), pack=pack),
         motivations=_claim_list_from_raw(
-            parsed.get("motivations"), coverage=cov("motivations")
+            parsed.get("motivations"), coverage=cov("motivations"), pack=pack
         ),
         pain_points=_claim_list_from_raw(
-            parsed.get("pain_points"), coverage=cov("pain_points")
+            parsed.get("pain_points"), coverage=cov("pain_points"), pack=pack
         ),
         preferred_channels=_claim_list_from_raw(
-            parsed.get("preferred_channels"), coverage=cov("preferred_channels")
+            parsed.get("preferred_channels"), coverage=cov("preferred_channels"), pack=pack
         ),
         behaviors=_claim_list_from_raw(
-            parsed.get("behaviors"), coverage=cov("behaviors")
+            parsed.get("behaviors"), coverage=cov("behaviors"), pack=pack
         ),
         representative_quotes=quotes,
         data_source_coverage=coverage_dict,
@@ -1108,6 +1116,7 @@ def _build_journey(
     cluster: Cluster,
     persona: Persona,
     coverage_dict: dict[str, Any],
+    pack: _EvidencePack,
     run_id: str,
     provider_name: str,
     model: str,
@@ -1163,17 +1172,17 @@ def _build_journey(
             JourneyStage(
                 stage=stage_name,
                 touchpoints=_claim_list_from_raw(
-                    raw.get("touchpoints"), coverage=cov_for("touchpoints")
+                    raw.get("touchpoints"), coverage=cov_for("touchpoints"), pack=pack
                 ),
                 user_actions=_claim_list_from_raw(
-                    raw.get("user_actions"), coverage=cov_for("user_actions")
+                    raw.get("user_actions"), coverage=cov_for("user_actions"), pack=pack
                 ),
                 emotions=emotions,
                 frictions=_claim_list_from_raw(
-                    raw.get("frictions"), coverage=cov_for("frictions")
+                    raw.get("frictions"), coverage=cov_for("frictions"), pack=pack
                 ),
                 opportunities=_claim_list_from_raw(
-                    raw.get("opportunities"), coverage=cov_for("opportunities")
+                    raw.get("opportunities"), coverage=cov_for("opportunities"), pack=pack
                 ),
                 coverage=stage_coverage,
             )
@@ -1288,6 +1297,7 @@ def generate_journey(
         pack.cluster,
         persona,
         pack.coverage,
+        pack,
         run_id,
         client.name,
         model,
@@ -1459,3 +1469,460 @@ def _build_pricing_only_client(
     raise SynthesisError(
         f"Unknown LLM provider {provider!r}. Use 'anthropic' or 'deepseek'."
     )
+
+
+# ---------------------------------------------------------------------------
+# Quantitative Grounding — compute per-claim stats from evidence pack
+# ---------------------------------------------------------------------------
+
+
+def _compute_quantitative_grounding(
+    evidence: list[str],
+    pack: "_EvidencePack",
+) -> tuple[int, float, dict[str, int]]:
+    """Compute grounding stats for a claim's evidence list.
+
+    Returns (mentioned_by_n_users, pct_of_cluster, sentiment_scores).
+    """
+    n_users = len(set(evidence))
+    pct = round(n_users / max(pack.cluster.size, 1), 3)
+
+    sentiment: dict[str, int] = {"negative": 0, "neutral": 0, "positive": 0}
+    negative_words = {
+        "bad", "terrible", "awful", "hate", "worst", "poor", "broken",
+        "frustrat", "annoy", "bug", "crash", "fail", "useless", "rubbish",
+        "差", "廢", "垃圾", "爛", "煩", "討厭", "唔掂", "死", "呃錢",
+    }
+    positive_words = {
+        "good", "great", "excellent", "love", "best", "amazing", "awesome",
+        "useful", "helpful", "convenient", "fast", "smooth",
+        "好", "正", "讚", "方便", "快", "好用", "唔錯", "推薦",
+    }
+    for doc_id in evidence:
+        text = pack.doc_texts.get(doc_id, "").lower()
+        neg = sum(1 for w in negative_words if w in text)
+        pos = sum(1 for w in positive_words if w in text)
+        if neg > pos:
+            sentiment["negative"] += 1
+        elif pos > neg:
+            sentiment["positive"] += 1
+        else:
+            sentiment["neutral"] += 1
+
+    return n_users, pct, sentiment
+
+
+def _backfill_grounding(
+    claims: list[dict[str, Any]],
+    pack: "_EvidencePack",
+) -> list[dict[str, Any]]:
+    """Backfill quantitative grounding onto parsed claim dicts."""
+    for c in claims:
+        evidence = c.get("evidence", [])
+        n_users, pct, sentiment = _compute_quantitative_grounding(evidence, pack)
+        c["mentioned_by_n_users"] = n_users
+        c["pct_of_cluster"] = pct
+        c["sentiment_scores"] = sentiment
+    return claims
+
+
+# ---------------------------------------------------------------------------
+# Adversarial Validation
+# ---------------------------------------------------------------------------
+
+_ADVERSARIAL_PROMPT = (
+    "You are an adversarial reviewer. Find evidence in the source data "
+    "that CONTRADICTS this persona's claims.\n\n"
+    "For each claim in pain_points, goals, motivations, behaviors, "
+    "and preferred_channels:\n"
+    "1. Look through evidence docs for contradicting text.\n"
+    "2. If found, list the doc_id(s) and contradicting quote.\n"
+    "3. Assign overall confidence score (0.0-1.0).\n\n"
+    "Return JSON:\n"
+    '  {"contested_claims": [{"claim": "...", "field": "...", '
+    '"contradicting_doc_ids": ["doc_abc"], "reasoning": "..."}], '
+    '"overall_confidence": 0.85, "summary": "..."}\n\n'
+    "If no contradictions, return empty contested_claims and confidence=1.0."
+)
+
+
+def _adversarial_validation(
+    persona: "Persona",
+    pack: "_EvidencePack",
+    client: "LLMClient",
+    model: str,
+) -> "AdversarialReport":
+    """Run adversarial validation against a generated persona."""
+    from src.schemas.synthesis import AdversarialReport
+
+    persona_json = persona.model_dump_json(indent=2)
+    task = f"{_ADVERSARIAL_PROMPT}\n\nPERSONA JSON:\n{persona_json}\n"
+
+    try:
+        text, _ = client.synthesize(
+            rules_block="",
+            evidence_block=pack.block_text,
+            task_message=task,
+            model=model,
+        )
+        parsed = _extract_json(text)
+    except Exception as e:
+        _log.warning("adversarial.validation_failed", error=str(e))
+        return AdversarialReport(
+            persona_id=persona.id, overall_confidence=1.0,
+            summary=f"Adversarial validation skipped: {e}",
+        )
+
+    if not parsed:
+        return AdversarialReport(
+            persona_id=persona.id, overall_confidence=1.0,
+            summary="Adversarial validation returned no parseable JSON",
+        )
+
+    contested = parsed.get("contested_claims", [])
+    for cc in contested:
+        claim_text = cc.get("claim", "")
+        field = cc.get("field", "")
+        doc_ids = cc.get("contradicting_doc_ids", [])
+        claim_list = getattr(persona, field, None)
+        if claim_list and hasattr(claim_list, "claims"):
+            for ec in claim_list.claims:
+                if ec.claim == claim_text:
+                    ec.contested_by = doc_ids
+                    break
+
+    return AdversarialReport(
+        persona_id=persona.id,
+        contested_claims=contested,
+        overall_confidence=parsed.get("overall_confidence", 1.0),
+        summary=parsed.get("summary", ""),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Temporal & Comparative Analysis
+# ---------------------------------------------------------------------------
+
+
+def _rebuild_clusters_for_window(
+    clusters: list[Cluster],
+    window_post_ids: set[str],
+) -> list[Cluster]:
+    """Rebuild clusters keeping only posts in `window_post_ids`.
+
+    Clusters with zero posts in the window are dropped.  Other fields
+    (size, keyword_summary, etc.) are carried forward — they describe
+    the original cluster theme, which remains useful even when the window
+    has fewer posts.
+    """
+    rebuilt: list[Cluster] = []
+    for c in clusters:
+        filtered = [pid for pid in c.post_ids if pid in window_post_ids]
+        if not filtered:
+            continue
+        new_c = c.model_copy(update={"post_ids": filtered, "size": len(filtered)})
+        # Keep representative posts that fall in this window
+        rep_filtered = [pid for pid in c.representative_post_ids if pid in window_post_ids]
+        if rep_filtered:
+            new_c.representative_post_ids = rep_filtered
+        rebuilt.append(new_c)
+    return rebuilt
+
+
+def synthesize_temporal(
+    topic: str,
+    region: str,
+    cutoff_before: datetime,
+    cutoff_after: datetime,
+    clusters: list[Cluster],
+    post_texts: dict[str, str],
+    post_metadata: dict[str, dict[str, Any]],
+    *,
+    provider: str = "anthropic",
+    model: str | None = None,
+    api_key: str | None = None,
+    dry_run: bool = False,
+    force: bool = False,
+    max_cost_usd: float = DEFAULT_COST_CAP_USD,
+    run_id: str | None = None,
+    http_client: httpx.Client | None = None,
+) -> "TemporalComparison":
+    """Synthesize the same topic across two time windows and compare shifts.
+
+    Parameters
+    ----------
+    cutoff_before:
+        Posts with ``posted_at < cutoff_before`` fall into the "before" window.
+    cutoff_after:
+        Posts with ``posted_at >= cutoff_after`` fall into the "after" window.
+        When ``cutoff_before == cutoff_after`` the windows are contiguous with
+        no gap.
+    """
+    from src.schemas.synthesis import TemporalComparison
+
+    base_run_id = run_id or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+    # ---- partition posts by date ------------------------------------------
+    window_before_pids: set[str] = set()
+    window_after_pids: set[str] = set()
+    for pid, meta in post_metadata.items():
+        posted_str = meta.get("posted_at")
+        if posted_str is None:
+            continue
+        try:
+            posted_dt = _parse_posted_at(posted_str)
+        except (ValueError, TypeError):
+            continue
+        if posted_dt < cutoff_before:
+            window_before_pids.add(pid)
+        if posted_dt >= cutoff_after:
+            window_after_pids.add(pid)
+
+    # ---- rebuild clusters for each window ---------------------------------
+    clusters_before = _rebuild_clusters_for_window(clusters, window_before_pids)
+    clusters_after = _rebuild_clusters_for_window(clusters, window_after_pids)
+
+    # ---- run synthesis on each window -------------------------------------
+    label_before = f"Before {cutoff_before.strftime('%Y-%m-%d')}"
+    label_after = f"After {cutoff_after.strftime('%Y-%m-%d')}"
+
+    before_report: RunReport | None = None
+    after_report: RunReport | None = None
+
+    if clusters_before:
+        before_report = synthesize_run(
+            topic=topic,
+            region=region,
+            clusters=clusters_before,
+            post_texts=post_texts,
+            post_metadata=post_metadata,
+            provider=provider,
+            model=model,
+            api_key=api_key,
+            dry_run=dry_run,
+            force=force,
+            max_cost_usd=max_cost_usd,
+            run_id=f"{base_run_id}_before",
+            http_client=http_client,
+        )
+    if clusters_after:
+        after_report = synthesize_run(
+            topic=topic,
+            region=region,
+            clusters=clusters_after,
+            post_texts=post_texts,
+            post_metadata=post_metadata,
+            provider=provider,
+            model=model,
+            api_key=api_key,
+            dry_run=dry_run,
+            force=force,
+            max_cost_usd=max_cost_usd,
+            run_id=f"{base_run_id}_after",
+            http_client=http_client,
+        )
+
+    # ---- compute shift analysis -------------------------------------------
+    shifts: list[dict[str, Any]] = []
+    personas_before = before_report.personas if before_report else []
+    personas_after = after_report.personas if after_report else []
+
+    # Compare pain points: emerged, resolved, persisted
+    before_claims = {
+        ec.claim
+        for p in personas_before
+        for ec in p.pain_points.claims
+    }
+    after_claims = {
+        ec.claim
+        for p in personas_after
+        for ec in p.pain_points.claims
+    }
+    emerged = after_claims - before_claims
+    resolved = before_claims - after_claims
+    persisted = before_claims & after_claims
+
+    if emerged:
+        shifts.append({"type": "emerged", "claims": sorted(emerged)})
+    if resolved:
+        shifts.append({"type": "resolved", "claims": sorted(resolved)})
+    if persisted:
+        shifts.append({"type": "persisted", "claims": sorted(persisted)})
+
+    summary_lines = []
+    if emerged:
+        summary_lines.append(f"{len(emerged)} new pain points emerged.")
+    if resolved:
+        summary_lines.append(f"{len(resolved)} pain points resolved.")
+    if persisted:
+        summary_lines.append(f"{len(persisted)} pain points persisted.")
+    if not summary_lines:
+        summary_lines.append("No significant shifts detected.")
+
+    return TemporalComparison(
+        topic=topic,
+        region=region,
+        window_before_label=label_before,
+        window_after_label=label_after,
+        window_before=personas_before,
+        window_after=personas_after,
+        shifts=shifts,
+        summary=" ".join(summary_lines),
+        generated_at=datetime.now(timezone.utc),
+    )
+
+
+def synthesize_comparative(
+    topic_a: str,
+    topic_b: str,
+    region: str,
+    clusters_a: list[Cluster],
+    clusters_b: list[Cluster],
+    post_texts_a: dict[str, str],
+    post_texts_b: dict[str, str],
+    post_metadata_a: dict[str, dict[str, Any]],
+    post_metadata_b: dict[str, dict[str, Any]],
+    *,
+    provider: str = "anthropic",
+    model: str | None = None,
+    api_key: str | None = None,
+    dry_run: bool = False,
+    force: bool = False,
+    max_cost_usd: float = DEFAULT_COST_CAP_USD,
+    run_id: str | None = None,
+    http_client: httpx.Client | None = None,
+) -> "ComparativeReport":
+    """Synthesize two different topics in the same region and compare.
+
+    Runs the full synthesize pipeline for each topic independently, then
+    diffs the resulting personas to surface common and divergent pain points.
+    """
+    from src.schemas.synthesis import ComparativeReport
+
+    base_run_id = run_id or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+    report_a = synthesize_run(
+        topic=topic_a,
+        region=region,
+        clusters=clusters_a,
+        post_texts=post_texts_a,
+        post_metadata=post_metadata_a,
+        provider=provider,
+        model=model,
+        api_key=api_key,
+        dry_run=dry_run,
+        force=force,
+        max_cost_usd=max_cost_usd,
+        run_id=f"{base_run_id}_a",
+        http_client=http_client,
+    )
+
+    report_b = synthesize_run(
+        topic=topic_b,
+        region=region,
+        clusters=clusters_b,
+        post_texts=post_texts_b,
+        post_metadata=post_metadata_b,
+        provider=provider,
+        model=model,
+        api_key=api_key,
+        dry_run=dry_run,
+        force=force,
+        max_cost_usd=max_cost_usd,
+        run_id=f"{base_run_id}_b",
+        http_client=http_client,
+    )
+
+    # ---- diff pain points -------------------------------------------------
+    claims_a = {
+        (ec.claim, ec.severity or "unspecified")
+        for p in report_a.personas
+        for ec in p.pain_points.claims
+    }
+    claims_b = {
+        (ec.claim, ec.severity or "unspecified")
+        for p in report_b.personas
+        for ec in p.pain_points.claims
+    }
+
+    common = claims_a & claims_b
+    divergent_a = claims_a - claims_b
+    divergent_b = claims_b - claims_a
+
+    common_pain_points: list[dict[str, Any]] = [
+        {"claim": c, "severity": s} for c, s in sorted(common, key=lambda x: x[0])
+    ]
+    divergent_pain_points: list[dict[str, Any]] = [
+        {
+            "claim": c,
+            "severity": s,
+            "unique_to": topic_a,
+        }
+        for c, s in sorted(divergent_a, key=lambda x: x[0])
+    ] + [
+        {
+            "claim": c,
+            "severity": s,
+            "unique_to": topic_b,
+        }
+        for c, s in sorted(divergent_b, key=lambda x: x[0])
+    ]
+
+    summary_parts = []
+    if common_pain_points:
+        summary_parts.append(
+            f"{len(common_pain_points)} pain points shared across both topics."
+        )
+    if divergent_a:
+        summary_parts.append(
+            f"{len(divergent_a)} pain points unique to {topic_a}."
+        )
+    if divergent_b:
+        summary_parts.append(
+            f"{len(divergent_b)} pain points unique to {topic_b}."
+        )
+    if not summary_parts:
+        summary_parts.append("No pain points identified in either topic.")
+
+    return ComparativeReport(
+        topic_a=topic_a,
+        topic_b=topic_b,
+        region=region,
+        personas_a=report_a.personas,
+        personas_b=report_b.personas,
+        common_pain_points=common_pain_points,
+        divergent_pain_points=divergent_pain_points,
+        summary=" ".join(summary_parts),
+        generated_at=datetime.now(timezone.utc),
+    )
+
+
+def _parse_posted_at(value: Any) -> datetime:
+    """Parse ``posted_at`` from a raw post dict value (str or datetime).
+
+    Handles ISO-8601 strings with or without timezone, plus datetime objects.
+    """
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value
+    if isinstance(value, str):
+        # Try ISO format with optional timezone
+        s = value.strip()
+        for fmt in (
+            "%Y-%m-%dT%H:%M:%S.%f%z",
+            "%Y-%m-%dT%H:%M:%S%z",
+            "%Y-%m-%dT%H:%M:%S.%fZ",
+            "%Y-%m-%dT%H:%M:%SZ",
+            "%Y-%m-%dT%H:%M:%S.%f",
+            "%Y-%m-%dT%H:%M:%S",
+            "%Y-%m-%d",
+        ):
+            try:
+                dt = datetime.strptime(s, fmt)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                return dt
+            except ValueError:
+                continue
+    raise ValueError(f"Cannot parse posted_at: {value!r}")
