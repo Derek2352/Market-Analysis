@@ -114,12 +114,16 @@ class _EvidencePack:
 
     `doc_ids` is the canonical set of identifiers the LLM may cite.
     `doc_texts` is the lookup the validator uses to confirm quote substrings.
+    `doc_metadata` is per-doc source/url/lang — backfilled into
+    representative_quotes after the LLM returns (the LLM frequently omits
+    these fields).
     `block_text` is the formatted prompt block (cached portion of the call).
     """
 
     cluster: Cluster
     doc_ids: set[str]
     doc_texts: dict[str, str]  # doc_id -> raw text
+    doc_metadata: dict[str, dict[str, Any]]  # doc_id -> {source, url, lang}
     coverage: dict[str, Any]
     block_text: str
 
@@ -142,6 +146,7 @@ def _build_evidence_pack(
     """Build the evidence block + lookups for one cluster."""
     metadata = post_metadata or {}
     doc_texts: dict[str, str] = {}
+    doc_metadata: dict[str, dict[str, Any]] = {}
 
     # Representative posts first — these get full text (up to 600 chars).
     rep_ids = list(cluster.representative_post_ids[:10])
@@ -175,6 +180,11 @@ def _build_evidence_pack(
         meta = metadata.get(pid, {})
         doc_id = _doc_id_for(pid)
         doc_texts[doc_id] = text
+        doc_metadata[doc_id] = {
+            "source": meta.get("source", ""),
+            "url": meta.get("url", ""),
+            "lang": meta.get("lang", "en"),
+        }
         snippet = text[:600].replace("\n", " ")
         lines.append(
             f"[{doc_id}] (source: {meta.get('source', 'unknown')}, "
@@ -193,6 +203,11 @@ def _build_evidence_pack(
         meta = metadata.get(pid, {})
         doc_id = _doc_id_for(pid)
         doc_texts[doc_id] = text
+        doc_metadata[doc_id] = {
+            "source": meta.get("source", ""),
+            "url": meta.get("url", ""),
+            "lang": meta.get("lang", "en"),
+        }
         snippet = text[:300].replace("\n", " ")
         lines.append(
             f"[{doc_id}] (source: {meta.get('source', 'unknown')}, "
@@ -207,6 +222,7 @@ def _build_evidence_pack(
         cluster=cluster,
         doc_ids=set(doc_texts.keys()),
         doc_texts=doc_texts,
+        doc_metadata=doc_metadata,
         coverage=coverage,
         block_text="\n".join(lines),
     )
@@ -321,8 +337,10 @@ Return ONLY this JSON (no prose, no code fences):
   ]
 }
 
-Aim for 3-5 items per claim field. 3-5 representative quotes total.
-Use doc_ids EXACTLY as shown in the evidence pack."""
+Aim for 3-5 items per claim field. You MUST return at least 3
+representative_quotes (target 3-5). Each text_original MUST be a verbatim
+substring of the doc it cites. Use doc_ids EXACTLY as shown in the
+evidence pack."""
 
 
 def _journey_task(persona_name: str, persona_one_liner: str) -> str:
@@ -671,6 +689,14 @@ def _validate_grounding_persona(
             errors.extend(_validate_claim(field_name, i, c, pack))
 
     quotes = parsed.get("representative_quotes", []) or []
+    # Minimum quote count: 3 unless the cluster doesn't have that many
+    # docs (defensive — small clusters can't honestly produce 3 quotes).
+    target_min = min(3, len(pack.doc_ids))
+    if len(quotes) < target_min:
+        errors.append(
+            f"representative_quotes: returned {len(quotes)}, must return "
+            f"at least {target_min}"
+        )
     for i, q in enumerate(quotes):
         errors.extend(_validate_quote(i, q, pack))
 
@@ -1002,18 +1028,22 @@ def _build_persona(
     for q in parsed.get("representative_quotes", []) or []:
         if not isinstance(q, dict):
             continue
-        doc_id = q.get("doc_id", "")
-        # Pull source/url from the pack if Claude omitted them.
-        source = q.get("source", "")
-        url = q.get("url", "")
+        doc_id = str(q.get("doc_id", ""))
+        # Backfill source/url/lang from the evidence pack when the LLM
+        # omits them (it routinely does — it has no reason to repeat data
+        # we passed in). The UI needs these for clickable provenance.
+        meta = pack.doc_metadata.get(doc_id, {})
+        source = q.get("source") or meta.get("source", "")
+        url = q.get("url") or meta.get("url", "")
+        lang = q.get("lang") or meta.get("lang", "en")
         quotes.append(
             RepresentativeQuote(
                 text_original=str(q.get("text_original", "")).strip(),
                 text_translated=q.get("text_translated"),
-                lang=str(q.get("lang", "en")),
-                source=source,
-                url=url,
-                doc_id=str(doc_id),
+                lang=str(lang),
+                source=str(source),
+                url=str(url),
+                doc_id=doc_id,
             )
         )
 
