@@ -48,7 +48,8 @@ _log = structlog.get_logger(__name__)
 
 DEFAULT_MAX_TOKENS = 4096
 MAX_RETRIES = 1
-DEFAULT_COST_CAP_USD = 4.00
+DEFAULT_COST_CAP_USD = 10000.00  # Effectively no cap — use --max-cost to set one
+DEFAULT_COST_FLOOR_USD = 4.00    # Minimum spend for quality depth
 
 # Six canonical journey stages, in order.
 JOURNEY_STAGES = (
@@ -1338,6 +1339,7 @@ def synthesize_run(
     dry_run: bool = False,
     force: bool = False,
     max_cost_usd: float = DEFAULT_COST_CAP_USD,
+    min_cost_usd: float = DEFAULT_COST_FLOOR_USD,
     run_id: str | None = None,
     http_client: httpx.Client | None = None,
     cluster_ids: list[str] | None = None,
@@ -1444,6 +1446,32 @@ def synthesize_run(
     report.total_cache_write_tokens = total_usage.cache_write_tokens
     report.actual_cost_usd = round(pricing.cost(total_usage), 4)
 
+    # ── Cost floor: if below min_cost_usd, run refinement passes ──
+    refinement_round = 0
+    MAX_REFINEMENT_ROUNDS = 5
+    while report.actual_cost_usd < min_cost_usd and refinement_round < MAX_REFINEMENT_ROUNDS:
+        refinement_round += 1
+        # Target largest cluster for deeper analysis
+        largest = max(clusters, key=lambda c: c.size)
+        try:
+            _log.info(
+                "synthesize.refinement",
+                round=refinement_round,
+                cluster_id=largest.cluster_id,
+                current_cost=report.actual_cost_usd,
+                target_floor=min_cost_usd,
+            )
+            # Run deeper analysis on the largest cluster
+            _, u_refine = _refinement_pass(
+                largest, post_texts, post_metadata, region,
+                client=client, model=model, run_id=run_id,
+            )
+            total_usage = total_usage.add(u_refine)
+            report.actual_cost_usd = round(pricing.cost(total_usage), 4)
+        except SynthesisError as e:
+            _log.warning("synthesize.refinement_failed", error=str(e))
+            break
+
     # Close client if we own its httpx client.
     close = getattr(client, "close", None)
     if callable(close) and http_client is None:
@@ -1455,6 +1483,55 @@ def synthesize_run(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _refinement_pass(
+    cluster: Cluster,
+    post_texts: dict[str, str],
+    post_metadata: dict[str, dict[str, Any]] | None,
+    region: str,
+    *,
+    client: Any,
+    model: str,
+    run_id: str,
+) -> tuple[str, Usage]:
+    """Run a deeper analysis pass on a cluster to burn budget for quality.
+
+    Returns (analysis_text, Usage).
+    """
+    from src.pipeline.synthesize import _EvidencePack, _build_evidence_pack, _build_system_prompt
+
+    pack = _build_evidence_pack(cluster, post_texts, post_metadata)
+    system = _build_system_prompt(region)
+
+    prompt = (
+        f"You are a senior market analyst reviewing a consumer persona for {region}. "
+        f"Below is a cluster of {cluster.size} consumer posts. "
+        f"Provide a DEEP quantitative and qualitative analysis:\n\n"
+        f"1. Temporal trends — what changed over time in consumer sentiment?\n"
+        f"2. Competitive landscape — how does this product compare to alternatives mentioned?\n"
+        f"3. Root cause analysis — what systemic issues drive the top 3 pain points?\n"
+        f"4. Segment breakdown — are there sub-groups within this cluster with different needs?\n"
+        f"5. Actionable recommendations — what should the product team fix first?\n\n"
+        f"Evidence from consumer posts:\n{pack.text}\n\n"
+        f"Be specific. Cite doc_ids for every claim. Output in markdown."
+    )
+
+    resp = client.chat(
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt},
+        ],
+        model=model,
+        max_tokens=2048,
+        temperature=0.4,
+    )
+    u = Usage(
+        input_tokens=resp.usage.input_tokens,
+        output_tokens=resp.usage.output_tokens,
+        cached_input_tokens=getattr(resp.usage, "cached_input_tokens", 0),
+    )
+    return resp.content, u
 
 
 def _build_pricing_only_client(

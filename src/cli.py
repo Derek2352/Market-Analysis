@@ -765,7 +765,7 @@ def synthesize_temporal_cmd(
     max_cost: Annotated[
         float,
         typer.Option("--max-cost", help="Hard cost ceiling in USD."),
-    ] = 4.00,
+    ] = 10000.00,
 ) -> None:
     """Compare the same topic across two time windows.
 
@@ -879,7 +879,7 @@ def synthesize_compare_cmd(
     max_cost: Annotated[
         float,
         typer.Option("--max-cost", help="Hard cost ceiling in USD."),
-    ] = 4.00,
+    ] = 10000.00,
 ) -> None:
     """Compare two different topics in the same region.
 
