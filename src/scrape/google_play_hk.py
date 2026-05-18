@@ -25,21 +25,25 @@ _log = structlog.get_logger(__name__)
 
 
 class GooglePlayHKScraper:
-    """Scrape Google Play HK app reviews via google-play-scraper."""
+    """Scrape Google Play HK app reviews via google-play-scraper.
+
+    Region-aware: pass ``region``, ``country``, ``lang`` to override defaults.
+    """
 
     source_id = "google_play_hk"
-    region = "HK"
-    language = "zh-HK"
-    category = SourceCategory.REVIEWS
-    signal_type = SignalType.EXPERIENCE
 
     def __init__(
         self,
         *,
+        region: str = "HK",
         country: str = "hk",
         lang: str = "zh",
         max_apps_per_search: int = 3,
     ):
+        self.region = region
+        self.language = {"HK": "zh-HK", "TW": "zh-TW", "US": "en", "JP": "ja"}.get(region, "en")
+        self.category = SourceCategory.REVIEWS
+        self.signal_type = SignalType.EXPERIENCE
         self._country = country
         self._lang = lang
         self._max_apps = max_apps_per_search

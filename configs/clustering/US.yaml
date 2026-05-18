@@ -1,0 +1,18 @@
+# US clustering — large post volumes, English dominant.
+# Reddit threads + Trustpilot + Yelp = high volume, diverse sources.
+umap:
+  n_neighbors: 20
+  min_dist: 0.05
+  n_components: 15
+  random_state: 42
+  metric: cosine
+
+hdbscan:
+  min_cluster_size: 25   # larger — more posts per topic
+  min_samples: 5
+
+outlier_threshold: 0.3
+
+language:
+  stopwords: english
+  tokenizer: english

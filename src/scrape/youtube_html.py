@@ -41,6 +41,14 @@ SEARCH_URL_TEMPLATE = (
     BASE_URL + "/results?search_query={}"
 )
 
+# Region → language mapping for RawPost metadata.
+_REGION_LANGUAGE: dict[str, str] = {
+    "HK": "zh-HK",
+    "US": "en",
+    "TW": "zh-TW",
+    "JP": "ja",
+}
+
 # Rate: Playwright is heavy — 1 req / 2 s
 YOUTUBE_RATE = 2.0
 MAX_VIDEOS_PER_SEARCH = 6
@@ -50,18 +58,19 @@ class YoutubeHTMLScraper:
     """YouTube HTML scraper — search results + video pages with comments."""
 
     source_id = "youtube_html"
-    region = "HK"
-    language = "zh-HK"
     category = SourceCategory.VIDEO_COMMENTS
     signal_type = SignalType.OPINION
 
     def __init__(
         self,
         *,
+        region: str = "HK",
         playwright: PlaywrightManager | None = None,
         robots_cache: RobotsCache | None = None,
         max_videos: int = MAX_VIDEOS_PER_SEARCH,
     ) -> None:
+        self.region = region
+        self.language = _REGION_LANGUAGE.get(region, "zh-HK")
         self._owns_playwright = playwright is None
         if playwright is None:
             self._robots_cache = robots_cache or RobotsCache()
@@ -141,7 +150,10 @@ class YoutubeHTMLScraper:
                 page, max_scrolls=6, settle_ms=3000,
             )
             html = page.content()
-        return parse_video_page(html, video_url=video_url)
+        return parse_video_page(
+            html, video_url=video_url,
+            region=self.region, language=self.language,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -166,7 +178,12 @@ def parse_search_results(html: str) -> list[str]:
     return out
 
 
-def parse_video_page(html: str, *, video_url: str) -> RawPost:
+def parse_video_page(
+    html: str, *,
+    video_url: str,
+    region: str = "HK",
+    language: str = "zh-HK",
+) -> RawPost:
     """Parse a YouTube video watch page into a RawPost.
 
     Raises ``SourceError`` if the video title or channel is unrecoverable.
@@ -243,8 +260,8 @@ def parse_video_page(html: str, *, video_url: str) -> RawPost:
         id=f"youtube_html:{video_id}" if video_id else f"youtube_html:{abs(hash(video_url))}",
         source="youtube_html",
         source_category=SourceCategory.VIDEO_COMMENTS,
-        region="HK",
-        language="zh-HK",
+        region=region,
+        language=language,
         language_detected=detect_language(full_text),
         url=video_url,
         author_hash=hash_author(channel) if channel else "",

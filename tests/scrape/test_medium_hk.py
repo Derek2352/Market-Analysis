@@ -14,13 +14,14 @@ from pathlib import Path
 import pytest
 
 from src.scrape.base.protocol import SourceError
-from src.scrape.medium_hk import (
-    MediumHKScraper,
+from src.scrape.medium import (
+    MediumScraper,
     _format_json_url,
     _is_medium_article_url,
     _strip_xss_prefix,
     parse_medium_response,
 )
+from src.scrape.medium_hk import MediumHKScraper
 from src.schemas.enums import SignalType, SourceCategory
 
 FIXTURE = (
@@ -81,7 +82,7 @@ def test_parse_extracts_core_fields() -> None:
         _fixture_body(),
         source_url="https://medium.com/@jane-tang/why-octopus-still-beats-apple-pay-abc123def456",
     )
-    assert post.source == "medium_hk"
+    assert post.source == "medium"  # generalized default; thin wrapper overrides to "medium_hk"
     assert post.source_category is SourceCategory.BLOGS
     assert post.signal_type is SignalType.RECOMMENDATION
     assert post.region == "HK"
@@ -173,7 +174,7 @@ def test_parse_rejects_empty_body_paragraphs() -> None:
 
 def test_scraper_search_through_fake_client(monkeypatch) -> None:
     """End-to-end: DDG returns one hit → scraper fetches ?format=json → parse."""
-    import src.scrape.medium_hk as mod
+    import src.scrape.medium as mod
     from src.scrape.utils.ddg_search import DDGResult
 
     monkeypatch.setenv("AUTHOR_HASH_SALT", "test")

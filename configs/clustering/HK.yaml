@@ -1,0 +1,19 @@
+# HK clustering — benchmarked on LIHKG + Discuss HK data.
+# Medium post volumes (~200-500 posts per topic), Cantonese-heavy.
+umap:
+  n_neighbors: 15
+  min_dist: 0.1
+  n_components: 10
+  random_state: 42
+  metric: cosine
+
+hdbscan:
+  min_cluster_size: 15
+  min_samples: 5
+
+outlier_threshold: 0.3
+
+# Language config
+language:
+  stopwords: zh-HK
+  tokenizer: chinese

@@ -1,0 +1,18 @@
+# TW clustering — lower post volumes than HK, Traditional Chinese.
+# PTT threads are long (avg 50+ replies), Dcard shorter.
+umap:
+  n_neighbors: 12
+  min_dist: 0.1
+  n_components: 8
+  random_state: 42
+  metric: cosine
+
+hdbscan:
+  min_cluster_size: 10   # smaller than HK — lower volume
+  min_samples: 3
+
+outlier_threshold: 0.25
+
+language:
+  stopwords: zh-TW
+  tokenizer: chinese

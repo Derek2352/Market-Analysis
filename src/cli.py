@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from src.config import get_default_region as _get_default_region
 from src.regions.registry import get_region
 from src.scrape.registry import available_sources, get_scraper
 from src.scrape.utils.dedup import DedupIndex
@@ -194,6 +195,72 @@ def scrape(
             )
 
     log.info("scrape.done")
+
+
+# ---------------------------------------------------------------------------
+# Region commands
+# ---------------------------------------------------------------------------
+
+_region_app = typer.Typer(help="Region management", no_args_is_help=True)
+app.add_typer(_region_app, name="region")
+
+
+@_region_app.command(name="list")
+def region_list() -> None:
+    """List all available regions with source counts."""
+    from src.regions.registry import REGIONS  # noqa: F811
+
+    print(f"{'Code':<4} {'Region':<22} {'Sources':>7}  {'Default':>7}")
+    print("-" * 44)
+    for rid, cfg in sorted(REGIONS.items()):
+        defaults = cfg.default_source_ids()
+        opt_ins = cfg.opt_in_sources()
+        print(
+            f"  {rid:<2}  {cfg.display_name:<20}  "
+            f"{len(defaults):>4} def  {len(opt_ins):>4} opt-in"
+        )
+
+
+@_region_app.command(name="show")
+def region_show(
+    region: Annotated[str, typer.Argument(help="Region code (e.g., HK, TW, US, JP)")],
+) -> None:
+    """Show sources for a region, grouped by category."""
+    from src.regions.registry import REGIONS  # noqa: F811
+
+    cfg = get_region(region)
+    print(f"\n  {cfg.display_name} ({cfg.region_id})")
+    print(f"  Languages: {', '.join(cfg.primary_languages)}")
+    print()
+
+    grouped = cfg.by_category(include_opt_in=True)
+    for cat, sources_ in grouped.items():
+        print(f"  [{cat.value}]")
+        for s in sources_:
+            status = ""
+            if s.excluded_by_constraint:
+                status = " [EXCLUDED]"
+            elif not s.default_enabled:
+                status = " [OPT-IN]"
+            print(
+                f"    {s.source_id:<24}  p:{s.persona_value} j:{s.journey_value}  "
+                f"risk:{s.tos_risk.value:<6}  {s.access_method.value}{status}"
+            )
+        print()
+
+
+@_region_app.command(name="set")
+def region_set(
+    region: Annotated[str, typer.Argument(help="Region code to set as default")],
+) -> None:
+    """Set the default region for future runs."""
+    from src.config import set_default_region  # noqa: F811
+
+    # Validate
+    get_region(region)
+    set_default_region(region)
+    cfg = get_region(region)
+    print(f"Default region set to: {cfg.display_name} ({region})")
 
 
 # ---------------------------------------------------------------------------
