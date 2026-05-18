@@ -1,0 +1,115 @@
+{
+  "tasks": [
+    {
+      "id": "embedding-cache",
+      "title": "Add embedding cache to skip re-embedding unchanged posts",
+      "category": "performance",
+      "priority": 1,
+      "status": "pending",
+      "description": "Store SHA256 hash of post text → embedding mapping in data/embedding_cache/. On re-embed, check cache first. Only embed new/changed posts. Should cut Phase 2 time by 80%+ after first run.",
+      "files": [
+        "src/pipeline/embed.py"
+      ],
+      "test_cmd": ".venv/Scripts/python.exe -m pytest tests/ -v -k embed"
+    },
+    {
+      "id": "csv-export",
+      "title": "Add CSV export for raw posts and personas",
+      "category": "feature",
+      "priority": 2,
+      "status": "pending",
+      "description": "Add `mkt export --format csv --topic X --region Y` command. Exports raw posts with all fields and persona summaries. Useful for Derek to analyze in Excel/Sheets.",
+      "files": [
+        "src/cli_export.py",
+        "src/cli.py"
+      ],
+      "test_cmd": ".venv/Scripts/python.exe -m pytest tests/ -v -k export"
+    },
+    {
+      "id": "scrape-retry-backoff",
+      "title": "Add exponential backoff retry to scrapers",
+      "category": "resilience",
+      "priority": 3,
+      "status": "pending",
+      "description": "Wrap scraper HTTP calls with retry logic: 3 attempts, exponential backoff 1s/2s/4s. Handle 429/503 gracefully. Add --retries CLI flag. Currently scrapers fail on first transient error.",
+      "files": [
+        "src/scrape/base.py",
+        "src/cli/scrape.py"
+      ],
+      "test_cmd": ".venv/Scripts/python.exe -m pytest tests/ -v -k 'scrape or retry'"
+    },
+    {
+      "id": "temporal-trends",
+      "title": "Add temporal trend analysis to synthesis",
+      "category": "analysis",
+      "priority": 4,
+      "status": "pending",
+      "description": "Bucket posts by week/month, compute sentiment trend, detect spikes in complaint volume. Add `--temporal` flag to synthesize. Output trend chart data as JSON + ASCII chart in terminal.",
+      "files": [
+        "src/pipeline/synthesize.py",
+        "src/pipeline/models.py"
+      ],
+      "test_cmd": ".venv/Scripts/python.exe -m pytest tests/ -v -k temporal"
+    },
+    {
+      "id": "progress-bars",
+      "title": "Add tqdm progress bars to scrape and embed phases",
+      "category": "ux",
+      "priority": 5,
+      "status": "pending",
+      "description": "Add tqdm progress bars to scrape (per-source, per-page) and embed (per-batch). Use `--no-progress` flag for cron/pipe mode. Already have tqdm in deps.",
+      "files": [
+        "src/pipeline/embed.py",
+        "src/cli/scrape.py"
+      ],
+      "test_cmd": ".venv/Scripts/python.exe -m pytest tests/ -v"
+    },
+    {
+      "id": "multi-topic-pipeline",
+      "title": "Extend overnight pipeline to multiple topics",
+      "category": "feature",
+      "priority": 6,
+      "status": "pending",
+      "description": "Make TOPIC a list in overnight_pipeline.py: ['AlipayHK', 'Octopus', 'WeChat Pay HK', 'FPS']. Run full pipeline per topic. Should 4x our persona coverage overnight.",
+      "files": [
+        "scripts/overnight_pipeline.py"
+      ],
+      "test_cmd": ".venv/Scripts/python.exe scripts/overnight_pipeline.py --dry-run"
+    },
+    {
+      "id": "better-errors",
+      "title": "Improve CLI error messages with suggestions",
+      "category": "ux",
+      "priority": 7,
+      "status": "pending",
+      "description": "Catch common errors and suggest fixes: missing API key → 'set DEEPSEEK_API_KEY in .env', no posts → 'try --sources app_store_hk', empty clusters → 'need >50 posts for clustering'.",
+      "files": [
+        "src/cli.py",
+        "src/cli_analyze.py",
+        "src/cli/scrape.py",
+        "src/cli/cluster.py"
+      ],
+      "test_cmd": ".venv/Scripts/python.exe -m pytest tests/ -v"
+    },
+    {
+      "id": "scrape-health-dashboard",
+      "title": "Add scrape-doctor health monitoring",
+      "category": "ops",
+      "priority": 8,
+      "status": "pending",
+      "description": "`mkt doctor` command: test each scraper, report success/failure, last successful scrape timestamp, rate limit status. Outputs JSON + color-coded terminal table. Helps detect broken scrapers before pipeline runs.",
+      "files": [
+        "src/cli_doctor.py",
+        "src/cli.py"
+      ],
+      "test_cmd": ".venv/Scripts/python.exe -m pytest tests/ -v -k doctor"
+    }
+  ],
+  "completed": [],
+  "stats": {
+    "total": 8,
+    "pending": 8,
+    "in_progress": 0,
+    "completed": 0
+  }
+}
