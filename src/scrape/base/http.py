@@ -5,7 +5,7 @@ instead of raw ``httpx``.  It enforces:
 
 - Honest User-Agent header (``MarketAnalyticsBot/0.1``)
 - Per-domain rate limiting (default 2 req/s, configurable)
-- Exponential backoff on ``429`` / ``5xx`` (1 s → 16 s, 4 attempts)
+- Exponential backoff on ``429`` / ``5xx`` (1 s → 4 s, configurable attempts)
 - Hard-fail on ``403`` (don't hammer a site that says no)
 - robots.txt check before first request to each host
 """
@@ -34,6 +34,21 @@ USER_AGENT = (
 
 # Per-domain minimum interval between requests, in seconds.
 DEFAULT_RATE = 0.5  # 2 req/s per domain
+
+# Default retry configuration — overridable via set_default_retries().
+DEFAULT_MAX_RETRIES = 3
+DEFAULT_RETRY_MULTIPLIER = 1   # min wait = 1s
+DEFAULT_RETRY_MIN_WAIT = 1     # 1s
+DEFAULT_RETRY_MAX_WAIT = 4     # 4s cap
+
+
+def set_default_retries(n: int) -> None:
+    """Set the global default max retries for all PoliteClient instances.
+
+    Call before creating scrapers — e.g., from the ``--retries`` CLI flag.
+    """
+    global DEFAULT_MAX_RETRIES
+    DEFAULT_MAX_RETRIES = max(0, n)
 
 
 class ForbiddenError(Exception):
@@ -73,10 +88,14 @@ class PoliteClient:
     rate:
         Minimum interval between requests to the same domain, in seconds.
         Default 0.5 (2 req/s).
+    max_retries:
+        Maximum retry attempts for transient failures (429, 5xx, connect errors).
+        Default uses the module-level ``DEFAULT_MAX_RETRIES`` (3).
     """
 
     robots_cache: RobotsCache
     rate: float = DEFAULT_RATE
+    max_retries: int | None = None
     respect_robots: bool = True
     headers: dict[str, str] | None = None
 
@@ -149,10 +168,15 @@ class PoliteClient:
         self._last_request[host] = time.monotonic()  # type: ignore[index]
 
     def _do_request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
+        retries = self.max_retries if self.max_retries is not None else DEFAULT_MAX_RETRIES
         @retry(
             retry=retry_if_exception(_is_retryable),
-            stop=stop_after_attempt(4),
-            wait=wait_exponential(multiplier=1, min=1, max=16),
+            stop=stop_after_attempt(retries + 1),  # +1 because tenacity counts total calls
+            wait=wait_exponential(
+                multiplier=DEFAULT_RETRY_MULTIPLIER,
+                min=DEFAULT_RETRY_MIN_WAIT,
+                max=DEFAULT_RETRY_MAX_WAIT,
+            ),
             reraise=True,
         )
         def _inner() -> httpx.Response:

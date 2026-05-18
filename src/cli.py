@@ -81,6 +81,15 @@ def scrape(
         str,
         typer.Option("--subreddits", help="Comma-separated subreddits (for reddit_old source)."),
     ] = "",
+    retries: Annotated[
+        int,
+        typer.Option(
+            "--retries",
+            min=0,
+            max=10,
+            help="Max retry attempts per HTTP request on transient failures (429/5xx). Default 3.",
+        ),
+    ] = 3,
     accept_tos_risk: Annotated[
         bool,
         typer.Option(
@@ -167,7 +176,12 @@ def scrape(
         limit=limit,
         since=since_dt.isoformat(),
         queries=len(search_queries) if expand else 1,
+        retries=retries,
     )
+
+    # Apply retry configuration globally so all PoliteClient instances pick it up
+    from src.scrape.base.http import set_default_retries
+    set_default_retries(retries)
 
     with DedupIndex(_DATA_DIR / "dedup.sqlite") as index:
         for source_id in source_ids:
