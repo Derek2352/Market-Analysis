@@ -1,4 +1,4 @@
-.PHONY: install scrape test test-live lint fmt clean dev-api
+.PHONY: install scrape test test-live lint fmt clean dev-api dev-ui
 
 PY ?= python
 VENV ?= .venv
@@ -35,3 +35,12 @@ clean:
 
 dev-api:
 	$(BIN)/uvicorn src.api.app:app --reload --host 127.0.0.1 --port 8000
+
+dev-ui:
+	cd ui && npm run dev
+
+ui-build:
+	cd ui && npm run build
+
+ui-install:
+	cd ui && npm install
