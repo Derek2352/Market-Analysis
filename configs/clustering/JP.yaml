@@ -1,0 +1,18 @@
+# JP clustering — 5ch threads are short posts, review platforms longer.
+# Japanese tokenization via fugashi for c-TF-IDF.
+umap:
+  n_neighbors: 12
+  min_dist: 0.1
+  n_components: 8
+  random_state: 42
+  metric: cosine
+
+hdbscan:
+  min_cluster_size: 10   # smaller clusters — shorter posts
+  min_samples: 3
+
+outlier_threshold: 0.25
+
+language:
+  stopwords: ja
+  tokenizer: japanese

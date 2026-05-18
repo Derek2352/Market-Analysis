@@ -39,29 +39,28 @@ _TRANSIENT = (httpx.RequestError, httpx.HTTPStatusError)
 
 
 class AppStoreHKScraper:
-    """App Store Hong Kong customer reviews via the public iTunes RSS feed.
+    """App Store customer reviews via the public iTunes RSS feed.
 
-    No auth required. Searches `country=hk` for apps matching the topic
-    (or treats the topic as an app id when numeric), then walks the
-    customer-reviews RSS pages for each matched app. Yields one RawPost per
-    review.
+    Region-aware: pass ``region`` to set metadata, ``country`` for storefront,
+    ``lang`` for RSS language parameter. No auth required.
     """
 
     source_id = "app_store_hk"
-    region = "HK"
-    language = "zh-HK"
-    category = SourceCategory.REVIEWS
-    signal_type = SignalType.EXPERIENCE
 
     def __init__(
         self,
         *,
+        region: str = "HK",
         country: str = "hk",
         lang: str = "zh-Hant",
         client: httpx.Client | None = None,
         max_apps_per_search: int = 3,
         request_timeout: float = 20.0,
     ):
+        self.region = region
+        self.language = {"HK": "zh-HK", "TW": "zh-TW", "US": "en", "JP": "ja"}.get(region, "en")
+        self.category = SourceCategory.REVIEWS
+        self.signal_type = SignalType.EXPERIENCE
         self._country = country
         self._lang = lang
         self._max_apps = max_apps_per_search

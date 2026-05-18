@@ -31,26 +31,52 @@ BASE_URL = "https://old.reddit.com"
 REDDIT_RATE = 2.0  # 1 req / 2 s
 MAX_SEARCH_PAGES = 10
 
+# Default subreddits per region. Used when --subreddits is not passed.
+_REGION_DEFAULT_SUBREDDITS: dict[str, list[str]] = {
+    "HK": ["HongKong"],
+    "US": ["AskReddit", "personalfinance", "technology"],
+    "TW": ["Taiwan"],
+    "JP": ["newsokur", "newsokunomoral"],
+}
+
+# Region → language mapping for RawPost metadata.
+_REGION_LANGUAGE: dict[str, str] = {
+    "HK": "en",
+    "US": "en",
+    "TW": "zh-TW",
+    "JP": "ja",
+}
+
+REGION_NAMES: dict[str, str] = {
+    "HK": "Hong Kong",
+    "US": "United States",
+    "TW": "Taiwan",
+    "JP": "Japan",
+}
+
 
 class RedditOldScraper:
     """Scrape Reddit posts via old.reddit.com JSON API."""
 
     source_id = "reddit_old"
-    region = "HK"
-    language = "en"
 
     def __init__(
         self,
         *,
+        region: str = "HK",
         subreddits: list[str] | None = None,
         rate: float = REDDIT_RATE,
     ) -> None:
+        self.region = region
+        self.language = _REGION_LANGUAGE.get(region, "en")
         self._log = structlog.get_logger().bind(scraper="reddit_old")
         self._robots = RobotsCache()
         self._client = PoliteClient(
             robots_cache=self._robots, rate=rate, respect_robots=False
         )
-        self._subreddits = subreddits or ["HongKong"]
+        self._subreddits = subreddits or _REGION_DEFAULT_SUBREDDITS.get(
+            region, ["HongKong"]
+        )
 
     # ------------------------------------------------------------------
     # SourceScraper protocol
@@ -214,8 +240,8 @@ class RedditOldScraper:
                 id=f"reddit_{subreddit}_{post_id}",
                 source="reddit_old",
                 source_category=SourceCategory.FORUMS,
-                region="HK",
-                language="en",
+                region=self.region,
+                language=self.language,
                 language_detected=lang,
                 url=reddit_url,
                 author_hash=author_hash_val,
