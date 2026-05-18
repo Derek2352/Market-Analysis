@@ -131,7 +131,11 @@ def analyze(
     typer.echo(f" {total} vectors")
 
     if total == 0:
-        typer.echo("  No posts to embed. Check your sources and topic.", err=True)
+        typer.echo(
+            "  No posts to embed — no data was scraped.\n"
+            "  → Try: mkt analyze --topic \"...\" --region HK --sources app_store_hk,google_play_hk",
+            err=True,
+        )
         raise typer.Exit(code=1)
 
     # ── Phase 3: Cluster ─────────────────────────────────────────────────
@@ -182,6 +186,13 @@ def analyze(
     typer.echo(f" {len(result.clusters)} clusters, {result.noise_count} noise ({npct:.0f}%)")
     con.close()
 
+    if len(result.clusters) == 0 and len(post_ids_vec) < 50:
+        typer.echo(
+            f"  ⚠ Only {len(post_ids_vec)} posts — need >50 posts for meaningful clustering.\n"
+            f"  → Try: mkt scrape --topic \"{topic}\" --region {region} --sources app_store_hk,google_play_hk,reddit_old,youtube_html --limit 200 --since 180d",
+            err=True,
+        )
+
     # ── Phase 4: Results ─────────────────────────────────────────────────
     typer.echo(f"\n{'='*60}")
     typer.echo(f"Results: {topic} ({region})")
@@ -204,7 +215,11 @@ def analyze(
     # ── Phase 5: Personas (optional) ─────────────────────────────────────
     if generate_personas:
         if not _os.environ.get("ANTHROPIC_API_KEY"):
-            typer.echo("\n  [persona] Skipped — ANTHROPIC_API_KEY not set", err=True)
+            typer.echo(
+                "\n  [persona] Skipped — ANTHROPIC_API_KEY not set.\n"
+                "  → Set ANTHROPIC_API_KEY in your .env file to enable persona generation.",
+                err=True,
+            )
         else:
             typer.echo("\n  [persona] Generating via Claude...")
             for c in result.clusters:

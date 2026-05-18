@@ -439,6 +439,12 @@ def cluster(
     sources = [r[1] for r in rows]
 
     typer.echo(f"Clustering {len(rows)} embeddings for {topic} ({region})")
+    if len(rows) < 50:
+        typer.echo(
+            f"  ⚠ Only {len(rows)} posts — need >50 posts for meaningful clustering.\n"
+            f"  → Try wider scraping: mkt scrape --topic \"{topic}\" --region {region} --sources app_store_hk,google_play_hk,reddit_old,youtube_html --limit 200 --since 180d",
+            err=True,
+        )
 
     source_map = dict(zip(post_ids, sources))
 
@@ -476,6 +482,11 @@ def cluster(
 
     typer.echo(f"Clusters: {len(result.clusters)}, Noise: {result.noise_count}")
     typer.echo(f"Saved: {out_path}")
+    if len(result.clusters) == 0 and len(rows) >= 50:
+        typer.echo(
+            f"  ⚠ 0 clusters produced — try lowering min_cluster_size in {config_path} or scrape more diverse sources.",
+            err=True,
+        )
     con.close()
 
 
@@ -693,7 +704,12 @@ def synthesize(
             cluster_ids=cluster_ids,
         )
     except MissingAPIKey as e:
-        typer.echo(f"Missing API key: {e}", err=True)
+        env_var = "DEEPSEEK_API_KEY" if provider == "deepseek" else "ANTHROPIC_API_KEY"
+        typer.echo(
+            f"Missing API key: {e}\n"
+            f"  → Set {env_var} in your .env file and retry.",
+            err=True,
+        )
         raise typer.Exit(code=1)
     except CostCapExceeded as e:
         typer.echo(f"Cost cap exceeded: {e}", err=True)
@@ -902,7 +918,12 @@ def synthesize_temporal_cmd(
             run_id=run_id,
         )
     except MissingAPIKey as e:
-        typer.echo(f"Missing API key: {e}", err=True)
+        env_var = "DEEPSEEK_API_KEY" if provider == "deepseek" else "ANTHROPIC_API_KEY"
+        typer.echo(
+            f"Missing API key: {e}\n"
+            f"  → Set {env_var} in your .env file and retry.",
+            err=True,
+        )
         raise typer.Exit(code=1)
     except CostCapExceeded as e:
         typer.echo(f"Cost cap exceeded: {e}", err=True)
@@ -1017,7 +1038,12 @@ def synthesize_compare_cmd(
             run_id=run_id_a,  # use first topic's run id as base
         )
     except MissingAPIKey as e:
-        typer.echo(f"Missing API key: {e}", err=True)
+        env_var = "DEEPSEEK_API_KEY" if provider == "deepseek" else "ANTHROPIC_API_KEY"
+        typer.echo(
+            f"Missing API key: {e}\n"
+            f"  → Set {env_var} in your .env file and retry.",
+            err=True,
+        )
         raise typer.Exit(code=1)
     except CostCapExceeded as e:
         typer.echo(f"Cost cap exceeded: {e}", err=True)
