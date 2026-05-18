@@ -78,13 +78,17 @@ class PoliteClient:
     robots_cache: RobotsCache
     rate: float = DEFAULT_RATE
     respect_robots: bool = True
+    headers: dict[str, str] | None = None
 
     _client: httpx.Client | None = None
     _last_request: dict[str, float] | None = None  # domain → epoch float
 
     def __post_init__(self) -> None:
+        merged = {"User-Agent": USER_AGENT}
+        if self.headers:
+            merged.update(self.headers)
         self._client = httpx.Client(
-            headers={"User-Agent": USER_AGENT},
+            headers=merged,
             timeout=httpx.Timeout(30.0, connect=10.0),
             follow_redirects=True,
         )

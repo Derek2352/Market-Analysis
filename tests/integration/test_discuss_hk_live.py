@@ -21,9 +21,17 @@ pytestmark = pytest.mark.skipif(
 
 def test_discuss_hk_search_returns_at_least_one_post() -> None:
     from src.scrape.discuss_hk import DiscussHKScraper
+    from src.scrape.base.http import PoliteClient
+    from src.scrape.base.robots import RobotsCache
 
     since = datetime.now(timezone.utc) - timedelta(days=365 * 10)
-    with DiscussHKScraper() as s:
+    client = PoliteClient(
+        robots_cache=RobotsCache(),
+        respect_robots=False,
+        rate=1.5,
+        headers={"User-Agent": "Mozilla/5.0"},
+    )
+    with DiscussHKScraper(client=client) as s:
         posts = list(s.search("MTR", since=since, limit=2))
     assert len(posts) >= 1
     p = posts[0]
