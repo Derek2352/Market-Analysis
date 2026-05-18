@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 import structlog
+from tqdm import tqdm
 
 from src.schemas.raw import RawPost
 
@@ -71,6 +72,7 @@ class EmbeddingStore:
         region: str,
         *,
         batch_size: int = 64,
+        progress: bool = True,
     ) -> int:
         """Embed *posts* and store in DuckDB. Returns count of newly embedded.
 
@@ -147,7 +149,7 @@ class EmbeddingStore:
         # Chunk and embed
         chunked_texts, chunk_map = self._chunk_texts(new_texts, new_ids, new_sources)
 
-        vectors = self._encode_batch(chunked_texts, model=model, batch_size=batch_size)
+        vectors = self._encode_batch(chunked_texts, model=model, batch_size=batch_size, progress=progress)
 
         # Store in DB
         now = datetime.now(timezone.utc).isoformat()
@@ -421,13 +423,21 @@ class EmbeddingStore:
         return chunked, chunk_map
 
     def _encode_batch(
-        self, texts: list[str], model: Any, batch_size: int = 64
+        self, texts: list[str], model: Any, batch_size: int = 64,
+        *,
+        progress: bool = True,
     ) -> list[Any]:
         """Encode texts in batches, returning normalized vectors."""
         import numpy as np
 
         all_vectors: list[np.ndarray] = []
-        for i in range(0, len(texts), batch_size):
+        n_batches = max(1, (len(texts) + batch_size - 1) // batch_size)
+
+        batch_iter = range(0, len(texts), batch_size)
+        if progress:
+            batch_iter = tqdm(batch_iter, total=n_batches, desc="Embedding", unit="batch")
+
+        for i in batch_iter:
             batch = texts[i:i + batch_size]
             vectors = model.encode(
                 batch,

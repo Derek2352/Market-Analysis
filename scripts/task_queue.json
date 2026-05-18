@@ -5,64 +5,69 @@
       "title": "Add embedding cache to skip re-embedding unchanged posts",
       "category": "performance",
       "priority": 1,
-      "status": "pending",
+      "status": "completed",
       "description": "Store SHA256 hash of post text → embedding mapping in data/embedding_cache/. On re-embed, check cache first. Only embed new/changed posts. Should cut Phase 2 time by 80%+ after first run.",
       "files": [
         "src/pipeline/embed.py"
       ],
-      "test_cmd": ".venv/Scripts/python.exe -m pytest tests/ -v -k embed"
+      "test_cmd": ".venv/Scripts/python.exe -m pytest tests/ -v -k embed",
+      "completed_at": "2026-05-18T20:00:13.994413+00:00"
     },
     {
       "id": "csv-export",
       "title": "Add CSV export for raw posts and personas",
       "category": "feature",
       "priority": 2,
-      "status": "pending",
+      "status": "completed",
       "description": "Add `mkt export --format csv --topic X --region Y` command. Exports raw posts with all fields and persona summaries. Useful for Derek to analyze in Excel/Sheets.",
       "files": [
         "src/cli_export.py",
         "src/cli.py"
       ],
-      "test_cmd": ".venv/Scripts/python.exe -m pytest tests/ -v -k export"
+      "test_cmd": ".venv/Scripts/python.exe -m pytest tests/ -v -k export",
+      "completed_at": "2026-05-18T20:05:47.497270+00:00"
     },
     {
       "id": "scrape-retry-backoff",
       "title": "Add exponential backoff retry to scrapers",
       "category": "resilience",
       "priority": 3,
-      "status": "pending",
+      "status": "completed",
       "description": "Wrap scraper HTTP calls with retry logic: 3 attempts, exponential backoff 1s/2s/4s. Handle 429/503 gracefully. Add --retries CLI flag. Currently scrapers fail on first transient error.",
       "files": [
         "src/scrape/base.py",
         "src/cli/scrape.py"
       ],
-      "test_cmd": ".venv/Scripts/python.exe -m pytest tests/ -v -k 'scrape or retry'"
+      "test_cmd": ".venv/Scripts/python.exe -m pytest tests/ -v -k 'scrape or retry'",
+      "completed_at": "2026-05-18T20:14:37.259057+00:00"
     },
     {
       "id": "temporal-trends",
       "title": "Add temporal trend analysis to synthesis",
       "category": "analysis",
       "priority": 4,
-      "status": "pending",
+      "status": "completed",
       "description": "Bucket posts by week/month, compute sentiment trend, detect spikes in complaint volume. Add `--temporal` flag to synthesize. Output trend chart data as JSON + ASCII chart in terminal.",
       "files": [
         "src/pipeline/synthesize.py",
         "src/pipeline/models.py"
       ],
-      "test_cmd": ".venv/Scripts/python.exe -m pytest tests/ -v -k temporal"
+      "test_cmd": ".venv/Scripts/python.exe -m pytest tests/ -v -k temporal",
+      "completed_at": "2026-05-18T20:22:08.157250+00:00"
     },
     {
       "id": "progress-bars",
       "title": "Add tqdm progress bars to scrape and embed phases",
       "category": "ux",
       "priority": 5,
-      "status": "pending",
+      "status": "in_progress",
       "description": "Add tqdm progress bars to scrape (per-source, per-page) and embed (per-batch). Use `--no-progress` flag for cron/pipe mode. Already have tqdm in deps.",
       "files": [
         "src/pipeline/embed.py",
         "src/cli/scrape.py"
       ],
-      "test_cmd": ".venv/Scripts/python.exe -m pytest tests/ -v"
+      "test_cmd": ".venv/Scripts/python.exe -m pytest tests/ -v",
+      "started_at": "2026-05-18T21:12:52.882062+00:00"
     },
     {
       "id": "multi-topic-pipeline",
@@ -105,11 +110,32 @@
       "test_cmd": ".venv/Scripts/python.exe -m pytest tests/ -v -k doctor"
     }
   ],
-  "completed": [],
+  "completed": [
+    {
+      "id": "embedding-cache",
+      "title": "Add embedding cache to skip re-embedding unchanged posts",
+      "completed_at": "2026-05-18T20:00:13.994413+00:00"
+    },
+    {
+      "id": "csv-export",
+      "title": "Add CSV export for raw posts and personas",
+      "completed_at": "2026-05-18T20:05:47.497270+00:00"
+    },
+    {
+      "id": "scrape-retry-backoff",
+      "title": "Add exponential backoff retry to scrapers",
+      "completed_at": "2026-05-18T20:14:37.259057+00:00"
+    },
+    {
+      "id": "temporal-trends",
+      "title": "Add temporal trend analysis to synthesis",
+      "completed_at": "2026-05-18T20:22:08.157250+00:00"
+    }
+  ],
   "stats": {
     "total": 8,
-    "pending": 8,
-    "in_progress": 0,
-    "completed": 0
+    "pending": 3,
+    "in_progress": 1,
+    "completed": 4
   }
 }
