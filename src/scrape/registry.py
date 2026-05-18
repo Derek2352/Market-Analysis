@@ -8,6 +8,7 @@ from src.scrape.base import SourceScraper
 from src.scrape.discuss_hk import DiscussHKScraper
 from src.scrape.google_play_hk import GooglePlayHKScraper
 from src.scrape.lihkg import LIHKGScraper
+from src.scrape.medium_hk import MediumHKScraper
 from src.scrape.openrice import OpenriceScraper
 from src.scrape.reddit_old import RedditOldScraper
 
@@ -17,6 +18,7 @@ _FACTORIES: dict[str, Callable[[], SourceScraper]] = {
     "discuss_hk": DiscussHKScraper,
     "google_play_hk": GooglePlayHKScraper,
     "lihkg": LIHKGScraper,
+    "medium_hk": MediumHKScraper,
     "openrice": OpenriceScraper,
     "reddit_old": RedditOldScraper,
 }
