@@ -239,6 +239,14 @@ def get_doc(run_id: str, doc_id: str) -> DocResponse:
     if not raw_dir.exists():
         raise HTTPException(status_code=404, detail="no scraped posts for this run")
 
+    # Look up the per-source category once, for the UI icons.
+    from src.regions.registry import get_region as _get_region
+    try:
+        region_cfg = _get_region(state.summary.region)
+        source_to_cat = {s.source_id: s.category.value for s in region_cfg.sources}
+    except KeyError:
+        source_to_cat = {}
+
     target = doc_id.removeprefix("doc_")
     for rf in sorted(raw_dir.glob("*.json")):
         if rf.name.endswith("._run.json"):
@@ -252,10 +260,12 @@ def get_doc(run_id: str, doc_id: str) -> DocResponse:
             short = hashlib.sha256(pid.encode("utf-8")).hexdigest()[:12]
             if short != target:
                 continue
+            source_id = p.get("source", "")
             return DocResponse(
                 doc_id=doc_id,
                 post_id=pid,
-                source=p.get("source", ""),
+                source=source_id,
+                source_category=source_to_cat.get(source_id, ""),
                 url=p.get("url", ""),
                 title=p.get("title"),
                 body=p.get("body", ""),

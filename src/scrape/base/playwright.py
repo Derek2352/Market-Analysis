@@ -133,6 +133,61 @@ class PlaywrightManager:
         self._playwright = None
 
     # ------------------------------------------------------------------
+    # Lazy-load helper (used by YouTube comments, Quora answers)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def scroll_until_stable(
+        page: Any,
+        *,
+        max_scrolls: int = 10,
+        settle_ms: int = 1500,
+        scroll_step_px: int = 2000,
+    ) -> int:
+        """Scroll the page until the document height stops growing.
+
+        Used for infinite-scroll lists (YouTube comments, Quora answer
+        sections). Returns the number of effective scrolls performed.
+
+        Parameters
+        ----------
+        page:
+            A Playwright sync ``Page`` instance.
+        max_scrolls:
+            Hard cap on scroll attempts — bounds the run time even if a
+            page never settles.
+        settle_ms:
+            After each scroll, wait this long for new content to render
+            before measuring the height again.
+        scroll_step_px:
+            Pixels to scroll per attempt. Mostly cosmetic — the
+            JavaScript ``window.scrollTo`` jumps directly to the bottom;
+            the parameter is kept for callers that want a smaller step.
+        """
+        last_height = -1
+        steady_rounds = 0
+        for i in range(max_scrolls):
+            height = int(page.evaluate("() => document.body.scrollHeight"))
+            page.evaluate(
+                "(step) => window.scrollBy(0, step)",
+                scroll_step_px,
+            )
+            page.evaluate(
+                "() => window.scrollTo(0, document.body.scrollHeight)",
+            )
+            page.wait_for_timeout(settle_ms)
+            new_height = int(page.evaluate("() => document.body.scrollHeight"))
+            if new_height == height:
+                steady_rounds += 1
+                # Two consecutive no-growth rounds → the page has settled.
+                if steady_rounds >= 2:
+                    return i + 1
+            else:
+                steady_rounds = 0
+            last_height = new_height
+        return max_scrolls
+
+    # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
 
