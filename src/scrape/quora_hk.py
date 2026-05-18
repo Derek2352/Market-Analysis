@@ -21,3 +21,6 @@ class QuoraHKScraper(_Base):
     def __init__(self, **kwargs: object) -> None:
         kwargs.setdefault("region", "HK")
         super().__init__(**kwargs)
+
+
+from src.scrape.quora import doctor_check  # noqa: E402,F401

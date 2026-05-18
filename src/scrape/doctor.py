@@ -95,7 +95,7 @@ def doctor(
                 failed += 1
                 continue
 
-            ok, detail = _check_parser(source_id, html, meta)
+            ok, detail = _check_parser(source_id, html, meta, fixture_name=name)
             if ok:
                 if verbose:
                     typer.echo(f"    ✓ {name} — {detail}")
@@ -131,26 +131,42 @@ def doctor(
         )
 
 
-def _check_parser(source_id: str, html: str, meta: dict) -> tuple[bool, str]:
+def _check_parser(
+    source_id: str, html: str, meta: dict, *, fixture_name: str = "",
+) -> tuple[bool, str]:
     """Check if a scraper's parser can handle the fixture HTML.
 
-    For now, this is a structural check: we verify the HTML is non-empty and
-    contains expected elements for the source.  Full parse-through will be
-    added as each scraper exposes a ``parse_from_fixture()`` entrypoint.
+    Strategy:
+    1. Look for ``doctor_check`` on the scraper module — a per-source hook
+       that invokes the real parser. This is the authoritative check.
+    2. If absent, fall back to a generic "HTML is non-empty" sanity check.
+
+    The old per-source structural dict (``_STRUCTURAL_CHECKS``) is gone
+    because the assertions were too crude (``has-links`` on detail pages,
+    ``has-json-structure`` on XSS-prefixed JSON) and produced false alarms.
     """
     if not html or not html.strip():
-        return False, "empty HTML"
+        return False, "empty HTML / payload"
 
-        # Structural checks per source
-    checks = _STRUCTURAL_CHECKS.get(source_id, [])
-    for check_name, check_fn in checks:
-        ok, msg = check_fn(html)
-        if not ok:
-            return False, f"{check_name}: {msg}"
+    hook = _load_doctor_hook(source_id)
+    if hook is not None:
+        try:
+            return hook(fixture_name, html, meta or {})
+        except Exception as e:  # noqa: BLE001 — parser drift is exactly what we want to catch
+            return False, f"{source_id}.doctor_check raised: {e}"
 
-    # If the source registered, try running the scraper's live parse against
-    # the fixture by checking for expected class/id markers.
-    return True, f"{len(html)} bytes, structure OK"
+    # Fallback: minimal sanity check for sources without a doctor_check.
+    return True, f"{len(html)} bytes (no per-source check defined)"
+
+
+def _load_doctor_hook(source_id: str):
+    """Import the scraper module and return its ``doctor_check`` if present."""
+    import importlib
+    try:
+        mod = importlib.import_module(f"src.scrape.{source_id}")
+    except ModuleNotFoundError:
+        return None
+    return getattr(mod, "doctor_check", None)
 
 
 def _has_test_fixtures(source_id: str) -> list[str]:
@@ -164,95 +180,10 @@ def _has_test_fixtures(source_id: str) -> list[str]:
     )
 
 
-def _check_has_elements(tag: str) -> callable:
-    """Factory: returns a function that checks HTML contains <tag>."""
-    def check(html: str) -> tuple[bool, str]:
-        count = html.count(f"<{tag}")
-        if count == 0:
-            return False, f"no <{tag}> elements found"
-        return True, f"{count} <{tag}> elements"
-    return check
-
-
-def _check_has_class(class_name: str) -> callable:
-    """Factory: returns a function that checks HTML contains a CSS class."""
-    def check(html: str) -> tuple[bool, str]:
-        if class_name not in html:
-            return False, f"class '{class_name}' not found"
-        return True, f"class '{class_name}' present"
-    return check
-
-
-_STRUCTURAL_CHECKS: dict[str, list[tuple[str, callable]]] = {
-    # HK scrapers
-    "openrice": [
-        ("has-links", _check_has_elements("a")),
-        ("restaurant-links", _check_has_class("r-")),
-    ],
-    "reddit_old": [
-        ("has-links", _check_has_elements("a")),
-        ("thread-links", _check_has_class("thing")),
-    ],
-    "discuss_hk": [
-        ("has-links", _check_has_elements("a")),
-    ],
-    "hk01": [
-        ("has-links", _check_has_elements("a")),
-    ],
-    "medium_hk": [
-        ("has-json-structure", _check_has_class("{\"success\":")),
-    ],
-    # TW scrapers
-    "ptt": [
-        ("has-links", _check_has_elements("a")),
-        ("main-content", _check_has_class("main-content")),
-    ],
-    "dcard": [
-        ("has-json", lambda h: ("{" in h or "[" in h, "JSON structure OK") if ("{" in h or "[" in h) else (False, "not JSON")),
-    ],
-    "mobile01": [
-        ("has-links", _check_has_elements("a")),
-        ("topic-links", _check_has_class("topicdetail")),
-    ],
-    "yahoo_news_tw": [
-        ("has-links", _check_has_elements("a")),
-    ],
-    # US scrapers
-    "trustpilot": [
-        ("has-links", _check_has_elements("a")),
-        ("review-links", _check_has_class("review")),
-    ],
-    "yelp_html": [
-        ("has-links", _check_has_elements("a")),
-        ("biz-links", _check_has_class("biz")),
-    ],
-    "quora": [
-        ("has-links", _check_has_elements("a")),
-    ],
-    "medium": [
-        ("has-json-structure", _check_has_class("{\"success\":")),
-    ],
-    # JP scrapers
-    "five_ch": [
-        ("has-links", _check_has_elements("a")),
-    ],
-    "yahoo_japan_reviews": [
-        ("has-links", _check_has_elements("a")),
-    ],
-    "cosme": [
-        ("has-links", _check_has_elements("a")),
-    ],
-    "tabelog": [
-        ("has-links", _check_has_elements("a")),
-    ],
-    # App store / Google Play scrapers (JSON-based detection)
-    "google_play_hk": [
-        ("has-review-keys", lambda h: ("reviewId" in h or "appId" in h, "review data present") if ("reviewId" in h or "appId" in h) else (False, "no review data")),
-    ],
-    "youtube_html": [
-        ("has-links", _check_has_elements("a")),
-    ],
-}
+# Per-source structural checks were removed in Phase 8. The doctor now
+# calls each scraper module's ``doctor_check`` function — a real parser
+# invocation against the fixture. See e.g. ``src/scrape/discuss_hk.py:doctor_check``.
+# Modules without a hook fall through to the "non-empty HTML" sanity check.
 
 
 if __name__ == "__main__":

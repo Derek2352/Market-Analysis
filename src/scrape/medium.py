@@ -250,3 +250,26 @@ def parse_medium_response(
             "is_locked": bool(value.get("isLocked", False)),
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# scrape-doctor check — called by mkt scrape-doctor against saved fixtures.
+# ---------------------------------------------------------------------------
+
+
+def doctor_check(name: str, html: str, meta: dict) -> tuple[bool, str]:
+    """Doctor hook: invoke the real parser against the fixture.
+
+    The Medium fixture is the ``?format=json`` payload (XSS-prefixed JSON).
+    A passing check means parse_medium_response can extract a non-empty
+    body — i.e. Medium's shape hasn't drifted.
+    """
+    try:
+        post = parse_medium_response(
+            html, source_url="https://medium.com/@unknown/test-fixture-xxxx",
+        )
+    except Exception as e:  # noqa: BLE001 — parser drift surfaces here
+        return False, f"parse_medium_response raised: {e}"
+    if not post.body:
+        return False, "parse_medium_response: empty body"
+    return True, f"parse_medium_response OK ({len(post.body)} chars body, {post.engagement_metrics.get('claps_count', 0)} claps)"
