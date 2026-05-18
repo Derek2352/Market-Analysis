@@ -193,28 +193,56 @@ function ClaimSection({
         ) : list.claims.length === 0 ? (
           <div className="text-sm text-muted-foreground italic">No items.</div>
         ) : (
-          <ul className="space-y-1.5">
-            {list.claims.map((c, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm leading-snug">
-                <span
-                  className={`mt-1.5 inline-block h-1.5 w-1.5 rounded-full shrink-0 ${
-                    showSeverity && c.severity === "high"
-                      ? "bg-destructive"
-                      : showSeverity && c.severity === "medium"
-                        ? "bg-warning"
-                        : "bg-muted-foreground/60"
-                  }`}
-                />
-                <span>
-                  {c.claim}
-                  {showSeverity && c.severity && (
-                    <span className="ml-1.5 text-xs text-muted-foreground">
-                      ({c.severity})
-                    </span>
-                  )}
-                </span>
-              </li>
-            ))}
+          <ul className="space-y-2">
+            {list.claims.map((c, i) => {
+              const pct = (c.pct_of_cluster ?? 0) * 100;
+              const n = c.mentioned_by_n_users ?? 0;
+              const contested = (c.contested_by ?? []).length;
+              const hasMetrics = n > 0 || pct > 0 || contested > 0;
+              return (
+                <li key={i} className="flex items-start gap-2 text-sm leading-snug">
+                  <span
+                    className={`mt-1.5 inline-block h-1.5 w-1.5 rounded-full shrink-0 ${
+                      showSeverity && c.severity === "high"
+                        ? "bg-destructive"
+                        : showSeverity && c.severity === "medium"
+                          ? "bg-warning"
+                          : "bg-muted-foreground/60"
+                    }`}
+                  />
+                  <span className="flex-1">
+                    {c.claim}
+                    {showSeverity && c.severity && (
+                      <span className="ml-1.5 text-xs text-muted-foreground">
+                        ({c.severity})
+                      </span>
+                    )}
+                    {hasMetrics && (
+                      <span className="ml-2 inline-flex flex-wrap gap-1 align-baseline">
+                        {n > 0 && (
+                          <span className="text-[10px] px-1.5 py-0 rounded bg-secondary/60 text-muted-foreground">
+                            {n} user{n === 1 ? "" : "s"}
+                          </span>
+                        )}
+                        {pct > 0 && (
+                          <span className="text-[10px] px-1.5 py-0 rounded bg-secondary/60 text-muted-foreground">
+                            {pct.toFixed(0)}% of cluster
+                          </span>
+                        )}
+                        {contested > 0 && (
+                          <span
+                            className="text-[10px] px-1.5 py-0 rounded bg-warning/15 text-warning-foreground border border-warning/30"
+                            title="Contested by adversarial validation"
+                          >
+                            ⚠ contested ×{contested}
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </CardContent>

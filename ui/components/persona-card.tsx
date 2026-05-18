@@ -11,6 +11,18 @@ export function PersonaCard({ runId, persona }: { runId: string; persona: Person
   const unverifiedBuckets = (
     ["goals", "motivations", "pain_points", "preferred_channels", "behaviors"] as const
   ).filter((k) => persona[k].coverage !== "ok");
+  // Phase 6+ : total contested claims across all buckets — surfaced as a
+  // single badge in the card footer so users can spot personas that the
+  // adversarial validation pass flagged.
+  const totalContested = (
+    ["goals", "motivations", "pain_points", "preferred_channels", "behaviors"] as const
+  ).reduce((acc, k) => {
+    return acc + persona[k].claims.reduce(
+      (n, c) => n + ((c.contested_by ?? []).length > 0 ? 1 : 0),
+      0,
+    );
+  }, 0);
+  const coverageTier = persona.data_source_coverage?.coverage_tier;
 
   const confPercent = Math.round((persona.confidence ?? 0) * 100);
 
@@ -70,9 +82,25 @@ export function PersonaCard({ runId, persona }: { runId: string; persona: Person
         <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-2 border-t">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Badge variant={missingCount === 0 ? "success" : "muted"} className="cursor-help">
-                {persona.data_source_coverage.categories_present.length}/
-                {persona.data_source_coverage.categories_present.length + missingCount} categories
+              <Badge
+                variant={
+                  coverageTier === "high"
+                    ? "success"
+                    : coverageTier === "balanced"
+                      ? "secondary"
+                      : coverageTier === "limited"
+                        ? "muted"
+                        : missingCount === 0
+                          ? "success"
+                          : "warning"
+                }
+                className="cursor-help"
+              >
+                {coverageTier
+                  ? coverageTier
+                  : `${persona.data_source_coverage.categories_present.length}/${
+                      persona.data_source_coverage.categories_present.length + missingCount
+                    } categories`}
               </Badge>
             </TooltipTrigger>
             <TooltipContent>{persona.data_source_coverage.bias_warning}</TooltipContent>
@@ -87,6 +115,18 @@ export function PersonaCard({ runId, persona }: { runId: string; persona: Person
               </TooltipTrigger>
               <TooltipContent>
                 Unverified buckets: {unverifiedBuckets.join(", ")}
+              </TooltipContent>
+            </Tooltip>
+          )}
+          {totalContested > 0 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge variant="warning" className="cursor-help">
+                  ⚠ {totalContested} contested
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                Claims flagged by adversarial validation: {totalContested}
               </TooltipContent>
             </Tooltip>
           )}

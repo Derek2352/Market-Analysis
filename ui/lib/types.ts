@@ -65,12 +65,25 @@ export interface EvidenceClaim {
   claim: string;
   evidence: string[];
   severity?: "high" | "medium" | "low" | null;
+  // Phase 6+ quantitative grounding — computed pre-LLM-call from the
+  // evidence pack and backfilled after validation. Defaults to 0 / [].
+  mentioned_by_n_users?: number;
+  pct_of_cluster?: number;             // 0.0 – 1.0
+  sentiment_scores?: Record<string, number>;
+  contested_by?: string[];             // doc_ids that contradict this claim
 }
 
 export interface ClaimList {
   claims: EvidenceClaim[];
   coverage: "ok" | "unverified";
 }
+
+// data_source_coverage tier — populated server-side per persona/journey.
+export type CoverageTier =
+  | "single-perspective"
+  | "limited"
+  | "balanced"
+  | "high";
 
 export interface RepresentativeQuote {
   text_original: string;
@@ -87,6 +100,9 @@ export interface DataSourceCoverage {
   sources_used: string[];
   doc_counts: Record<string, number>;
   bias_warning: string;
+  // Phase 6 additions; older personas omit these.
+  category_count?: number;
+  coverage_tier?: CoverageTier;
 }
 
 export interface Persona {
