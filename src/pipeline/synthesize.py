@@ -1468,14 +1468,9 @@ def synthesize_run(
             )
             total_usage = total_usage.add(u_refine)
             report.actual_cost_usd = round(pricing.cost(total_usage), 4)
-        except (SynthesisError, ImportError, AttributeError, TypeError) as e:
-            # SynthesisError is the documented failure mode.
-            # ImportError / AttributeError / TypeError catch the case where
-            # _refinement_pass itself is broken (it currently references
-            # `_build_system_prompt` and `pack.text` which don't exist on
-            # the current synthesize.py — this code path is staged but
-            # incomplete, see PROJECT_PLAN.md Phase 8). Don't tank the
-            # whole run for a missed refinement.
+        except SynthesisError as e:
+            # A refinement failure should never tank the run — we already
+            # have the persona + journey.
             _log.warning("synthesize.refinement_failed", error=str(e))
             break
 
@@ -1498,47 +1493,42 @@ def _refinement_pass(
     post_metadata: dict[str, dict[str, Any]] | None,
     region: str,
     *,
-    client: Any,
+    client: LLMClient,
     model: str,
     run_id: str,
 ) -> tuple[str, Usage]:
     """Run a deeper analysis pass on a cluster to burn budget for quality.
 
-    Returns (analysis_text, Usage).
+    Reuses the prompt-cached evidence block from the original persona call —
+    if the same cluster was just synthesized, the second call hits the cache
+    and pays only the task-suffix cost. Returns (analysis_text, Usage).
     """
-    from src.pipeline.synthesize import _EvidencePack, _build_evidence_pack, _build_system_prompt
-
-    pack = _build_evidence_pack(cluster, post_texts, post_metadata)
-    system = _build_system_prompt(region)
-
-    prompt = (
-        f"You are a senior market analyst reviewing a consumer persona for {region}. "
-        f"Below is a cluster of {cluster.size} consumer posts. "
-        f"Provide a DEEP quantitative and qualitative analysis:\n\n"
+    pack = _build_evidence_pack(cluster, post_texts, post_metadata, region)
+    task = (
+        f"You are a senior market analyst reviewing a consumer persona for "
+        f"{region}. The cluster above contains {cluster.size} consumer posts. "
+        f"Provide a DEEP quantitative + qualitative analysis covering:\n\n"
         f"1. Temporal trends — what changed over time in consumer sentiment?\n"
-        f"2. Competitive landscape — how does this product compare to alternatives mentioned?\n"
-        f"3. Root cause analysis — what systemic issues drive the top 3 pain points?\n"
-        f"4. Segment breakdown — are there sub-groups within this cluster with different needs?\n"
-        f"5. Actionable recommendations — what should the product team fix first?\n\n"
-        f"Evidence from consumer posts:\n{pack.text}\n\n"
-        f"Be specific. Cite doc_ids for every claim. Output in markdown."
+        f"2. Competitive landscape — how does this product compare to "
+        f"alternatives mentioned in the evidence?\n"
+        f"3. Root cause analysis — what systemic issues drive the top 3 pain "
+        f"points?\n"
+        f"4. Segment breakdown — are there sub-groups within this cluster "
+        f"with different needs?\n"
+        f"5. Actionable recommendations — what should the product team fix "
+        f"first?\n\n"
+        f"Be specific. Cite doc_ids from the evidence pack above for every "
+        f"claim. Output markdown."
     )
 
-    resp = client.chat(
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": prompt},
-        ],
+    text, usage = client.synthesize(
+        rules_block=HARD_RULES,
+        evidence_block=pack.block_text,
+        task_message=task,
         model=model,
         max_tokens=2048,
-        temperature=0.4,
     )
-    u = Usage(
-        input_tokens=resp.usage.input_tokens,
-        output_tokens=resp.usage.output_tokens,
-        cached_input_tokens=getattr(resp.usage, "cached_input_tokens", 0),
-    )
-    return resp.content, u
+    return text, usage
 
 
 def _build_pricing_only_client(

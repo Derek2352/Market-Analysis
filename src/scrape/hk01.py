@@ -348,3 +348,27 @@ def parse_article(html: str, *, article_url: str) -> RawPost:
             "category": category,
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# scrape-doctor check — invoked by mkt scrape-doctor against saved fixtures.
+# ---------------------------------------------------------------------------
+
+
+def doctor_check(name: str, html: str, meta: dict) -> tuple[bool, str]:
+    """Doctor hook: dispatch on fixture filename to the right parser."""
+    if "search" in name:
+        ids = parse_search_results(html)
+        return (True, f"parse_search_results: {len(ids)} article URLs") if ids else (
+            False, "parse_search_results returned 0 article URLs (fixture may "
+            "have been captured before AJAX populated results)"
+        )
+    if "article" in name:
+        try:
+            post = parse_article(html, article_url="https://www.hk01.com/x/0/test")
+        except SourceError as e:
+            return False, f"parse_article raised: {e}"
+        if not (post.body or post.title):
+            return False, "parse_article: empty body and title"
+        return True, f"parse_article OK (title={(post.title or '')[:40]!r})"
+    return True, f"{len(html)} bytes, no specific check for {name}"

@@ -19,3 +19,8 @@ class MediumHKScraper(_Base):
     def __init__(self, **kwargs: object) -> None:
         kwargs.setdefault("region", "HK")
         super().__init__(**kwargs)
+
+
+# Re-export the generalized doctor_check so `mkt scrape-doctor` can find
+# it under the medium_hk source id (the doctor looks at src.scrape.<source_id>).
+from src.scrape.medium import doctor_check  # noqa: E402,F401

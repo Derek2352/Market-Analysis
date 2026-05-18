@@ -333,3 +333,31 @@ def parse_question_page(
             "author_name": author_name,
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# scrape-doctor check — invoked by mkt scrape-doctor against saved fixtures.
+# ---------------------------------------------------------------------------
+
+
+def doctor_check(name: str, html: str, meta: dict) -> tuple[bool, str]:
+    """Doctor hook: dispatch on fixture filename to the right parser."""
+    if is_cloudflare_page(html):
+        return False, (
+            "Cloudflare guard page captured — refresh fixture with a real "
+            "browser session (playwright codegen or browser save-as)."
+        )
+    if "search" in name:
+        urls = parse_search_results(html)
+        if not urls:
+            return False, "parse_search_results returned 0 question URLs"
+        return True, f"parse_search_results: {len(urls)} question URLs"
+    if "question" in name:
+        try:
+            posts = list(parse_question_page(html, question_url="https://www.quora.com/test"))
+        except Exception as e:  # noqa: BLE001
+            return False, f"parse_question_page raised: {e}"
+        if not posts:
+            return False, "parse_question_page returned 0 answers"
+        return True, f"parse_question_page OK ({len(posts)} answers)"
+    return True, f"{len(html)} bytes, no specific check for {name}"

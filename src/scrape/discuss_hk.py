@@ -252,3 +252,35 @@ def _parse_post_date(text: str) -> datetime | None:
         except ValueError:
             continue
     return None
+
+
+# ---------------------------------------------------------------------------
+# scrape-doctor check — invoked by mkt scrape-doctor against saved fixtures.
+# ---------------------------------------------------------------------------
+
+
+def doctor_check(name: str, html: str, meta: dict) -> tuple[bool, str]:
+    """Doctor hook: dispatch on fixture filename to the right parser."""
+    if "search" in name:
+        tids = parse_search_results(html)
+        if not tids:
+            return False, "parse_search_results returned 0 thread ids"
+        return True, f"parse_search_results: {len(tids)} thread ids"
+    if name.startswith("thread_") or "thread_" in name:
+        # Derive thread_id from filename like "thread_11221987.html".
+        stem = name.rsplit(".", 1)[0]
+        tid = stem.split("thread_", 1)[-1]
+        try:
+            post = parse_thread(html, thread_id=tid)
+        except SourceError as e:
+            return False, f"parse_thread raised: {e}"
+        if not post.body:
+            return False, "parse_thread: empty body"
+        return True, (
+            f"parse_thread OK (title={post.title or ''!r:0.40s}, "
+            f"{len(post.body)} chars body, {post.engagement_metrics.get('views',0)} views)"
+        )
+    # Unknown fixture pattern — just confirm the HTML loads.
+    if not html or len(html) < 100:
+        return False, f"HTML too short ({len(html)} chars)"
+    return True, f"{len(html)} bytes, no specific parser for {name}"

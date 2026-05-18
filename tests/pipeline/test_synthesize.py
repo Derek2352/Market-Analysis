@@ -595,6 +595,11 @@ def test_synthesize_run_with_force_bypasses_cap(monkeypatch) -> None:
         provider="anthropic",
         max_cost_usd=0.000001,
         force=True,
+        # Disable the cost-floor refinement loop — this test cares only that
+        # force=True bypasses the cap. With min_cost_usd=0, the persona +
+        # journey calls suffice and we don't run extra refinement passes
+        # (each of which would consume another scripted reply).
+        min_cost_usd=0.0,
         http_client=http_client,
     )
     assert len(report.personas) == 1
