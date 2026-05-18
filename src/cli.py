@@ -536,6 +536,13 @@ def synthesize(
         float,
         typer.Option("--max-cost", help="Hard cost ceiling in USD."),
     ] = 4.00,
+    temporal: Annotated[
+        bool,
+        typer.Option(
+            "--temporal",
+            help="Also compute temporal trend analysis (volume, complaints, spikes).",
+        ),
+    ] = False,
 ) -> None:
     """Synthesize a Persona + Journey Map for every cluster of a clustering run.
 
@@ -594,7 +601,50 @@ def synthesize(
                 "source": p.get("source", ""),
                 "url": p.get("url", ""),
                 "lang": p.get("language_detected", "en"),
+                "posted_at": p.get("posted_at", ""),
+                "body": p.get("body", ""),
             }
+
+    # ── Temporal trend analysis (--temporal flag) ─────────────────
+    if temporal:
+        from src.pipeline.models import compute_temporal_trends
+
+        trends = compute_temporal_trends(
+            post_metadata,
+            topic=topic,
+            region=region,
+            bucket_type="week",
+        )
+
+        typer.echo(f"\n📅 Temporal Trends ({trends.total_posts} posts, "
+                   f"{len(trends.buckets)} {trends.bucket_type}s)")
+
+        # ASCII sparkline for post volume
+        if trends.buckets:
+            max_count = max(b.post_count for b in trends.buckets) or 1
+            bar_width = 40
+            typer.echo("  Volume by week:")
+            for b in trends.buckets:
+                bar_len = int(b.post_count / max_count * bar_width)
+                bar = "█" * bar_len
+                typer.echo(f"  {b.label}  {bar} {b.post_count}")
+
+        if trends.spikes:
+            typer.echo(f"\n  ⚡ Spikes detected ({len(trends.spikes)}):")
+            for s in trends.spikes:
+                typer.echo(
+                    f"    {s['bucket']}: {s['post_count']} posts "
+                    f"(median: {s['median']}, complaints: {s['complaint_count']})"
+                )
+
+        # Save JSON
+        trends_dir = _DATA_DIR / "trends" / topic_slug / region
+        trends_dir.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        trends_path = trends_dir / f"trends_{ts}.json"
+        with open(trends_path, "w", encoding="utf-8") as f:
+            json.dump(trends.to_dict(), f, indent=2, default=str, ensure_ascii=False)
+        typer.echo(f"\n  Trends saved: {trends_path}")
 
     cluster_ids = [cluster_id] if cluster_id else None
     try:
