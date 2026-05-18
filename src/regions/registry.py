@@ -370,13 +370,17 @@ REGIONS: dict[str, RegionConfig] = {
                 tos_scraping_stance=ToSStance.PROHIBITED,
                 robots_txt_allows=False,
                 last_checked=_PHASE6_DATE,
-                last_verified_working=_PHASE6_DATE,
+                last_verified_working=None,
                 notes=(
-                    "YouTube comments via Playwright. Top 10 videos × 50 "
-                    "comments per topic. Language filter: keep zh-Hant / yue / en; "
-                    "drop zh-Hans to exclude mainland CN signal. Robots.txt "
-                    "disallows /search and /watch — flagged honestly. ToS "
-                    "prohibits scraping; opt-in only. Phase 6 source."
+                    "YouTube comments via Playwright — DEFERRED from Phase 6. "
+                    "The saved video fixture had zero ytd-comment-thread-renderer "
+                    "elements: ytInitialData carries the comments header but no "
+                    "commentRenderer instances. Comments load via a continuation "
+                    "XHR triggered by scroll into the comments section. A second "
+                    "capture pass needs to invoke PlaywrightManager.scroll_until_stable "
+                    "(or scroll 4× with 3s waits) BEFORE saving the page. Robots.txt "
+                    "disallows /search and /watch — flagged honestly. ToS prohibits; "
+                    "would be opt-in only. Not registered in src/scrape/registry.py."
                 ),
             ),
             SourceConfig(
@@ -408,11 +412,16 @@ REGIONS: dict[str, RegionConfig] = {
                 tos_scraping_stance=ToSStance.PROHIBITED,
                 robots_txt_allows=None,
                 last_checked=_PHASE6_DATE,
-                last_verified_working=_PHASE6_DATE,
+                last_verified_working=None,
                 notes=(
-                    "Quora questions tagged Hong Kong. Discovery via DuckDuckGo "
-                    "SERP for site:quora.com 'Hong Kong' <topic>. 2s min delay. "
-                    "ToS prohibits scraping; opt-in only. Phase 6 source."
+                    "Quora HK — DEFERRED from Phase 6. The captured question.html "
+                    "fixture was a Quora error/guard page (title='Error'), not a "
+                    "real question — Cloudflare likely intercepted the Playwright "
+                    "session. A second capture pass needs a real browser session "
+                    "(playwright codegen or browser save-as) on a question with "
+                    "≥3 answers. Discovery would use DuckDuckGo SERP for "
+                    "site:quora.com 'Hong Kong' <topic>. ToS prohibits scraping; "
+                    "would be opt-in only. Not registered in src/scrape/registry.py."
                 ),
             ),
             # ---- blogs ---------------------------------------------------

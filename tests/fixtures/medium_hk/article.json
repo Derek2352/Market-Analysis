@@ -1,0 +1,55 @@
+])}while(1);</x>
+{
+  "success": true,
+  "payload": {
+    "value": {
+      "id": "abc123def456",
+      "title": "Why Hong Kong's Octopus card still beats Apple Pay for daily commute",
+      "subtitle": "A long-time MTR rider explains what the contactless wars get wrong about transit UX",
+      "createdAt": 1714123456000,
+      "firstPublishedAt": 1714200000000,
+      "updatedAt": 1714350000000,
+      "creatorId": "user_xyz789",
+      "content": {
+        "subtitle": "A long-time MTR rider explains what the contactless wars get wrong about transit UX",
+        "bodyModel": {
+          "paragraphs": [
+            {"type": 3, "text": "Why Hong Kong's Octopus card still beats Apple Pay for daily commute"},
+            {"type": 4, "text": "A long-time MTR rider explains what the contactless wars get wrong about transit UX"},
+            {"type": 1, "text": "I've ridden the MTR every workday for 14 years. In that time, Octopus has remained, against all expectations, the fastest way through a turnstile in Asia."},
+            {"type": 1, "text": "Apple Pay works. Google Pay works. Both add an unmistakable half-second of latency at the gate — enough that, at peak, the queue audibly piles up behind the credit-card tap users."},
+            {"type": 1, "text": "Octopus is not without flaws. Auto-reload from a bank account often fails silently. The mobile app's UI was designed in 2014 and stayed there. But the gate experience is uncontested."},
+            {"type": 1, "text": "The lesson isn't 'NFC is better than contactless EMV.' It's 'closed-loop transit cards that own the gate UX win on speed, every time.'"}
+          ]
+        }
+      },
+      "virtuals": {
+        "totalClapCount": 412,
+        "responsesCreatedCount": 17,
+        "wordCount": 187,
+        "readingTime": 1.2
+      },
+      "uniqueSlug": "why-octopus-still-beats-apple-pay-abc123def456",
+      "mediumUrl": "https://medium.com/@jane-tang/why-octopus-still-beats-apple-pay-abc123def456",
+      "isLocked": false
+    },
+    "references": {
+      "User": {
+        "user_xyz789": {
+          "userId": "user_xyz789",
+          "name": "Jane Tang",
+          "username": "jane-tang",
+          "createdAt": 1380000000000,
+          "bio": "PM turned transit nerd. HK / NYC."
+        }
+      },
+      "Post": {
+        "abc123def456": {
+          "id": "abc123def456",
+          "uniqueSlug": "why-octopus-still-beats-apple-pay-abc123def456",
+          "mediumUrl": "https://medium.com/@jane-tang/why-octopus-still-beats-apple-pay-abc123def456"
+        }
+      }
+    }
+  }
+}

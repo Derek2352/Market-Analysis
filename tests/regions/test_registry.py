@@ -90,15 +90,21 @@ def test_reddit_old_is_now_a_forums_source() -> None:
 
 
 def test_phase6_opt_in_entries_match_spec() -> None:
-    """The five Phase 6 prohibited sources must be opt-in with correct stance."""
+    """All four Phase 6 prohibited entries are present, opt-in, prohibited.
+
+    Of the four originally planned: medium_hk shipped (Path C), the other
+    three deferred to a Phase 6.5 follow-up because their fixtures didn't
+    support implementation. Deferred entries keep their stance/category
+    but have last_verified_working=None until they're built.
+    """
     hk = get_region("HK")
     expected = {
-        "hk01": SourceCategory.NEWS_COMMENTS,
-        "youtube_html": SourceCategory.VIDEO_COMMENTS,
-        "quora_hk": SourceCategory.QA,
-        "medium_hk": SourceCategory.BLOGS,
+        "hk01": (SourceCategory.NEWS_COMMENTS, None),         # deferred
+        "youtube_html": (SourceCategory.VIDEO_COMMENTS, None), # deferred
+        "quora_hk": (SourceCategory.QA, None),                # deferred
+        "medium_hk": (SourceCategory.BLOGS, "implemented"),   # shipped
     }
-    for sid, cat in expected.items():
+    for sid, (cat, status) in expected.items():
         sc = hk.get_source(sid)
         assert sc is not None, f"{sid} missing from HK"
         assert sc.category == cat, f"{sid} miscategorized as {sc.category}"
@@ -106,7 +112,14 @@ def test_phase6_opt_in_entries_match_spec() -> None:
             f"{sid} should be ToS-prohibited"
         )
         assert sc.default_enabled is False, f"{sid} should be opt-in"
-        assert sc.last_verified_working is not None, f"{sid} needs last_verified_working"
+        if status == "implemented":
+            assert sc.last_verified_working is not None, (
+                f"{sid} is implemented; last_verified_working should be set"
+            )
+        else:
+            assert sc.last_verified_working is None, (
+                f"{sid} is deferred; last_verified_working should be None until built"
+            )
 
 
 def test_discuss_hk_is_default_enabled_silent_stance() -> None:
