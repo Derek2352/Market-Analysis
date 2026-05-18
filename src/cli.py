@@ -90,6 +90,13 @@ def scrape(
             help="Max retry attempts per HTTP request on transient failures (429/5xx). Default 3.",
         ),
     ] = 3,
+    no_progress: Annotated[
+        bool,
+        typer.Option(
+            "--no-progress",
+            help="Disable tqdm progress bars (for cron/pipe mode).",
+        ),
+    ] = False,
     accept_tos_risk: Annotated[
         bool,
         typer.Option(
@@ -184,7 +191,12 @@ def scrape(
     set_default_retries(retries)
 
     with DedupIndex(_DATA_DIR / "dedup.sqlite") as index:
-        for source_id in source_ids:
+        source_iter = source_ids
+        if not no_progress:
+            from tqdm import tqdm
+            source_iter = tqdm(source_ids, desc="Scraping", unit="source")
+
+        for source_id in source_iter:
             writer = RunWriter(
                 data_dir=_DATA_DIR,
                 topic_slug=topic_slug,
@@ -203,10 +215,21 @@ def scrape(
             emitted = 0
             duplicates = 0
             try:
+                # Per-source post-level progress bar (per-page tracking)
+                post_iter = scraper.search(search_queries[0], since=since_dt, limit=limit)
+                if not no_progress:
+                    from tqdm import tqdm
+                    post_iter = tqdm(post_iter, total=limit, desc=f"  {source_id}", unit="post", leave=False)
                 for query in search_queries:
                     if expand:
                         log.info("scrape.query", source=source_id, query=query)
-                    for post in scraper.search(query, since=since_dt, limit=limit):
+                    # For expanded queries after the first, re-bind to new scraper search
+                    if query != search_queries[0]:
+                        post_iter = scraper.search(query, since=since_dt, limit=limit)
+                        if not no_progress:
+                            from tqdm import tqdm
+                            post_iter = tqdm(post_iter, total=limit, desc=f"  {source_id}:{_slugify(query)[:20]}", unit="post", leave=False)
+                    for post in post_iter:
                         is_new = index.mark_seen(
                             source=source_id,
                             source_post_id=post.id,
@@ -328,6 +351,13 @@ def region_set(
 def embed(
     topic: Annotated[str, typer.Option(..., "--topic")],
     region: Annotated[str, typer.Option(..., "--region")],
+    no_progress: Annotated[
+        bool,
+        typer.Option(
+            "--no-progress",
+            help="Disable tqdm progress bars (for cron/pipe mode).",
+        ),
+    ] = False,
 ) -> None:
     """Embed scraped posts using BGE-M3, store in DuckDB."""
     if not _PIPELINE_AVAILABLE:
@@ -357,7 +387,7 @@ def embed(
         with open(rf) as f:
             posts_data = json.load(f)
         posts = [RawPost(**p) for p in posts_data]
-        n = store.embed_posts(posts, topic=topic, region=region)
+        n = store.embed_posts(posts, topic=topic, region=region, progress=not no_progress)
         total += n
         typer.echo(f"  {rf.name}: {n} new embeddings")
 
