@@ -23,13 +23,23 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class EvidenceClaim(BaseModel):
-    """A single claim backed by post evidence."""
+    """A single claim backed by post evidence, with quantitative grounding.
+
+    ``mentioned_by_n_users``, ``pct_of_cluster``, and ``sentiment_scores``
+    are computed from the evidence pack BEFORE the LLM call and backfilled
+    after validation. ``contested_by`` lists doc_ids from the adversarial
+    validation pass that contradict this claim.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     claim: str
     evidence: list[str] = Field(default_factory=list)  # doc_id references
     severity: str | None = None  # high / medium / low (for pain points)
+    mentioned_by_n_users: int = 0
+    pct_of_cluster: float = 0.0
+    sentiment_scores: dict[str, int] = Field(default_factory=dict)  # e.g. {"negative": 8, "neutral": 2}
+    contested_by: list[str] = Field(default_factory=list)  # doc_ids contradicting this claim
 
 
 class ClaimList(BaseModel):
@@ -131,3 +141,53 @@ class JourneyMap(BaseModel):
     generated_at: datetime | None = None
     model: str = ""
     provider: str = ""
+
+
+# ---------------------------------------------------------------------------
+# Analysis schemas — temporal comparison, side-by-side diff, adversarial report
+# ---------------------------------------------------------------------------
+
+
+class TemporalComparison(BaseModel):
+    """Side-by-side comparison of the same topic across two time windows."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    topic: str
+    region: str
+    window_before_label: str  # e.g. "Before May 2025 fee changes"
+    window_after_label: str
+    window_before: list[Persona] = Field(default_factory=list)
+    window_after: list[Persona] = Field(default_factory=list)
+    shifts: list[dict[str, Any]] = Field(default_factory=list)
+    # Each shift: {"claim": "...", "before_evidence": [...], "after_evidence": [...]}
+    summary: str = ""
+    generated_at: datetime | None = None
+
+
+class ComparativeReport(BaseModel):
+    """Side-by-side comparison of two different topics."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    topic_a: str
+    topic_b: str
+    region: str
+    personas_a: list[Persona] = Field(default_factory=list)
+    personas_b: list[Persona] = Field(default_factory=list)
+    common_pain_points: list[dict[str, Any]] = Field(default_factory=list)
+    divergent_pain_points: list[dict[str, Any]] = Field(default_factory=list)
+    summary: str = ""
+    generated_at: datetime | None = None
+
+
+class AdversarialReport(BaseModel):
+    """Result of an adversarial validation pass against a persona."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    persona_id: str
+    contested_claims: list[dict[str, Any]] = Field(default_factory=list)
+    # Each: {"claim": "...", "contradicting_doc_ids": [...], "reasoning": "..."}
+    overall_confidence: float = 1.0
+    summary: str = ""

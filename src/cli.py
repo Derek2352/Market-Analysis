@@ -31,6 +31,8 @@ try:
         MissingAPIKey,
         SynthesisError,
         synthesize_run,
+        synthesize_temporal,
+        synthesize_comparative,
     )
 except ImportError:
     _PIPELINE_AVAILABLE = False
@@ -544,6 +546,443 @@ def synthesize(
         f"cached={report.total_cached_input_tokens:,}, "
         f"output={report.total_output_tokens:,})"
     )
+
+
+# ---------------------------------------------------------------------------
+# Temporal & Comparative synthesis commands
+# ---------------------------------------------------------------------------
+
+
+def _load_synthesize_data(
+    topic: str, region: str, run_id_opt: str,
+) -> tuple[ClusteringResult, str, dict[str, str], dict[str, dict[str, Any]]]:
+    """Shared data loading for synthesize commands.
+
+    Returns (ClusteringResult, run_id, post_texts, post_metadata).
+    ``post_metadata`` includes ``posted_at`` for temporal filtering.
+    """
+    import json as _json
+
+    topic_slug = _slugify(topic)
+    clusters_dir = _DATA_DIR / "clusters" / topic_slug / region
+    if not clusters_dir.exists():
+        typer.echo(f"No clusters at {clusters_dir}. Run mkt cluster first.", err=True)
+        raise typer.Exit(code=1)
+
+    if run_id_opt:
+        cluster_file = clusters_dir / f"clusters_{run_id_opt}.json"
+        if not cluster_file.exists():
+            typer.echo(f"No clustering run at {cluster_file}", err=True)
+            raise typer.Exit(code=1)
+    else:
+        files = sorted(clusters_dir.glob("clusters_*.json"))
+        if not files:
+            typer.echo(f"No cluster files at {clusters_dir}", err=True)
+            raise typer.Exit(code=1)
+        cluster_file = files[-1]
+
+    with open(cluster_file) as f:
+        result = ClusteringResult(**_json.load(f))
+
+    run_id = cluster_file.stem.removeprefix("clusters_")
+
+    raw_dir = _DATA_DIR / "raw" / topic_slug / region
+    post_texts: dict[str, str] = {}
+    post_metadata: dict[str, dict[str, Any]] = {}
+    for rf in sorted(raw_dir.glob("*.json")):
+        if rf.name.endswith("._run.json"):
+            continue
+        with open(rf) as f:
+            posts = _json.load(f)
+        for p in posts:
+            pid = p.get("id", "")
+            if not pid:
+                continue
+            post_texts[pid] = (
+                f"{p.get('title', '') or ''}\n{p.get('body', '') or ''}".strip()
+            )
+            post_metadata[pid] = {
+                "source": p.get("source", ""),
+                "url": p.get("url", ""),
+                "lang": p.get("language_detected", "en"),
+                "posted_at": p.get("posted_at"),
+            }
+
+    return result, run_id, post_texts, post_metadata
+
+
+@app.command(name="synthesize-temporal")
+def synthesize_temporal_cmd(
+    topic: Annotated[str, typer.Option(..., "--topic")],
+    region: Annotated[str, typer.Option(..., "--region")],
+    before: Annotated[
+        str,
+        typer.Option(
+            "--before",
+            help="Cutoff date (YYYY-MM-DD). Posts before this go to the before window.",
+        ),
+    ],
+    after: Annotated[
+        str,
+        typer.Option(
+            "--after",
+            help="Cutoff date (YYYY-MM-DD). Posts on/after this go to the after window.",
+        ),
+    ],
+    run_id_opt: Annotated[
+        str,
+        typer.Option(
+            "--run",
+            help="Specific clustering run timestamp. Latest if omitted.",
+        ),
+    ] = "",
+    provider: Annotated[
+        str,
+        typer.Option("--provider", help="LLM backend. anthropic (default) or deepseek."),
+    ] = "anthropic",
+    model: Annotated[
+        str,
+        typer.Option("--model", help="Override model id."),
+    ] = "",
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Print plan + cost estimate; no API calls."),
+    ] = False,
+    force: Annotated[
+        bool,
+        typer.Option("--force", help="Bypass the cost cap."),
+    ] = False,
+    max_cost: Annotated[
+        float,
+        typer.Option("--max-cost", help="Hard cost ceiling in USD."),
+    ] = 4.00,
+) -> None:
+    """Compare the same topic across two time windows.
+
+    Filters posts into "before" and "after" windows using --before and
+    --after cutoff dates, runs synthesis on each, and reports shifts.
+    """
+    if not _PIPELINE_AVAILABLE:
+        typer.echo("Pipeline deps not installed.", err=True)
+        raise typer.Exit(code=1)
+
+    # Parse cutoff dates
+    cutoff_before = datetime.strptime(before, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    cutoff_after = datetime.strptime(after, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+
+    result, run_id, post_texts, post_metadata = _load_synthesize_data(
+        topic, region, run_id_opt,
+    )
+
+    typer.echo(
+        f"Temporal analysis: {topic} ({region}) | "
+        f"Before < {before} | After >= {after}"
+    )
+
+    try:
+        comparison = synthesize_temporal(
+            topic=topic,
+            region=region,
+            cutoff_before=cutoff_before,
+            cutoff_after=cutoff_after,
+            clusters=result.clusters,
+            post_texts=post_texts,
+            post_metadata=post_metadata,
+            provider=provider,
+            model=model or None,
+            dry_run=dry_run,
+            force=force,
+            max_cost_usd=max_cost,
+            run_id=run_id,
+        )
+    except MissingAPIKey as e:
+        typer.echo(f"Missing API key: {e}", err=True)
+        raise typer.Exit(code=1)
+    except CostCapExceeded as e:
+        typer.echo(f"Cost cap exceeded: {e}", err=True)
+        raise typer.Exit(code=2)
+    except SynthesisError as e:
+        typer.echo(f"Synthesis failed: {e}", err=True)
+        raise typer.Exit(code=1)
+
+    if dry_run:
+        typer.echo("Dry run — no API calls made.")
+        return
+
+    typer.echo(f"\nBefore window ({comparison.window_before_label}):")
+    typer.echo(f"  Personas: {len(comparison.window_before)}")
+    typer.echo(f"\nAfter window ({comparison.window_after_label}):")
+    typer.echo(f"  Personas: {len(comparison.window_after)}")
+
+    typer.echo(f"\nShifts detected:")
+    for shift in comparison.shifts:
+        typer.echo(f"  [{shift['type']}] {len(shift['claims'])} claims")
+        for claim in shift["claims"][:5]:
+            typer.echo(f"    - {claim}")
+        if len(shift["claims"]) > 5:
+            typer.echo(f"    ... and {len(shift['claims']) - 5} more")
+
+    typer.echo(f"\nSummary: {comparison.summary}")
+
+    # Persist result
+    comparison_dir = _DATA_DIR / "comparisons" / _slugify(topic) / region
+    comparison_dir.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out_path = comparison_dir / f"temporal_{ts}.json"
+    with open(out_path, "w") as f:
+        import json as _json
+        _json.dump(
+            comparison.model_dump(mode="json"), f,
+            indent=2, default=str, ensure_ascii=False,
+        )
+    typer.echo(f"Saved: {out_path}")
+
+
+@app.command(name="synthesize-compare")
+def synthesize_compare_cmd(
+    topic_a: Annotated[str, typer.Option(..., "--topic-a")],
+    topic_b: Annotated[str, typer.Option(..., "--topic-b")],
+    region: Annotated[str, typer.Option(..., "--region")],
+    run_id_opt: Annotated[
+        str,
+        typer.Option(
+            "--run",
+            help="Specific clustering run timestamp. Latest if omitted.",
+        ),
+    ] = "",
+    provider: Annotated[
+        str,
+        typer.Option("--provider", help="LLM backend. anthropic (default) or deepseek."),
+    ] = "anthropic",
+    model: Annotated[
+        str,
+        typer.Option("--model", help="Override model id."),
+    ] = "",
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Print plan + cost estimate; no API calls."),
+    ] = False,
+    force: Annotated[
+        bool,
+        typer.Option("--force", help="Bypass the cost cap."),
+    ] = False,
+    max_cost: Annotated[
+        float,
+        typer.Option("--max-cost", help="Hard cost ceiling in USD."),
+    ] = 4.00,
+) -> None:
+    """Compare two different topics in the same region.
+
+    Runs synthesis for each topic independently, then diffs the resulting
+    personas to surface common and divergent pain points.
+    """
+    if not _PIPELINE_AVAILABLE:
+        typer.echo("Pipeline deps not installed.", err=True)
+        raise typer.Exit(code=1)
+
+    # Load data for both topics
+    result_a, run_id_a, texts_a, meta_a = _load_synthesize_data(
+        topic_a, region, run_id_opt,
+    )
+    result_b, run_id_b, texts_b, meta_b = _load_synthesize_data(
+        topic_b, region, run_id_opt,
+    )
+
+    typer.echo(
+        f"Comparative analysis: {topic_a} vs {topic_b} ({region})"
+    )
+
+    try:
+        comparison = synthesize_comparative(
+            topic_a=topic_a,
+            topic_b=topic_b,
+            region=region,
+            clusters_a=result_a.clusters,
+            clusters_b=result_b.clusters,
+            post_texts_a=texts_a,
+            post_texts_b=texts_b,
+            post_metadata_a=meta_a,
+            post_metadata_b=meta_b,
+            provider=provider,
+            model=model or None,
+            dry_run=dry_run,
+            force=force,
+            max_cost_usd=max_cost,
+            run_id=run_id_a,  # use first topic's run id as base
+        )
+    except MissingAPIKey as e:
+        typer.echo(f"Missing API key: {e}", err=True)
+        raise typer.Exit(code=1)
+    except CostCapExceeded as e:
+        typer.echo(f"Cost cap exceeded: {e}", err=True)
+        raise typer.Exit(code=2)
+    except SynthesisError as e:
+        typer.echo(f"Synthesis failed: {e}", err=True)
+        raise typer.Exit(code=1)
+
+    if dry_run:
+        typer.echo("Dry run — no API calls made.")
+        return
+
+    typer.echo(f"\n{topic_a}: {len(comparison.personas_a)} personas")
+    typer.echo(f"{topic_b}: {len(comparison.personas_b)} personas")
+
+    if comparison.common_pain_points:
+        typer.echo(f"\nCommon pain points ({len(comparison.common_pain_points)}):")
+        for pp in comparison.common_pain_points[:5]:
+            typer.echo(f"  [{pp['severity']}] {pp['claim']}")
+        if len(comparison.common_pain_points) > 5:
+            typer.echo(f"  ... and {len(comparison.common_pain_points) - 5} more")
+
+    if comparison.divergent_pain_points:
+        typer.echo(f"\nDivergent pain points ({len(comparison.divergent_pain_points)}):")
+        for pp in comparison.divergent_pain_points[:5]:
+            typer.echo(f"  [{pp['severity']}] ({pp['unique_to']}) {pp['claim']}")
+        if len(comparison.divergent_pain_points) > 5:
+            typer.echo(
+                f"  ... and {len(comparison.divergent_pain_points) - 5} more"
+            )
+
+    typer.echo(f"\nSummary: {comparison.summary}")
+
+    # Persist result
+    comparison_dir = _DATA_DIR / "comparisons" / f"{_slugify(topic_a)}_vs_{_slugify(topic_b)}" / region
+    comparison_dir.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out_path = comparison_dir / f"comparative_{ts}.json"
+    with open(out_path, "w") as f:
+        import json as _json
+        _json.dump(
+            comparison.model_dump(mode="json"), f,
+            indent=2, default=str, ensure_ascii=False,
+        )
+    typer.echo(f"Saved: {out_path}")
+
+
+@app.command()
+def export(
+    topic: Annotated[str, typer.Option(..., "--topic", help="Topic slug (as used in synthesize).")],
+    region: Annotated[str, typer.Option(..., "--region", help="Canonical region code, e.g. HK.")],
+    output: Annotated[
+        str,
+        typer.Option(
+            "--output", "-o",
+            help="Output PDF path. Default: persona_report.pdf",
+        ),
+    ] = "persona_report.pdf",
+    run_id_opt: Annotated[
+        str,
+        typer.Option(
+            "--run",
+            help="Specific clustering run timestamp. Uses latest synthesized data if omitted.",
+        ),
+    ] = "",
+    persona_id: Annotated[
+        str,
+        typer.Option(
+            "--persona",
+            help="Specific persona id (e.g. persona_fc014d201975). Exports first match if omitted.",
+        ),
+    ] = "",
+) -> None:
+    """Export persona + journey as a stakeholder-ready PDF report.
+
+    Reads synthesized persona and journey JSON files from
+    data/personas/{topic}/{region}/ and data/journeys/{topic}/{region}/,
+    matches persona to its journey by persona_id, and generates a
+    professional PDF with pain point tables, quote callouts, sentiment
+    distribution bars, and source coverage stats.
+    """
+    import json as _json
+
+    from src.export.pdf import export_persona_report
+    from src.schemas.synthesis import Persona, JourneyMap
+
+    topic_slug = _slugify(topic)
+    personas_dir = _DATA_DIR / "personas" / topic_slug / region
+    journeys_dir = _DATA_DIR / "journeys" / topic_slug / region
+
+    if not personas_dir.exists():
+        typer.echo(
+            f"No personas directory at {personas_dir}. Run mkt synthesize first.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    # Load persona files, optionally filtered by run_id
+    persona_files = sorted(personas_dir.glob("*.json"))
+    if not persona_files:
+        typer.echo(f"No persona files found in {personas_dir}", err=True)
+        raise typer.Exit(code=1)
+
+    personas: list[Persona] = []
+    for pf in persona_files:
+        with open(pf) as f:
+            data = _json.load(f)
+        p = Persona(**data)
+        if run_id_opt and p.run_id != run_id_opt:
+            continue
+        if persona_id and p.id != persona_id:
+            continue
+        personas.append(p)
+
+    if not personas:
+        filter_desc = []
+        if run_id_opt:
+            filter_desc.append(f"run={run_id_opt}")
+        if persona_id:
+            filter_desc.append(f"persona={persona_id}")
+        typer.echo(
+            f"No personas matched filters ({', '.join(filter_desc)}). "
+            f"Available: {[p.name for p in persona_files]}",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    persona = personas[0]  # Take first match
+
+    # Load matching journey
+    journey: JourneyMap | None = None
+    if journeys_dir.exists():
+        for jf in sorted(journeys_dir.glob("*.json")):
+            with open(jf) as f:
+                jdata = _json.load(f)
+            j = JourneyMap(**jdata)
+            if j.persona_id == persona.id:
+                journey = j
+                break
+
+    if journey is None:
+        typer.echo(
+            f"Warning: no matching journey found for persona {persona.id}",
+            err=True,
+        )
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    typer.echo(f"Exporting persona '{persona.name}'...")
+    export_persona_report(
+        persona=persona,
+        journey=journey,
+        output_path=output_path,
+        topic=topic,
+        region=region,
+    )
+    typer.echo(f"Report saved: {output_path.resolve()}")
+    if journey:
+        typer.echo(
+            f"  Persona: {persona.name} ({persona.cluster_size} posts, "
+            f"{len(persona.pain_points.claims)} pain points)"
+        )
+        typer.echo(
+            f"  Journey: {len(journey.stages)} stages"
+        )
+    else:
+        typer.echo(
+            f"  Persona: {persona.name} ({persona.cluster_size} posts, "
+            f"{len(persona.pain_points.claims)} pain points)"
+        )
 
 
 @app.command()
