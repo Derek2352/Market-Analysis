@@ -369,11 +369,13 @@ def cluster(
             if pid and pid in set(post_ids):
                 post_texts[pid] = text
 
+    from src.lang import get_tokenizer as _get_tokenizer
     result = cluster_embeddings(
         vectors, post_ids, topic, region,
         config=cfg,
         source_map=source_map,
         post_texts=post_texts if post_texts else None,
+        tokenizer=_get_tokenizer(region),
     )
 
     out_dir = _DATA_DIR / "clusters" / topic_slug / region
@@ -1212,11 +1214,13 @@ def analyze(
             if pid and pid in set(post_ids_vec):
                 post_texts[pid] = text
 
+    from src.lang import get_tokenizer as _get_tokenizer
     result = cluster_embeddings(
         vectors, post_ids_vec, topic, region,
         config=cfg,
         source_map=source_map,
         post_texts=post_texts if post_texts else None,
+        tokenizer=_get_tokenizer(region),
     )
 
     out_dir = _DATA_DIR / "clusters" / topic_slug / region

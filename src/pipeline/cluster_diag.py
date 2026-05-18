@@ -136,6 +136,8 @@ def compute_ctfidf_keywords(
     clusters: list[Cluster],
     post_texts: dict[str, str],
     top_n: int = 10,
+    *,
+    tokenizer: "object | None" = None,
 ) -> dict[str, list[str]]:
     """Compute class-based TF-IDF keywords for each cluster.
 
@@ -146,13 +148,22 @@ def compute_ctfidf_keywords(
     the "class" is the cluster.  This highlights words that are distinctive
     to each cluster vs. all others — much better than raw TF-IDF for
     understanding what makes a cluster unique.
+
+    When *tokenizer* is provided (a ``Tokenizer`` from ``src.lang``), text is
+    pre-tokenized before TfidfVectorizer, giving region-appropriate keyword
+    extraction for CJK languages.
     """
     from sklearn.feature_extraction.text import TfidfVectorizer
+
+    def _prepare(text: str) -> str:
+        if tokenizer is not None:
+            return " ".join(tokenizer.tokenize(text))
+        return text
 
     # Build cluster "documents"
     cluster_docs: dict[str, str] = {}
     for c in clusters:
-        texts = [post_texts.get(pid, "") for pid in c.post_ids]
+        texts = [_prepare(post_texts.get(pid, "")) for pid in c.post_ids]
         cluster_docs[c.cluster_id] = "\n".join(texts)
 
     # Build a combined document set — one doc per cluster
@@ -164,11 +175,19 @@ def compute_ctfidf_keywords(
         return {cid: [] for cid in doc_ids}
 
     # c-TF-IDF: TF-IDF across cluster documents
-    vectorizer = TfidfVectorizer(
-        max_features=1000,
-        stop_words="english",
-        ngram_range=(1, 2),
-    )
+    if tokenizer is not None:
+        vectorizer = TfidfVectorizer(
+            max_features=1000,
+            tokenizer=lambda x: x.split(),
+            lowercase=False,
+            ngram_range=(1, 2),
+        )
+    else:
+        vectorizer = TfidfVectorizer(
+            max_features=1000,
+            stop_words="english",
+            ngram_range=(1, 2),
+        )
     tfidf_matrix = vectorizer.fit_transform(documents)
     feature_names = vectorizer.get_feature_names_out()
 

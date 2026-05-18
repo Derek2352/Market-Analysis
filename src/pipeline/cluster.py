@@ -69,6 +69,7 @@ def cluster_embeddings(
     sentiment_map: dict[str, int] | None = None,
     temporal_map: dict[str, str] | None = None,
     post_texts: dict[str, str] | None = None,
+    tokenizer: "object | None" = None,
 ) -> ClusteringResult:
     """Cluster embeddings using UMAP → HDBSCAN.
 
@@ -84,6 +85,9 @@ def cluster_embeddings(
         Clustering config dict (from ``load_config()``).
     source_map, lang_map, sentiment_map, temporal_map:
         Per-post metadata maps for building cluster distributions.
+    tokenizer:
+        Optional ``Tokenizer`` from ``src.lang`` for region-aware
+        c-TF-IDF keyword extraction (CJK tokenization).
     """
     cfg = config or DEFAULT_CONFIG
     n = vectors.shape[0]
@@ -120,7 +124,8 @@ def cluster_embeddings(
         # Keyword summary via c-TF-IDF (real computation if texts available)
         if post_texts:
             keywords = _compute_ctfidf_for_cluster(
-                cluster_ids, post_texts, all_ids=post_ids, top_n=10
+                cluster_ids, post_texts, all_ids=post_ids, top_n=10,
+                tokenizer=tokenizer,
             )
         else:
             keywords = [f"cluster_{lbl}" for _ in range(min(10, len(cluster_ids)))]
@@ -240,20 +245,44 @@ def _compute_ctfidf_for_cluster(
     post_texts: dict[str, str],
     all_ids: list[str],
     top_n: int = 10,
+    *,
+    tokenizer: "object | None" = None,
 ) -> list[str]:
     """Compute c-TF-IDF keywords for one cluster vs all other posts.
 
     Treats this cluster's text as one document, all other posts as another,
     then computes TF-IDF to find words distinctive to this cluster.
+
+    When *tokenizer* is provided (a ``Tokenizer`` from ``src.lang``), text is
+    pre-tokenized before TfidfVectorizer, giving region-appropriate keyword
+    extraction for CJK languages. When None, uses English defaults.
     """
     from sklearn.feature_extraction.text import TfidfVectorizer
 
-    cluster_doc = " ".join(post_texts.get(pid, "") for pid in cluster_ids)
+    def _prepare(text: str) -> str:
+        if tokenizer is not None:
+            return " ".join(tokenizer.tokenize(text))
+        return text
+
+    cluster_doc = _prepare(" ".join(post_texts.get(pid, "") for pid in cluster_ids))
     other_ids = [pid for pid in all_ids if pid not in set(cluster_ids)]
-    other_doc = " ".join(post_texts.get(pid, "") for pid in other_ids) if other_ids else ""
+    other_doc = _prepare(" ".join(post_texts.get(pid, "") for pid in other_ids)) if other_ids else ""
 
     docs = [cluster_doc, other_doc] if other_doc else [cluster_doc]
-    vectorizer = TfidfVectorizer(max_features=1000, stop_words="english", ngram_range=(1, 2))
+
+    if tokenizer is not None:
+        # Already tokenized — use identity analyzer
+        vectorizer = TfidfVectorizer(
+            max_features=1000,
+            tokenizer=lambda x: x.split(),
+            lowercase=False,
+            ngram_range=(1, 2),
+        )
+    else:
+        vectorizer = TfidfVectorizer(
+            max_features=1000, stop_words="english", ngram_range=(1, 2),
+        )
+
     tfidf = vectorizer.fit_transform(docs)
     names = vectorizer.get_feature_names_out()
     row = tfidf[0].toarray().flatten()
