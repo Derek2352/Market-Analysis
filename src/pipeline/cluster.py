@@ -93,6 +93,35 @@ def cluster_embeddings(
     n = vectors.shape[0]
     _log.info("cluster.start", posts=n, topic=topic, region=region)
 
+    # Guard: datasets too small for UMAP+HDBSCAN → single cluster
+    min_cluster = cfg["hdbscan"]["min_cluster_size"]
+    if n < min_cluster:
+        _log.info("cluster.small_dataset", posts=n, min_cluster=min_cluster)
+        cluster_ids = list(post_ids)
+        cluster = Cluster(
+            cluster_id="single",
+            topic=topic,
+            region=region,
+            size=n,
+            post_ids=cluster_ids,
+            representative_post_ids=cluster_ids[:5],
+            keyword_summary=[],
+            source_distribution=_build_distribution(cluster_ids, source_map) if source_map else {},
+            language_distribution=_build_distribution(cluster_ids, lang_map) if lang_map else {},
+            sentiment_distribution=_build_distribution(cluster_ids, sentiment_map) if sentiment_map else {},
+            temporal_distribution=_build_distribution(cluster_ids, temporal_map) if temporal_map else {},
+            generated_at=datetime.now(timezone.utc),
+        )
+        return ClusteringResult(
+            topic=topic,
+            region=region,
+            total_posts=n,
+            noise_count=0,
+            clusters=[cluster],
+            params=cfg,
+            generated_at=datetime.now(timezone.utc),
+        )
+
     # 1. UMAP dimensionality reduction
     umap_cfg = cfg["umap"]
     reduced = _run_umap(vectors, umap_cfg)
