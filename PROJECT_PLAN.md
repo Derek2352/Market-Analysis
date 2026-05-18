@@ -87,58 +87,36 @@ A personal, locally-run tool that generates **Personas** and **User Journey Maps
 **Disallowed by constraint:** anything requiring an API key, OAuth, developer registration, app review, or payment. These sources stay in the registry tagged `excluded_by_constraint=true` so we can revisit if the constraint is ever relaxed; they are **not** wired into scrapers.
 
 Stance taxonomy per source (see registry):
-- `prohibited` — the source's ToS explicitly forbids scraping. We may still include it if the data is public and the use is non-commercial research, but the source is flagged clearly so the user can make their own call.
-- `allowed_with_conditions` — explicitly permitted (e.g. respect robots.txt, identify yourself).
-- `silent` — no explicit position. Default assumption: scrape politely.
+- `prohibited` — the source's ToS explicitly forbids scraping. Always `default_enabled=False`; opt-in only via explicit `--sources` flag.
+- `allowed_with_conditions` — explicitly permitted (respect robots.txt, identify honestly).
+- `silent` — no explicit position. Default-enabled; scrape politely.
 - `unknown` — haven't reviewed yet.
 
-### HK (Phase 1 focus region)
+> **Authoritative current state:** [`docs/source_coverage.md`](./docs/source_coverage.md) is regenerated from the registry + parser tests and is the source of truth. The summary below is provisional.
 
-Priority order under the no-API constraint:
+### Coverage as of 2026-05-19
 
-| # | Source | Category | Access | Stance | Notes |
-|---|---|---|---|---|---|
-| 1 | LIHKG | forums | public JSON | silent | Mobile-app JSON endpoints. Cantonese-heavy. Phase 1 source. |
-| 2 | Discuss.com.hk | forums | HTML | silent | Long-running general HK forum. Needs Playwright? Maybe — TBC with fixture capture. |
-| 3 | Baby Kingdom | forums | HTML | silent | Parenting forum; rich purchase-journey content. |
-| 4 | Openrice | reviews | HTML (likely Playwright) | **prohibited** (ToS) | F&B reviews; gold for HK consumer brands. ToS forbids — flagged for user's call. Phase 2 source as Playwright milestone. |
-| 5 | HK01 | news_comments | HTML | silent | Article comments; honor robots.txt; low volume per article. |
-| 6 | Yahoo News HK | news_comments | HTML | silent | News comment threads. |
-| 7 | Reddit r/HongKong (HTML) | qa | HTML via `old.reddit.com` | allowed_with_conditions | Reddit ToS permits non-commercial scraping with attribution; we scrape the old-Reddit HTML, no API key. Replaces the API-based Reddit entry. |
-| 8 | Quora HK topics | qa | HTML+JS | **prohibited** (ToS) | Soft login wall after N pages. Flagged. |
-| 9 | Medium HK writers | blogs | HTML | allowed_with_conditions | Medium permits scraping per their crawler policy. |
-| 10 | HK lifestyle blogs (via Google SERP discovery) | blogs | HTML | varies per blog | Long tail; SERP just gives us URLs. |
-| 11 | Google SERP (for blog discovery) | discovery | HTML (Playwright likely) | **prohibited** (ToS) | Heavy rate limiting; only used to *find* blog URLs, not to scrape SERP content as evidence. Flagged. |
+34 scrapers wired across 4 regions. Category coverage:
 
-Allowed but **de-prioritized** (meet the constraint, didn't make HK priority list):
+| Region | forums | reviews | social | video_comments | qa | blogs | news_comments | Total |
+|---|---|---|---|---|---|---|---|---|
+| **HK** | lihkg, discuss_hk, reddit_old | app_store_hk, openrice🔒, google_play_hk🔒, trustpilot🔒 | — | youtube_html🔒 | quora_hk🔒 | medium_hk🔒 | hk01🔒 | **6/7** |
+| **US** | reddit_old | app_store_us, google_play_us🔒, trustpilot🔒, yelp_html🔒 | — | youtube_html🔒 | quora🔒 | medium🔒 | — | **5/7** |
+| **TW** | ptt, dcard, mobile01 | app_store_tw, google_play_tw🔒 | — | — | — | — | yahoo_news_tw | **3/7** |
+| **JP** | five_ch | app_store_jp, google_play_jp🔒, cosme, tabelog🔒, yahoo_japan_reviews | — | — | — | — | — | **2/7** |
 
-| Source | Category | Notes |
-|---|---|---|
-| App Store HK (iTunes RSS) | reviews | Public RSS, no key. Currently registered as Phase 1.A reference scraper; remains usable. |
-| Trustpilot | reviews | Public HTML; thin HK coverage. |
-| Threads HK | social | Public profile pages; schema unstable. |
-| Instagram public | social | Aggressive anti-bot; flagged high risk. |
-| Xiaohongshu HK | social | Heavy anti-bot; best-effort. |
+🔒 = ToS-prohibited, opt-in only.
 
-Excluded by constraint (kept in registry, not wired):
+### Phase 7+ source gaps
 
-| Source | Why excluded |
-|---|---|
-| Google Maps HK | Places API requires key + billing |
-| YouTube HK | Data API v3 requires key |
-| Reddit r/HongKong (API entry) | OAuth required |
-| Facebook HK groups | Login required |
-
-### Other regions
-
-Same constraint applies. Re-ranking will be completed in Phase 8; for now the registry marks excluded sources and the unaffected HTML/public-JSON sources keep their existing priorities. Cross-region gaps under the new constraint:
-
-- **`video_comments` category collapses** in every region (YouTube needs an API key; Bilibili and Douyin are CN-side with their own issues). We have no good public source for video comments. This is a real coverage hole — surfaced explicitly via the `data_source_coverage` field on every persona.
-- **Reddit** loses its API entries; old-reddit.com HTML is a viable substitute but is added per-region only as that region becomes a focus.
+- **`social` is empty in every region.** Twitter/X (API-only), Instagram & Threads (login + JS-fragile), TikTok (no public scrape surface), Weibo/Xiaohongshu (heavy anti-bot). Personas under-represent short-form / image-native users — surfaced explicitly via every persona's `data_source_coverage.bias_warning`.
+- **`news_comments` thin** outside HK. yahoo_news_us / yahoo_news_jp would mirror the existing TW parser cheaply.
+- **TW `qa` / `blogs` / `video_comments` are 0/0** even though `quora_tw`, `medium_tw`, and `youtube_html` exist as scraper modules — they just haven't been added to the TW regional registry yet. Quick win for a future phase.
+- **`reddit_old` has no offline fixtures** — works live but the parser test suite can't catch drift. Capture pass needed.
 
 ### Never scraped (always)
 
-Anything behind a login (Facebook, IG private, WeChat, LinkedIn, Discord, private subreddits), paywalled news, X/Twitter (now API-only since 2023).
+Anything behind a login (Facebook private, IG private, WeChat, LinkedIn, Discord, private subreddits), paywalled news, X/Twitter (now API-only since 2023).
 
 ### PII rule
 
@@ -275,18 +253,30 @@ For each viable cluster:
 
 ## 6. Build phases
 
-Each phase ends in something runnable end-to-end at its slice.
+Each phase ended in something runnable end-to-end at its slice. **Phases 1–6 shipped; this section is now historical.** Current state is summarised below, followed by what's pending.
 
-| # | Phase | Deliverable | Runnable artifact |
-|---|---|---|---|
-| **1** | **LIHKG scraper (HK forums, public JSON)** | First canonical source under the no-API constraint. `mkt scrape --topic "..." --region HK --sources lihkg`. Writes RawPost JSON + run sidecar. Reuses all the Phase-1 infra already shipped (dedup index, atomic writer, structured logging, author hashing, py3langid). | `mkt scrape …` produces a JSON file with LIHKG threads + replies. |
-| **2** | **Openrice (HK reviews) + Playwright base** | Second source. Introduces `src/scrape/base/` shared HTML-scraping infrastructure: polite httpx client, robots.txt checker, Playwright session manager, HTML fixture system, `mkt scrape-doctor` CLI. ToS-prohibited so flagged in registry. | `mkt scrape … --sources openrice` works; `mkt scrape-doctor` runs all parsers against fixtures. |
-| **3** | **Postgres + cleaning + embeddings** | Docker-compose Postgres+pgvector. Migrations. Load Phase-1/2 JSON → clean → embed → store. `mkt index --run <id>`. | `mkt index …` populates `documents` and `embeddings` tables. |
-| **4** | **Clustering + cluster labeling** | HDBSCAN over embeddings; cheap Claude call labels each cluster. `mkt cluster --run <id>`. | CLI shows `cluster_id | label | size | top_quote`. |
-| **5** | **Persona + journey synthesis** | Full Claude synthesis with grounding + `data_source_coverage`. `mkt synthesize --run <id>`. | Inspect JSON; verify every claim has `evidence`. |
-| **6** | **FastAPI + minimal Next.js UI (HK only)** | API endpoints, persona cards, journey grid, data-source-coverage chip with bias warning. | `make dev` → localhost:3000 → generate a persona end-to-end through the UI. |
-| **7** | **HK fan-out** | Add Discuss.com.hk, Baby Kingdom, HK01, Yahoo News HK, Reddit r/HongKong (HTML), Medium HK. UI shows mixed-source evidence. | A single HK persona run pulls from ≥ 4 categories. |
-| **8** | **Multi-region + polish** | Apply the no-API audit to other regions (re-rank, mark excluded). Add one HTML source for JP, TW, and one SEA country. TTL cache + manual refresh. Eval set wired into `make eval`. `scrape-doctor` running clean across all sources. | Generate a JP persona; eval CLI prints grounding score and coverage. |
+### Shipped (1–6)
+
+| # | Phase | What landed |
+|---|---|---|
+| **1** | **LIHKG scraper, HK forums, public JSON** | `src/scrape/lihkg.py`; CLI `mkt scrape`; dedup index, atomic writer, JSON-line logging, author hashing, py3langid detection. |
+| **2** | **Openrice + `src/scrape/base/`** | Polite httpx + Playwright + robots.txt + HTML fixture store + `mkt scrape-doctor`. Openrice as the prohibited-source / opt-in pilot. |
+| **3** | **Embeddings + cluster diagnostics** | DuckDB+VSS, BGE-M3 embeddings, UMAP+HDBSCAN clustering, c-TF-IDF keyword labels, `mkt embed/cluster/diag`. |
+| **4** | **Persona + journey synthesis (Claude + DeepSeek)** | `mkt synthesize`, prompt caching (system block + evidence block; ~70% saving on the journey call), grounding validator with retry-then-mark-unverified, ClaimList coverage states (`ok` / `thin` / `unverified`), `data_source_coverage` deterministic. |
+| **5** | **FastAPI + Next.js UI** | `src/api/` with SSE-streamed `/runs/{id}/stream`; `ui/` with run launcher, persona cards, journey grid, citation drawer. |
+| **6** | **HK source fan-out + multi-region expansion** | `discuss_hk`, `medium_hk` shipped on Path C; deferred `hk01`, `youtube_html`, `quora_hk` later picked up in a follow-up. Then expanded well past the original phase scope: TW, US, JP regions; per-language tokenizers in `src/lang/`; region switcher; query expansion with compound splitting + cross-language translation; **34 registered scrapers across 4 regions**. Synthesis got: quantitative grounding, adversarial validation, temporal/comparative analysis, PDF export. |
+
+### Pending — proposed Phase 7+
+
+| # | Phase | Why |
+|---|---|---|
+| **7** | **Wire `quora_*`, `medium_*`, `youtube_html` into TW and JP regional registries** | These scrapers exist as code but TW / JP regional configs don't list them — quick fix to bring TW from 3/7 → 6/7 categories and JP from 2/7 → 5/7. |
+| **8** | **Tighten `scrape-doctor`** | Current generic content checks (`has-links`, `has-json-structure`) produce false positives. Replace with per-source assertions loaded from each scraper's test module. |
+| **9** | **`reddit_old` fixtures** | Works live; no offline parser tests. Capture once + add tests. |
+| **10** | **UI: multi-region selector + new synthesis fields** | Frontend predates the multi-region work + the new synthesis enhancements; surface region picker, quantitative-grounding badges, adversarial flags, PDF download. |
+| **11** | **`yahoo_news_us` / `yahoo_news_jp`** | Mirror the existing `yahoo_news_tw` parser; cheap fix for the US/JP `news_comments` gap. |
+| **12** | **Eval set + `make eval`** | A 5-product fixture with ground-truth pain points; measure persona/journey grounding accuracy and coverage before any prompt change. |
+| **13** | **TTL cache for repeat runs** | Persist `(product, region)` → last-run-id with TTL so the UI doesn't re-scrape when nothing changed. Originally Phase 8 scope, never built. |
 
 If anything breaks early, Phase 1 alone is still a useful LIHKG scraper.
 
