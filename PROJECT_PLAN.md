@@ -102,8 +102,8 @@ Stance taxonomy per source (see registry):
 |---|---|---|---|---|---|---|---|---|
 | **HK** | lihkg, discuss_hk, reddit_old | app_store_hk, openrice🔒, google_play_hk🔒, trustpilot🔒 | — | youtube_html🔒 | quora_hk🔒 | medium_hk🔒 | hk01🔒 | **6/7** |
 | **US** | reddit_old | app_store_us, google_play_us🔒, trustpilot🔒, yelp_html🔒 | — | youtube_html🔒 | quora🔒 | medium🔒 | — | **5/7** |
-| **TW** | ptt, dcard, mobile01 | app_store_tw, google_play_tw🔒 | — | — | — | — | yahoo_news_tw | **3/7** |
-| **JP** | five_ch | app_store_jp, google_play_jp🔒, cosme, tabelog🔒, yahoo_japan_reviews | — | — | — | — | — | **2/7** |
+| **TW** | ptt, dcard, mobile01 | app_store_tw, google_play_tw🔒 | — | youtube_html🔒 | quora_tw🔒 | medium_tw🔒 | yahoo_news_tw | **6/7** |
+| **JP** | five_ch | app_store_jp, google_play_jp🔒, cosme, tabelog🔒, yahoo_japan_reviews | — | youtube_html🔒 | quora_jp🔒 | medium_jp🔒 | — | **5/7** |
 
 🔒 = ToS-prohibited, opt-in only.
 
@@ -270,7 +270,7 @@ Each phase ended in something runnable end-to-end at its slice. **Phases 1–6 s
 
 | # | Phase | Why |
 |---|---|---|
-| **7** | **Wire `quora_*`, `medium_*`, `youtube_html` into TW and JP regional registries** | These scrapers exist as code but TW / JP regional configs don't list them — quick fix to bring TW from 3/7 → 6/7 categories and JP from 2/7 → 5/7. |
+| **7** | ~~**Wire `quora_*`, `medium_*`, `youtube_html` into TW and JP regional registries**~~ | ✅ **Shipped.** Three sources each added to TW + JP. TW now 6/7, JP 5/7 — see `docs/source_coverage.md`. |
 | **8** | **Tighten `scrape-doctor`** | Current generic content checks (`has-links`, `has-json-structure`) produce false positives. Replace with per-source assertions loaded from each scraper's test module. |
 | **9** | **`reddit_old` fixtures** | Works live; no offline parser tests. Capture once + add tests. |
 | **10** | **UI: multi-region selector + new synthesis fields** | Frontend predates the multi-region work + the new synthesis enhancements; surface region picker, quantitative-grounding badges, adversarial flags, PDF download. |
