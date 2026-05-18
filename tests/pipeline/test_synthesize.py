@@ -91,15 +91,25 @@ def test_build_coverage_categories_from_registry() -> None:
     assert coverage["doc_counts"] == {"lihkg": 1, "app_store_hk": 1}
 
 
-def test_build_coverage_unknown_source_yields_no_category() -> None:
-    """A scraper id not in the regional registry contributes to sources_used
-    but to no category. This documents the existing reddit_old /
-    reddit_hongkong_html registry inconsistency until it's fixed separately."""
+def test_reddit_old_now_categorized_as_qa() -> None:
+    """After the registry alias fix, the reddit_old scraper id is
+    registered against the qa category for HK (was previously
+    reddit_hongkong_html, which didn't match the scraper id)."""
     c = _cluster(["post_001"])
     c = c.model_copy(update={"source_distribution": {"reddit_old": 1}})
     coverage = _build_coverage(c, region="HK")
-    assert coverage["categories_present"] == []
+    assert "qa" in coverage["categories_present"]
     assert coverage["sources_used"] == ["reddit_old"]
+
+
+def test_build_coverage_truly_unknown_source_yields_no_category() -> None:
+    """Genuinely unregistered scraper ids still contribute to sources_used
+    but not to categories_present."""
+    c = _cluster(["post_001"])
+    c = c.model_copy(update={"source_distribution": {"some_unregistered_source": 1}})
+    coverage = _build_coverage(c, region="HK")
+    assert coverage["categories_present"] == []
+    assert coverage["sources_used"] == ["some_unregistered_source"]
 
 
 def test_evidence_pack_doc_ids_are_stable() -> None:
@@ -261,6 +271,8 @@ def _good_persona_json(doc_id: str) -> str:
                        "evidence": [doc_id]}],
         "representative_quotes": [
             {"text_original": "好難用", "lang": "zh", "doc_id": doc_id},
+            {"text_original": "好難用", "lang": "zh", "doc_id": doc_id},
+            {"text_original": "好難用", "lang": "zh", "doc_id": doc_id},
         ],
     })
 
@@ -303,6 +315,103 @@ def _make_anthropic_client(scripts: list[str], **claude_reply_kwargs: Any):
     transport = _ScriptedHTTP(responses)
     http_client = httpx.Client(transport=httpx.MockTransport(transport))
     return AnthropicClient("test-key", client=http_client), transport
+
+
+def test_quote_source_and_url_backfilled_from_post_metadata(monkeypatch) -> None:
+    """LLM frequently omits source/url; the parser must backfill from
+    post_metadata via doc_id -> post_id. The UI relies on these for clickable
+    provenance."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    c = _cluster(["post_001", "post_002", "post_003", "post_004", "post_005"])
+    doc_id_1 = _doc_id_for("post_001")  # source: reddit_old, url: .../post_001
+
+    # LLM reply with source/url OMITTED on the quote (common case).
+    persona_no_meta = json.dumps({
+        "name": "Test", "one_liner": "x",
+        "goals":              [{"claim": "g", "evidence": [doc_id_1]}],
+        "motivations":        [{"claim": "m", "evidence": [doc_id_1]}],
+        "pain_points":        [{"claim": "p", "evidence": [doc_id_1]}],
+        "preferred_channels": [{"claim": "c", "evidence": [doc_id_1]}],
+        "behaviors":          [{"claim": "b", "evidence": [doc_id_1]}],
+        "representative_quotes": [
+            # NOTE: no "source" or "url" fields — the parser must fill them.
+            # "好難用" is a verbatim substring of post_001.
+            {"text_original": "好難用", "doc_id": doc_id_1},
+            {"text_original": "好難用", "doc_id": doc_id_1},
+            {"text_original": "好難用", "doc_id": doc_id_1},
+        ],
+    })
+    client, _ = _make_anthropic_client([persona_no_meta])
+    persona, _pack, _usage = generate_persona(
+        c, _POST_TEXTS, _POST_META, region="HK",
+        client=client, run_id="r1",
+    )
+    # Both source and url should now be populated from post_metadata.
+    q = persona.representative_quotes[0]
+    assert q.source == _POST_META["post_001"]["source"]
+    assert q.url == _POST_META["post_001"]["url"]
+    assert q.lang == _POST_META["post_001"]["lang"]
+
+
+def test_min_quotes_enforced_via_validator_retry(monkeypatch) -> None:
+    """A response with only 1 quote should trigger a retry. If the retry
+    delivers ≥3, the persona is accepted with no unverified buckets."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    c = _cluster(["post_001", "post_002", "post_003", "post_004", "post_005"])
+    doc_id = _doc_id_for("post_001")
+
+    # First reply: only ONE quote (validator wants min 3).
+    one_quote = json.dumps({
+        "name": "T", "one_liner": "x",
+        "goals":              [{"claim": "g", "evidence": [doc_id]}],
+        "motivations":        [{"claim": "m", "evidence": [doc_id]}],
+        "pain_points":        [{"claim": "p", "evidence": [doc_id]}],
+        "preferred_channels": [{"claim": "c", "evidence": [doc_id]}],
+        "behaviors":          [{"claim": "b", "evidence": [doc_id]}],
+        "representative_quotes": [
+            {"text_original": "好難用", "lang": "zh", "doc_id": doc_id},
+        ],
+    })
+    # Second reply: three valid quotes.
+    three_quotes = json.dumps({
+        "name": "T", "one_liner": "x",
+        "goals":              [{"claim": "g", "evidence": [doc_id]}],
+        "motivations":        [{"claim": "m", "evidence": [doc_id]}],
+        "pain_points":        [{"claim": "p", "evidence": [doc_id]}],
+        "preferred_channels": [{"claim": "c", "evidence": [doc_id]}],
+        "behaviors":          [{"claim": "b", "evidence": [doc_id]}],
+        "representative_quotes": [
+            {"text_original": "好難用", "lang": "zh", "doc_id": doc_id},
+            {"text_original": "好難用", "lang": "zh", "doc_id": doc_id},
+            {"text_original": "好難用", "lang": "zh", "doc_id": doc_id},
+        ],
+    })
+    client, transport = _make_anthropic_client([one_quote, three_quotes])
+    persona, _pack, _usage = generate_persona(
+        c, _POST_TEXTS, _POST_META, region="HK",
+        client=client, run_id="r1",
+    )
+    assert len(transport.requests) == 2          # retry happened
+    assert len(persona.representative_quotes) == 3
+    assert persona.goals.coverage == "ok"        # not downgraded
+
+
+def test_min_quotes_relaxed_for_small_clusters() -> None:
+    """If the cluster has only 2 distinct docs, we don't require 3 quotes."""
+    from src.pipeline.synthesize import _validate_grounding_persona
+    c = _cluster(["post_001", "post_002"])
+    pack = _build_evidence_pack(c, _POST_TEXTS, _POST_META, region="HK")
+    doc = _doc_id_for("post_001")
+    parsed = {
+        "goals":              [{"claim": "g", "evidence": [doc]}],
+        "representative_quotes": [
+            {"text_original": "好難用", "lang": "zh", "doc_id": doc},
+            {"text_original": "好難用", "lang": "zh", "doc_id": doc},
+        ],
+    }
+    errors = _validate_grounding_persona(parsed, pack)
+    # 2 quotes with a 2-doc pack should NOT trigger the min-quote error.
+    assert not any("must return at least" in e for e in errors)
 
 
 def test_persona_generation_succeeds_on_first_try(monkeypatch) -> None:

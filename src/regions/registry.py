@@ -283,7 +283,7 @@ REGIONS: dict[str, RegionConfig] = {
             ),
             # ---- qa ------------------------------------------------------
             SourceConfig(
-                source_id="reddit_hongkong_html",
+                source_id="reddit_old",
                 category=SourceCategory.QA,
                 priority=1,
                 access_method=AccessMethod.HTML,
@@ -295,7 +295,8 @@ REGIONS: dict[str, RegionConfig] = {
                 tos_scraping_stance=ToSStance.ALLOWED_WITH_CONDITIONS,
                 last_checked=_AUDIT_DATE,
                 notes=(
-                    "Scraped via old.reddit.com HTML — no API key. Reddit ToS "
+                    "old.reddit.com HTML scrape via the reddit_old scraper "
+                    "(pass --subreddits HongKong,HKtechnology). No API key. Reddit ToS "
                     "permits non-commercial scraping with attribution; user-agent "
                     "must identify honestly."
                 ),
@@ -443,7 +444,7 @@ REGIONS: dict[str, RegionConfig] = {
                 exclusion_reason="Reddit API requires OAuth registration.",
                 tos_scraping_stance=ToSStance.ALLOWED_WITH_CONDITIONS,
                 last_checked=_AUDIT_DATE,
-                notes="Replaced by reddit_hongkong_html (old.reddit.com scrape).",
+                notes="Replaced by reddit_old (old.reddit.com HTML scrape, no API).",
             ),
             SourceConfig(
                 source_id="facebook_hk_groups",
