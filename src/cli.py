@@ -90,6 +90,13 @@ def scrape(
             ),
         ),
     ] = False,
+    bypass_robots: Annotated[
+        bool,
+        typer.Option(
+            "--bypass-robots",
+            help="Ignore robots.txt restrictions. Needed for sources like discuss_hk that block scrapers.",
+        ),
+    ] = False,
     expand: Annotated[
         bool,
         typer.Option(
@@ -173,6 +180,9 @@ def scrape(
             scraper_kwargs = {}
             if source_id == "reddit_old" and subreddits:
                 scraper_kwargs["subreddits"] = [s.strip() for s in subreddits.split(",") if s.strip()]
+            if bypass_robots:
+                if source_id == "discuss_hk":
+                    scraper_kwargs["respect_robots"] = False
             scraper = get_scraper(source_id, **scraper_kwargs)
             emitted = 0
             duplicates = 0
@@ -196,6 +206,14 @@ def scrape(
                             break
                     if emitted >= limit:
                         break
+            except Exception as exc:
+                log.warning(
+                    "scrape.source.error",
+                    source=source_id,
+                    error=str(exc),
+                    emitted=emitted,
+                )
+                typer.echo(f"  ⚠ {source_id}: {exc}", err=True)
             finally:
                 close = getattr(scraper, "close", None)
                 if callable(close):
@@ -352,6 +370,7 @@ def cluster(
         raise typer.Exit(code=1)
 
     import duckdb
+    import json
     import numpy as np
 
     cfg = load_config(Path(config_path) if config_path else None)
@@ -406,7 +425,6 @@ def cluster(
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     out_path = out_dir / f"clusters_{ts}.json"
 
-    import json
     with open(out_path, "w") as f:
         json.dump(result.model_dump(mode="json"), f, indent=2, default=str)
 
