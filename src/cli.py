@@ -20,6 +20,7 @@ from src.scrape.utils.writer import RunWriter
 from src.schemas.cluster import ClusteringResult
 from src.schemas.raw import RawPost
 from src.scrape.doctor import app as doctor_app
+from src.cli_export import _export_app
 
 # Pipeline typeshed
 _PIPELINE_AVAILABLE = True
@@ -40,6 +41,7 @@ except ImportError:
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 app.add_typer(doctor_app, name="scrape-doctor")
+app.add_typer(_export_app, name="export")
 
 
 @app.callback()
