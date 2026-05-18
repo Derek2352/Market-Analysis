@@ -151,3 +151,39 @@ for c in result.clusters:
 
 store.close()
 con.close()
+
+# ---------------------------------------------------------------------------
+# Step 4: persist raw posts + cluster output in the standard layout so
+# `mkt synthesize --topic "MTR Mobile" --region HK` can pick them up.
+# ---------------------------------------------------------------------------
+import json
+from datetime import timezone as _tz
+
+ts = datetime.now(_tz.utc).strftime("%Y%m%dT%H%M%SZ")
+topic_slug = "mtr_mobile"
+
+raw_dir = Path("data/raw") / topic_slug / "HK"
+clusters_dir = Path("data/clusters") / topic_slug / "HK"
+raw_dir.mkdir(parents=True, exist_ok=True)
+clusters_dir.mkdir(parents=True, exist_ok=True)
+
+raw_path = raw_dir / f"synthetic_{ts}.json"
+with open(raw_path, "w", encoding="utf-8") as f:
+    json.dump(
+        [p.model_dump(mode="json") for p in posts],
+        f, ensure_ascii=False, indent=2, default=str,
+    )
+
+clusters_path = clusters_dir / f"clusters_{ts}.json"
+with open(clusters_path, "w", encoding="utf-8") as f:
+    json.dump(result.model_dump(mode="json"), f,
+              ensure_ascii=False, indent=2, default=str)
+
+print(
+    "\n=== Step 4: persisted demo data in standard layout ===\n"
+    f"  raw posts: {raw_path}\n"
+    f"  clusters:  {clusters_path}\n"
+    "\nNext (once you have ANTHROPIC_API_KEY or DEEPSEEK_API_KEY set):\n"
+    f"  mkt synthesize --topic 'MTR Mobile' --region HK --run {ts} --dry-run\n"
+    f"  mkt synthesize --topic 'MTR Mobile' --region HK --run {ts}\n"
+)

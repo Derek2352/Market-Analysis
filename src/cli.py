@@ -26,7 +26,12 @@ try:
     from src.pipeline.embed import EmbeddingStore
     from src.pipeline.cluster import cluster_embeddings, load_config
     from src.pipeline.cluster_diag import compute_ctfidf_keywords, generate_report
-    from src.pipeline.synthesize import generate_persona, generate_journey
+    from src.pipeline.synthesize import (
+        CostCapExceeded,
+        MissingAPIKey,
+        SynthesisError,
+        synthesize_run,
+    )
 except ImportError:
     _PIPELINE_AVAILABLE = False
 
@@ -334,43 +339,84 @@ def diag(
 
 
 @app.command()
-def persona(
+def synthesize(
     topic: Annotated[str, typer.Option(..., "--topic")],
     region: Annotated[str, typer.Option(..., "--region")],
+    run_id_opt: Annotated[
+        str,
+        typer.Option(
+            "--run",
+            help="Specific clustering run timestamp (e.g. 20260517T123000Z). Latest if omitted.",
+        ),
+    ] = "",
     cluster_id: Annotated[
         str,
-        typer.Option("--cluster", help="Specific cluster ID. Omit to generate for all clusters."),
+        typer.Option("--cluster", help="Specific cluster id. Omit for all clusters in the run."),
     ] = "",
+    provider: Annotated[
+        str,
+        typer.Option(
+            "--provider", help="LLM backend. anthropic (default) or deepseek.",
+        ),
+    ] = "anthropic",
+    model: Annotated[
+        str,
+        typer.Option("--model", help="Override model id (uses provider default if omitted)."),
+    ] = "",
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Print plan + cost estimate; make no API calls."),
+    ] = False,
+    force: Annotated[
+        bool,
+        typer.Option("--force", help="Bypass the cost cap."),
+    ] = False,
+    max_cost: Annotated[
+        float,
+        typer.Option("--max-cost", help="Hard cost ceiling in USD."),
+    ] = 4.00,
 ) -> None:
-    """Generate personas from clustered posts via Claude."""
+    """Synthesize a Persona + Journey Map for every cluster of a clustering run.
+
+    Reads clusters from data/clusters/{topic}/{region}/clusters_{run}.json
+    and raw posts from data/raw/{topic}/{region}/, calls the LLM with prompt
+    caching (evidence pack shared across persona + journey -> ~70% saving on
+    the journey call), validates grounding, retries once on failure, then
+    marks affected sections coverage=\"unverified\" rather than fabricating.
+    """
     if not _PIPELINE_AVAILABLE:
         typer.echo("Pipeline deps not installed.", err=True)
         raise typer.Exit(code=1)
 
+    import json
+
     topic_slug = _slugify(topic)
     clusters_dir = _DATA_DIR / "clusters" / topic_slug / region
-
     if not clusters_dir.exists():
-        typer.echo(f"No clusters at {clusters_dir}. Run cluster first.", err=True)
+        typer.echo(f"No clusters at {clusters_dir}. Run mkt cluster first.", err=True)
         raise typer.Exit(code=1)
 
-    cluster_files = sorted(clusters_dir.glob("clusters_*.json"))
-    if not cluster_files:
-        typer.echo(f"No cluster results at {clusters_dir}", err=True)
-        raise typer.Exit(code=1)
+    if run_id_opt:
+        cluster_file = clusters_dir / f"clusters_{run_id_opt}.json"
+        if not cluster_file.exists():
+            typer.echo(f"No clustering run at {cluster_file}", err=True)
+            raise typer.Exit(code=1)
+    else:
+        files = sorted(clusters_dir.glob("clusters_*.json"))
+        if not files:
+            typer.echo(f"No cluster files at {clusters_dir}", err=True)
+            raise typer.Exit(code=1)
+        cluster_file = files[-1]
 
-    import json
+    with open(cluster_file) as f:
+        result = ClusteringResult(**json.load(f))
 
-    latest = cluster_files[-1]
-    with open(latest) as f:
-        data = json.load(f)
+    # Run id used in output filenames: take it from the cluster file name.
+    run_id = cluster_file.stem.removeprefix("clusters_")
 
-    result = ClusteringResult(**data)
-
-    # Load post texts and metadata
     raw_dir = _DATA_DIR / "raw" / topic_slug / region
     post_texts: dict[str, str] = {}
-    post_metadata: dict[str, dict] = {}
+    post_metadata: dict[str, dict[str, Any]] = {}
     for rf in sorted(raw_dir.glob("*.json")):
         if rf.name.endswith("._run.json"):
             continue
@@ -380,111 +426,91 @@ def persona(
             pid = p.get("id", "")
             if not pid:
                 continue
-            post_texts[pid] = f"{p.get('title', '') or ''}\n{p.get('body', '') or ''}"
+            post_texts[pid] = (
+                f"{p.get('title', '') or ''}\n{p.get('body', '') or ''}".strip()
+            )
             post_metadata[pid] = {
                 "source": p.get("source", ""),
                 "url": p.get("url", ""),
                 "lang": p.get("language_detected", "en"),
             }
 
-    targets = [c for c in result.clusters if not cluster_id or c.cluster_id == cluster_id]
-    if not targets:
-        typer.echo(f"Cluster {cluster_id} not found. Available: {[c.cluster_id for c in result.clusters]}")
-        raise typer.Exit(code=1)
-
-    personas_out = _DATA_DIR / "personas" / topic_slug / region
-    personas_out.mkdir(parents=True, exist_ok=True)
-
-    for c in targets:
-        typer.echo(f"Generating persona for {c.cluster_id} ({c.size} posts)...")
-        try:
-            p = generate_persona(c, post_texts, post_metadata)
-            out_path = personas_out / f"{p.id}.json"
-            with open(out_path, "w") as f:
-                json.dump(p.model_dump(mode="json"), f, indent=2, default=str)
-            typer.echo(f"  {p.name}: {p.one_liner}")
-            typer.echo(f"  Saved: {out_path}")
-        except Exception as e:
-            typer.echo(f"  Failed: {e}")
-
-
-@app.command()
-def journey(
-    topic: Annotated[str, typer.Option(..., "--topic")],
-    region: Annotated[str, typer.Option(..., "--region")],
-    persona_id: Annotated[str, typer.Option(..., "--persona", help="Persona ID from mkt persona output.")],
-) -> None:
-    """Generate a user journey map for a persona via Claude."""
-    if not _PIPELINE_AVAILABLE:
-        typer.echo("Pipeline deps not installed.", err=True)
-        raise typer.Exit(code=1)
-
-    topic_slug = _slugify(topic)
-    personas_dir = _DATA_DIR / "personas" / topic_slug / region
-
-    persona_path = personas_dir / f"{persona_id}.json"
-    if not persona_path.exists():
-        typer.echo(f"Persona not found: {persona_path}", err=True)
-        raise typer.Exit(code=1)
-
-    import json
-    with open(persona_path) as f:
-        pdata = json.load(f)
-
-    from src.schemas.synthesis import Persona as PersonaModel
-    persona_obj = PersonaModel(**pdata)
-
-    # Load cluster
-    clusters_dir = _DATA_DIR / "clusters" / topic_slug / region
-    cluster_files = sorted(clusters_dir.glob("clusters_*.json"))
-    with open(cluster_files[-1]) as f:
-        cdata = json.load(f)
-
-    cluster = None
-    for c in cdata.get("clusters", []):
-        if c.get("cluster_id") == persona_obj.cluster_id:
-            cluster = Cluster(**c)
-            break
-
-    if not cluster:
-        typer.echo(f"Cluster {persona_obj.cluster_id} not found.", err=True)
-        raise typer.Exit(code=1)
-
-    # Load text/metadata
-    raw_dir = _DATA_DIR / "raw" / topic_slug / region
-    post_texts: dict[str, str] = {}
-    post_metadata: dict[str, dict] = {}
-    for rf in sorted(raw_dir.glob("*.json")):
-        if rf.name.endswith("._run.json"):
-            continue
-        with open(rf) as f:
-            posts = json.load(f)
-        for p in posts:
-            pid = p.get("id", "")
-            if not pid:
-                continue
-            post_texts[pid] = f"{p.get('title', '') or ''}\n{p.get('body', '') or ''}"
-            post_metadata[pid] = {
-                "source": p.get("source", ""),
-                "url": p.get("url", ""),
-                "lang": p.get("language_detected", "en"),
-            }
-
-    typer.echo(f"Generating journey map for {persona_obj.name}...")
+    cluster_ids = [cluster_id] if cluster_id else None
     try:
-        jm = generate_journey(persona_obj, cluster, post_texts, post_metadata)
-        journeys_out = _DATA_DIR / "journeys" / topic_slug / region
-        journeys_out.mkdir(parents=True, exist_ok=True)
-        out_path = journeys_out / f"{jm.id}.json"
-        with open(out_path, "w") as f:
-            json.dump(jm.model_dump(mode="json"), f, indent=2, default=str)
-        typer.echo(f"Journey map saved: {out_path}")
-        for s in jm.stages:
-            emoji = {"Awareness": "👁", "Consideration": "🤔", "Decision": "✅",
-                     "Onboarding": "🚀", "Use": "🔄", "Loyalty/Churn": "💚"}.get(s.stage, "")
-            typer.echo(f"  {emoji} {s.stage}: {len(s.touchpoints)} touchpoints, {len(s.frictions)} frictions ({s.coverage})")
-    except Exception as e:
-        typer.echo(f"Failed: {e}")
+        report = synthesize_run(
+            topic=topic,
+            region=region,
+            clusters=result.clusters,
+            post_texts=post_texts,
+            post_metadata=post_metadata,
+            provider=provider,
+            model=model or None,
+            dry_run=dry_run,
+            force=force,
+            max_cost_usd=max_cost,
+            run_id=run_id,
+            cluster_ids=cluster_ids,
+        )
+    except MissingAPIKey as e:
+        typer.echo(f"Missing API key: {e}", err=True)
+        raise typer.Exit(code=1)
+    except CostCapExceeded as e:
+        typer.echo(f"Cost cap exceeded: {e}", err=True)
+        raise typer.Exit(code=2)
+    except SynthesisError as e:
+        typer.echo(f"Synthesis failed: {e}", err=True)
+        raise typer.Exit(code=1)
+
+    est = report.estimate
+    typer.echo(
+        f"Plan: {report.clusters_processed} clusters via "
+        f"{report.provider} ({report.model})"
+    )
+    if est is not None:
+        typer.echo(
+            f"  Estimated tokens: input={est.estimated_input_tokens:,}, "
+            f"cached={est.estimated_cached_input_tokens:,}, "
+            f"output={est.estimated_output_tokens:,}"
+        )
+        typer.echo(f"  Estimated cost: ${est.estimated_usd:.4f}")
+        typer.echo(f"  Cap: ${max_cost:.2f}")
+
+    if dry_run:
+        typer.echo("Dry run — no API calls made.")
+        return
+
+    personas_dir = _DATA_DIR / "personas" / topic_slug / region
+    journeys_dir = _DATA_DIR / "journeys" / topic_slug / region
+    personas_dir.mkdir(parents=True, exist_ok=True)
+    journeys_dir.mkdir(parents=True, exist_ok=True)
+
+    for p in report.personas:
+        out = personas_dir / f"{p.id}.json"
+        with open(out, "w") as f:
+            json.dump(p.model_dump(mode="json"), f, indent=2, default=str, ensure_ascii=False)
+        unverified = [
+            name for name in (
+                "goals", "motivations", "pain_points",
+                "preferred_channels", "behaviors",
+            ) if getattr(p, name).coverage != "ok"
+        ]
+        tag = f" [unverified: {', '.join(unverified)}]" if unverified else ""
+        typer.echo(f"  persona {p.id} -> {p.name}{tag}")
+
+    for j in report.journeys:
+        out = journeys_dir / f"{j.id}.json"
+        with open(out, "w") as f:
+            json.dump(j.model_dump(mode="json"), f, indent=2, default=str, ensure_ascii=False)
+        thin = [s.stage for s in j.stages if s.coverage in {"thin", "none"}]
+        tag = f" [thin: {', '.join(thin)}]" if thin else ""
+        typer.echo(f"  journey {j.id}{tag}")
+
+    typer.echo(
+        f"Done. Actual cost: ${report.actual_cost_usd:.4f} "
+        f"(input={report.total_input_tokens:,}, "
+        f"cached={report.total_cached_input_tokens:,}, "
+        f"output={report.total_output_tokens:,})"
+    )
 
 
 @app.command()
