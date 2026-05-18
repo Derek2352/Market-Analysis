@@ -90,6 +90,13 @@ def scrape(
             ),
         ),
     ] = False,
+    expand: Annotated[
+        bool,
+        typer.Option(
+            "--expand",
+            help="Expand the topic into related search queries for broader coverage.",
+        ),
+    ] = False,
 ) -> None:
     """Scrape one or more sources for `topic` in `region`."""
     region_cfg = get_region(region)
@@ -137,11 +144,20 @@ def scrape(
         topic=topic, topic_slug=topic_slug, region=region
     )
 
+    # Expand topic into related queries for broader coverage
+    if expand:
+        from src.scrape.utils.query_expansion import expand_query
+        search_queries = expand_query(topic, region, n=6)
+        typer.echo(f"Expanded '{topic}' → {len(search_queries)} queries: {search_queries[1:4]}...")
+    else:
+        search_queries = [topic]
+
     log.info(
         "scrape.start",
         sources=source_ids,
         limit=limit,
         since=since_dt.isoformat(),
+        queries=len(search_queries) if expand else 1,
     )
 
     with DedupIndex(_DATA_DIR / "dedup.sqlite") as index:
@@ -161,18 +177,25 @@ def scrape(
             emitted = 0
             duplicates = 0
             try:
-                for post in scraper.search(topic, since=since_dt, limit=limit):
-                    is_new = index.mark_seen(
-                        source=source_id,
-                        source_post_id=post.id,
-                        region=region,
-                        topic_slug=topic_slug,
-                    )
-                    if is_new:
-                        writer.add(post)
-                        emitted += 1
-                    else:
-                        duplicates += 1
+                for query in search_queries:
+                    if expand:
+                        log.info("scrape.query", source=source_id, query=query)
+                    for post in scraper.search(query, since=since_dt, limit=limit):
+                        is_new = index.mark_seen(
+                            source=source_id,
+                            source_post_id=post.id,
+                            region=region,
+                            topic_slug=topic_slug,
+                        )
+                        if is_new:
+                            writer.add(post)
+                            emitted += 1
+                        else:
+                            duplicates += 1
+                        if emitted >= limit:
+                            break
+                    if emitted >= limit:
+                        break
             finally:
                 close = getattr(scraper, "close", None)
                 if callable(close):
