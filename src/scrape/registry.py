@@ -7,20 +7,26 @@ from src.scrape.app_store_hk import AppStoreHKScraper
 from src.scrape.base import SourceScraper
 from src.scrape.discuss_hk import DiscussHKScraper
 from src.scrape.google_play_hk import GooglePlayHKScraper
+from src.scrape.hk01 import HK01Scraper
 from src.scrape.lihkg import LIHKGScraper
 from src.scrape.medium_hk import MediumHKScraper
 from src.scrape.openrice import OpenriceScraper
+from src.scrape.quora_hk import QuoraHKScraper
 from src.scrape.reddit_old import RedditOldScraper
+from src.scrape.youtube_html import YoutubeHTMLScraper
 
 # Each source has one entry here and one file under src/scrape/.
 _FACTORIES: dict[str, Callable[[], SourceScraper]] = {
     "app_store_hk": AppStoreHKScraper,
     "discuss_hk": DiscussHKScraper,
     "google_play_hk": GooglePlayHKScraper,
+    "hk01": HK01Scraper,
     "lihkg": LIHKGScraper,
     "medium_hk": MediumHKScraper,
     "openrice": OpenriceScraper,
+    "quora_hk": QuoraHKScraper,
     "reddit_old": RedditOldScraper,
+    "youtube_html": YoutubeHTMLScraper,
 }
 
 
