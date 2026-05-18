@@ -319,10 +319,12 @@ def _cluster_step(state: RunState, data_dir: Path) -> list[Cluster]:
                 post_texts[pid] = text
 
     state.set_progress("cluster", 0.5, "Running clustering algorithm…")
+    from src.lang import get_tokenizer as _get_tokenizer
     result: ClusteringResult = cluster_embeddings(
         vectors, post_ids, topic, region,
         config=cfg, source_map=source_map,
         post_texts=post_texts if post_texts else None,
+        tokenizer=_get_tokenizer(region),
     )
 
     out_dir = data_dir / "clusters" / topic_slug / region

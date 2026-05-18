@@ -1,0 +1,26 @@
+[
+  {
+    "id": 24567890,
+    "title": "iPhone 16使用一週心得",
+    "content": "用了iPhone 16一個禮拜，相機真的有感升級，但續航還是老樣子",
+    "excerpt": "用了iPhone 16一個禮拜",
+    "forumName": "Apple",
+    "school": "NTU",
+    "anonymous": false,
+    "createdAt": "2024-05-15T10:30:00.000Z",
+    "likeCount": 234,
+    "commentCount": 56
+  },
+  {
+    "id": 24567891,
+    "title": "iOS 18更新後超耗電",
+    "content": "更新到18.0之後電池用噴的，有人也這樣嗎？",
+    "excerpt": "更新到18.0之後電池用噴的",
+    "forumName": "Apple",
+    "school": "NCKU",
+    "anonymous": true,
+    "createdAt": "2024-05-17T14:20:00.000Z",
+    "likeCount": 89,
+    "commentCount": 120
+  }
+]

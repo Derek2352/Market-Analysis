@@ -23,19 +23,26 @@ import typer
 
 from src.scrape.base import FixtureStore
 from src.scrape.registry import available_sources, get_scraper
+from src.regions.registry import get_region
 
-app = typer.Typer(no_args_is_help=False, add_completion=False)
+app = typer.Typer(no_args_is_help=False, add_completion=False, invoke_without_command=True)
 _log = structlog.get_logger(__name__)
 
 # Sources whose scrapers use public JSON (not HTML parsers).
 # These are skipped by scrape-doctor — there's no HTML to check.
-_JSON_SOURCES = {"lihkg", "app_store_hk"}
+_JSON_SOURCES = {"lihkg", "app_store_hk", "app_store_tw", "app_store_us", "app_store_jp"}
+
+# Test fixture directories (checked when no runtime fixtures exist).
+_TEST_FIXTURES_DIR = Path(__file__).resolve().parent.parent.parent / "tests" / "fixtures" / "html"
 
 
-@app.command()
+@app.callback()
 def doctor(
     source: str = typer.Option(
         "", "--source", help="Check a single source. Omit to check all."
+    ),
+    region: str = typer.Option(
+        "", "--region", help="Filter sources to a specific region (e.g., HK, TW, US, JP)."
     ),
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Show fixture names and parse details."
@@ -53,6 +60,12 @@ def doctor(
         if unknown:
             typer.echo(f"Unknown source: {unknown}", err=True)
             raise typer.Exit(code=2)
+    elif region:
+        # Filter to a specific region's sources
+        region_cfg = get_region(region)
+        all_ids = {s.source_id for s in region_cfg.sources}
+        source_ids = [s for s in available_sources() if s in all_ids and s not in _JSON_SOURCES]
+        typer.echo(f"Region: {region_cfg.display_name} ({len(source_ids)} sources)")
     else:
         source_ids = [s for s in available_sources() if s not in _JSON_SOURCES]
 
@@ -128,7 +141,7 @@ def _check_parser(source_id: str, html: str, meta: dict) -> tuple[bool, str]:
     if not html or not html.strip():
         return False, "empty HTML"
 
-    # Structural checks per source
+        # Structural checks per source
     checks = _STRUCTURAL_CHECKS.get(source_id, [])
     for check_name, check_fn in checks:
         ok, msg = check_fn(html)
@@ -138,6 +151,17 @@ def _check_parser(source_id: str, html: str, meta: dict) -> tuple[bool, str]:
     # If the source registered, try running the scraper's live parse against
     # the fixture by checking for expected class/id markers.
     return True, f"{len(html)} bytes, structure OK"
+
+
+def _has_test_fixtures(source_id: str) -> list[str]:
+    """Return list of test fixture names for *source_id*, or empty list."""
+    d = _TEST_FIXTURES_DIR / source_id
+    if not d.is_dir():
+        return []
+    return sorted(
+        f.name for f in d.iterdir()
+        if f.suffix in (".html", ".json") and not f.name.endswith(".meta.json")
+    )
 
 
 def _check_has_elements(tag: str) -> callable:
@@ -160,6 +184,7 @@ def _check_has_class(class_name: str) -> callable:
 
 
 _STRUCTURAL_CHECKS: dict[str, list[tuple[str, callable]]] = {
+    # HK scrapers
     "openrice": [
         ("has-links", _check_has_elements("a")),
         ("restaurant-links", _check_has_class("r-")),
@@ -167,6 +192,65 @@ _STRUCTURAL_CHECKS: dict[str, list[tuple[str, callable]]] = {
     "reddit_old": [
         ("has-links", _check_has_elements("a")),
         ("thread-links", _check_has_class("thing")),
+    ],
+    "discuss_hk": [
+        ("has-links", _check_has_elements("a")),
+    ],
+    "hk01": [
+        ("has-links", _check_has_elements("a")),
+    ],
+    "medium_hk": [
+        ("has-json-structure", _check_has_class("{\"success\":")),
+    ],
+    # TW scrapers
+    "ptt": [
+        ("has-links", _check_has_elements("a")),
+        ("main-content", _check_has_class("main-content")),
+    ],
+    "dcard": [
+        ("has-json", lambda h: ("{" in h or "[" in h, "JSON structure OK") if ("{" in h or "[" in h) else (False, "not JSON")),
+    ],
+    "mobile01": [
+        ("has-links", _check_has_elements("a")),
+        ("topic-links", _check_has_class("topicdetail")),
+    ],
+    "yahoo_news_tw": [
+        ("has-links", _check_has_elements("a")),
+    ],
+    # US scrapers
+    "trustpilot": [
+        ("has-links", _check_has_elements("a")),
+        ("review-links", _check_has_class("review")),
+    ],
+    "yelp_html": [
+        ("has-links", _check_has_elements("a")),
+        ("biz-links", _check_has_class("biz")),
+    ],
+    "quora": [
+        ("has-links", _check_has_elements("a")),
+    ],
+    "medium": [
+        ("has-json-structure", _check_has_class("{\"success\":")),
+    ],
+    # JP scrapers
+    "five_ch": [
+        ("has-links", _check_has_elements("a")),
+    ],
+    "yahoo_japan_reviews": [
+        ("has-links", _check_has_elements("a")),
+    ],
+    "cosme": [
+        ("has-links", _check_has_elements("a")),
+    ],
+    "tabelog": [
+        ("has-links", _check_has_elements("a")),
+    ],
+    # App store / Google Play scrapers (JSON-based detection)
+    "google_play_hk": [
+        ("has-review-keys", lambda h: ("reviewId" in h or "appId" in h, "review data present") if ("reviewId" in h or "appId" in h) else (False, "no review data")),
+    ],
+    "youtube_html": [
+        ("has-links", _check_has_elements("a")),
     ],
 }
 

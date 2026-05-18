@@ -156,7 +156,7 @@ def _parse_reviews(html: str, *, restaurant_url: str) -> Iterator[RawPost]:
                 body=body,
                 posted_at=datetime.now(timezone.utc),
                 signal_type=SignalType.EXPERIENCE,
-                engagement_metrics={"rating": rating},
+                engagement_metrics={"rating": int(round(rating))},
                 replies=[],
                 raw_metadata={"restaurant_name": rest_name, "restaurant_url": restaurant_url},
             )
