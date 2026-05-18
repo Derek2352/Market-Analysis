@@ -1,8 +1,17 @@
 """Synthesis output schemas — Persona and Journey Map.
 
-Produced by Phase 4's Claude-powered synthesis. Every claim field carries an
-``evidence`` array with ``doc_id`` references to stored posts, enforcing the
+Produced by Phase 4's LLM-powered synthesis. Every claim carries an
+``evidence`` array of ``doc_id`` references to stored posts, enforcing the
 anti-hallucination contract: no claim without a source.
+
+``ClaimList`` wraps every list of claims with a ``coverage`` marker:
+  - ``ok``         — claims well-supported by evidence
+  - ``unverified`` — the validator dropped some claims after a retry pass;
+                     what's left may be partial or empty
+
+``JourneyStage.coverage`` independently records data sparsity at the stage
+level: ``thin`` when there are fewer than 2 supporting quotes for a stage,
+``none`` when there are zero.
 """
 
 from __future__ import annotations
@@ -23,6 +32,20 @@ class EvidenceClaim(BaseModel):
     severity: str | None = None  # high / medium / low (for pain points)
 
 
+class ClaimList(BaseModel):
+    """A bucket of claims with a coverage marker.
+
+    The validator can downgrade a bucket from ``ok`` to ``unverified`` when
+    it has dropped claims after a retry pass. The remaining claims are still
+    grounded — the marker tells the user the bucket is partial.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    claims: list[EvidenceClaim] = Field(default_factory=list)
+    coverage: str = "ok"  # ok | unverified
+
+
 class RepresentativeQuote(BaseModel):
     """A verbatim quote from a source post."""
 
@@ -34,6 +57,16 @@ class RepresentativeQuote(BaseModel):
     source: str
     url: str
     doc_id: str
+
+
+class EmotionPoint(BaseModel):
+    """One emotion data point on a journey stage, with grounding."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    label: str
+    intensity: float = Field(ge=0.0, le=1.0)
+    evidence: list[str] = Field(default_factory=list)
 
 
 class Persona(BaseModel):
@@ -48,17 +81,20 @@ class Persona(BaseModel):
     one_liner: str
     language: str = "en"
     demographics: dict[str, Any] = Field(default_factory=dict)
-    goals: list[EvidenceClaim] = Field(default_factory=list)
-    motivations: list[EvidenceClaim] = Field(default_factory=list)
-    pain_points: list[EvidenceClaim] = Field(default_factory=list)
-    preferred_channels: list[EvidenceClaim] = Field(default_factory=list)
-    behaviors: list[EvidenceClaim] = Field(default_factory=list)
+
+    goals: ClaimList = Field(default_factory=ClaimList)
+    motivations: ClaimList = Field(default_factory=ClaimList)
+    pain_points: ClaimList = Field(default_factory=ClaimList)
+    preferred_channels: ClaimList = Field(default_factory=ClaimList)
+    behaviors: ClaimList = Field(default_factory=ClaimList)
+
     representative_quotes: list[RepresentativeQuote] = Field(default_factory=list)
     data_source_coverage: dict[str, Any] = Field(default_factory=dict)
     confidence: float = 0.0
     cluster_size: int = 0
     generated_at: datetime | None = None
     model: str = ""
+    provider: str = ""  # "anthropic" | "deepseek"
 
 
 class JourneyStage(BaseModel):
@@ -67,12 +103,18 @@ class JourneyStage(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     stage: str  # Awareness | Consideration | Decision | Onboarding | Use | Loyalty/Churn
-    touchpoints: list[EvidenceClaim] = Field(default_factory=list)
-    user_actions: list[EvidenceClaim] = Field(default_factory=list)
-    emotions: list[dict[str, Any]] = Field(default_factory=list)
-    frictions: list[EvidenceClaim] = Field(default_factory=list)
-    opportunities: list[EvidenceClaim] = Field(default_factory=list)
-    coverage: str = "ok"  # ok | thin | none
+
+    touchpoints: ClaimList = Field(default_factory=ClaimList)
+    user_actions: ClaimList = Field(default_factory=ClaimList)
+    emotions: list[EmotionPoint] = Field(default_factory=list)
+    frictions: ClaimList = Field(default_factory=ClaimList)
+    opportunities: ClaimList = Field(default_factory=ClaimList)
+
+    # Stage-level data sparsity marker.
+    # ok    — adequate evidence (>= 2 supporting quotes across this stage)
+    # thin  — only 1 supporting quote in evidence — kept but flagged
+    # none  — no supporting evidence; LLM was told NOT to fabricate
+    coverage: str = "ok"
 
 
 class JourneyMap(BaseModel):
@@ -88,3 +130,4 @@ class JourneyMap(BaseModel):
     stages: list[JourneyStage] = Field(default_factory=list)
     generated_at: datetime | None = None
     model: str = ""
+    provider: str = ""
