@@ -342,11 +342,18 @@ REGIONS: dict[str, RegionConfig] = {
                 tos_scraping_stance=ToSStance.PROHIBITED,
                 robots_txt_allows=None,
                 last_checked=_PHASE6_DATE,
-                last_verified_working=_PHASE6_DATE,
+                last_verified_working=None,
                 notes=(
-                    "HK01 article comments via Playwright (comments are "
-                    "JS-rendered). ToS prohibits automated access; opt-in only "
-                    "via --sources hk01. Phase 6 source."
+                    "HK01 article comments — DEFERRED from Phase 6. Two issues "
+                    "blocked the initial implementation: (1) the article fixture "
+                    "captured an article with commentCount=0, so the comments "
+                    "extractor has nothing to test against; (2) search results "
+                    "are AJAX-paginated and the saved fixture contained zero "
+                    "/<category>/<articleId>/... article links. Both blockers "
+                    "can be resolved with a second Playwright capture pass "
+                    "(article with commentCount>0 + a search page after AJAX "
+                    "settles). ToS prohibits scraping; would be opt-in only. "
+                    "Not registered in src/scrape/registry.py."
                 ),
             ),
             SourceConfig(
