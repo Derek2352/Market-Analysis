@@ -129,3 +129,46 @@ def test_discuss_hk_is_default_enabled_silent_stance() -> None:
     assert sc.category == SourceCategory.FORUMS
     assert sc.tos_scraping_stance == ToSStance.SILENT
     assert sc.default_enabled is True
+
+
+def test_tw_wired_quora_medium_youtube_html() -> None:
+    """Phase 7: TW gains qa/blogs/video_comments via existing scrapers
+    that just weren't surfaced in the TW regional registry."""
+    tw = get_region("TW")
+    for sid, expected_cat in [
+        ("quora_tw", SourceCategory.QA),
+        ("medium_tw", SourceCategory.BLOGS),
+        ("youtube_html", SourceCategory.VIDEO_COMMENTS),
+    ]:
+        sc = tw.get_source(sid)
+        assert sc is not None, f"{sid} missing from TW"
+        assert sc.category == expected_cat
+        assert sc.tos_scraping_stance == ToSStance.PROHIBITED
+        assert sc.default_enabled is False, f"{sid} should be opt-in"
+
+
+def test_jp_wired_quora_medium_youtube_html() -> None:
+    """Phase 7: JP gains qa/blogs/video_comments via existing scrapers."""
+    jp = get_region("JP")
+    for sid, expected_cat in [
+        ("quora_jp", SourceCategory.QA),
+        ("medium_jp", SourceCategory.BLOGS),
+        ("youtube_html", SourceCategory.VIDEO_COMMENTS),
+    ]:
+        sc = jp.get_source(sid)
+        assert sc is not None, f"{sid} missing from JP"
+        assert sc.category == expected_cat
+        assert sc.tos_scraping_stance == ToSStance.PROHIBITED
+        assert sc.default_enabled is False, f"{sid} should be opt-in"
+
+
+def test_tw_jp_category_coverage_meets_phase7_targets() -> None:
+    """TW should hit 6/7 categories, JP 5/7 after Phase 7 wiring."""
+    expected = {"TW": 6, "JP": 5}
+    for rid, target in expected.items():
+        cfg = get_region(rid)
+        cats = {s.category.value for s in cfg.sources if not s.excluded_by_constraint}
+        assert len(cats) >= target, (
+            f"{rid} only covers {len(cats)} categories: {sorted(cats)}; "
+            f"expected >= {target}"
+        )

@@ -803,13 +803,39 @@ REGIONS: dict[str, RegionConfig] = {
                          tos_scraping_stance=ToSStance.SILENT, last_checked=_AUDIT_DATE,
                          last_verified_working=None,
                          notes="Yahoo News Taiwan comment sections. Built May 2026."),
+            # ---- video_comments ------------------------------------------
+            SourceConfig(source_id="youtube_html", category=SourceCategory.VIDEO_COMMENTS, priority=1,
+                         access_method=AccessMethod.HTML_JS, tos_risk=TosRisk.HIGH, auth_required=False,
+                         signal_type=SignalType.OPINION, persona_value=3, journey_value=3,
+                         default_enabled=False,
+                         tos_scraping_stance=ToSStance.PROHIBITED, robots_txt_allows=False,
+                         last_checked=_AUDIT_DATE,
+                         notes=("YouTube comments via Playwright, TW region. Generalized "
+                                "scraper handles region-aware language filtering "
+                                "(zh-Hant + en for TW). Built May 2026.")),
+            # ---- qa ------------------------------------------------------
+            SourceConfig(source_id="quora_tw", category=SourceCategory.QA, priority=1,
+                         access_method=AccessMethod.HTML_JS, tos_risk=TosRisk.HIGH, auth_required=False,
+                         signal_type=SignalType.COMPARISON, persona_value=3, journey_value=4,
+                         default_enabled=False,
+                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
+                         last_verified_working=None,
+                         notes="Quora TW. Thin wrapper over quora.py with region='TW'. Built May 2026."),
+            # ---- blogs ---------------------------------------------------
+            SourceConfig(source_id="medium_tw", category=SourceCategory.BLOGS, priority=1,
+                         access_method=AccessMethod.HTML, tos_risk=TosRisk.HIGH, auth_required=False,
+                         signal_type=SignalType.RECOMMENDATION, persona_value=5, journey_value=4,
+                         default_enabled=False,
+                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
+                         notes="Medium TW. Thin wrapper over medium.py with region='TW'. Built May 2026."),
             # ---- excluded by no-API constraint --------------------------
             SourceConfig(source_id="youtube", category=SourceCategory.VIDEO_COMMENTS, priority=99,
                          access_method=AccessMethod.API, tos_risk=TosRisk.LOW, auth_required=True,
                          signal_type=SignalType.OPINION, persona_value=3, journey_value=3,
                          excluded_by_constraint=True,
                          exclusion_reason="YouTube Data API v3 requires API key.",
-                         tos_scraping_stance=ToSStance.ALLOWED_WITH_CONDITIONS, last_checked=_AUDIT_DATE),
+                         tos_scraping_stance=ToSStance.ALLOWED_WITH_CONDITIONS, last_checked=_AUDIT_DATE,
+                         notes="API entry kept for reference. Replaced by youtube_html (no key)."),
         ],
     ),
     # -------------------------------------------------------------- JP ----
@@ -862,6 +888,30 @@ REGIONS: dict[str, RegionConfig] = {
                          default_enabled=True,
                          tos_scraping_stance=ToSStance.SILENT, last_checked=_AUDIT_DATE,
                          notes="App Store JP via iTunes RSS (ja storefront)."),
+            # ---- video_comments ------------------------------------------
+            SourceConfig(source_id="youtube_html", category=SourceCategory.VIDEO_COMMENTS, priority=1,
+                         access_method=AccessMethod.HTML_JS, tos_risk=TosRisk.HIGH, auth_required=False,
+                         signal_type=SignalType.OPINION, persona_value=3, journey_value=3,
+                         default_enabled=False,
+                         tos_scraping_stance=ToSStance.PROHIBITED, robots_txt_allows=False,
+                         last_checked=_AUDIT_DATE,
+                         notes=("YouTube comments via Playwright, JP region. Generalized "
+                                "scraper filters to ja language. Built May 2026.")),
+            # ---- qa ------------------------------------------------------
+            SourceConfig(source_id="quora_jp", category=SourceCategory.QA, priority=1,
+                         access_method=AccessMethod.HTML_JS, tos_risk=TosRisk.HIGH, auth_required=False,
+                         signal_type=SignalType.COMPARISON, persona_value=3, journey_value=4,
+                         default_enabled=False,
+                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
+                         last_verified_working=None,
+                         notes="Quora JP. Thin wrapper over quora.py with region='JP'. Built May 2026."),
+            # ---- blogs ---------------------------------------------------
+            SourceConfig(source_id="medium_jp", category=SourceCategory.BLOGS, priority=1,
+                         access_method=AccessMethod.HTML, tos_risk=TosRisk.HIGH, auth_required=False,
+                         signal_type=SignalType.RECOMMENDATION, persona_value=5, journey_value=4,
+                         default_enabled=False,
+                         tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
+                         notes="Medium JP. Thin wrapper over medium.py with region='JP'. Built May 2026."),
             # ---- excluded by no-API constraint --------------------------
             SourceConfig(source_id="twitter_jp", category=SourceCategory.SOCIAL, priority=99,
                          access_method=AccessMethod.API, tos_risk=TosRisk.HIGH, auth_required=True,

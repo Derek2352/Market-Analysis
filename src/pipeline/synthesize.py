@@ -1468,7 +1468,14 @@ def synthesize_run(
             )
             total_usage = total_usage.add(u_refine)
             report.actual_cost_usd = round(pricing.cost(total_usage), 4)
-        except SynthesisError as e:
+        except (SynthesisError, ImportError, AttributeError, TypeError) as e:
+            # SynthesisError is the documented failure mode.
+            # ImportError / AttributeError / TypeError catch the case where
+            # _refinement_pass itself is broken (it currently references
+            # `_build_system_prompt` and `pack.text` which don't exist on
+            # the current synthesize.py — this code path is staged but
+            # incomplete, see PROJECT_PLAN.md Phase 8). Don't tank the
+            # whole run for a missed refinement.
             _log.warning("synthesize.refinement_failed", error=str(e))
             break
 

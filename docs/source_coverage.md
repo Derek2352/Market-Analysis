@@ -55,10 +55,13 @@ Legend:
 |---|---|---|
 | **forums** | ptt, dcard, mobile01 | 3 wired |
 | **reviews** | app_store_tw ✅, google_play_tw 🔒 | 2 wired |
+| **video_comments** | youtube_html 🔒 | 1 wired (Phase 7) |
+| **qa** | quora_tw 🔒 | 1 wired (Phase 7) |
+| **blogs** | medium_tw 🔒 | 1 wired (Phase 7) |
 | **news_comments** | yahoo_news_tw | 1 wired |
-| social / video_comments / qa / blogs | — | 0 wired |
+| social | — | 0 wired |
 
-**TW coverage: 3/7 categories.**
+**TW coverage: 6/7 categories.**
 
 ### United States (US)
 
@@ -79,9 +82,12 @@ Legend:
 |---|---|---|
 | **forums** | five_ch | 1 wired |
 | **reviews** | app_store_jp ✅, google_play_jp 🔒, cosme, tabelog 🔒, yahoo_japan_reviews | 5 wired |
-| social / video_comments / qa / blogs / news_comments | — | 0 wired |
+| **video_comments** | youtube_html 🔒 | 1 wired (Phase 7) |
+| **qa** | quora_jp 🔒 | 1 wired (Phase 7) |
+| **blogs** | medium_jp 🔒 | 1 wired (Phase 7) |
+| social / news_comments | — | 0 wired (yahoo_news_jp pending Phase 11) |
 
-**JP coverage: 2/7 categories.**
+**JP coverage: 5/7 categories.**
 
 ## Totals
 
@@ -89,7 +95,7 @@ Legend:
 - **104 offline parser tests** pass.
 - **9 live integration tests** gated on `SCRAPE_LIVE_TESTS=1`
   (plus `ACCEPT_TOS_RISK=1` for ToS-prohibited sources).
-- Region totals: HK 6/7, US 5/7, TW 3/7, JP 2/7.
+- Region totals: HK 6/7, US 5/7, **TW 6/7 (Phase 7)**, **JP 5/7 (Phase 7)**.
 
 ## Known gaps
 
