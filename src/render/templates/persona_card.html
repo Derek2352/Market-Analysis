@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<!--
+  Persona card template — 1200×1600 portrait.
+  All styles are inline so the file is fully self-contained and renders
+  identically offline. No webfonts, no external images, no script tags.
+
+  Placeholder tokens are filled in by src/render/persona_card.py before
+  Playwright opens the page. Open this file directly in a browser to
+  iterate on layout with mock data.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Persona Card</title>
+<style>
+  :root {
+    /* Deterministic accent palette — overwritten by the Python renderer.
+       Defaults shown here are the mock-data values used while iterating
+       on the static template. */
+    --accent-from: #3b556e;
+    --accent-via:  #587893;
+    --accent-to:   #79a3b8;
+
+    --ink:        #1c2533;
+    --ink-muted:  #5b6473;
+    --ink-faint:  #98a0ac;
+    --bg:         #ffffff;
+    --bg-soft:    #f6f7fa;
+    --rule:       #e6e9ef;
+
+    --severity-high:   #c2474a;
+    --severity-medium: #d49545;
+    --severity-low:    #6ba36b;
+  }
+
+  html, body { margin: 0; padding: 0; background: var(--bg); }
+
+  body {
+    width: 1200px;
+    height: 1600px;
+    color: var(--ink);
+    /* System font stack with CJK fallback baked in — see spec. */
+    font-family:
+      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      "Noto Sans CJK TC", "Noto Sans CJK SC", "Noto Sans CJK JP",
+      "Noto Sans CJK KR", "Noto Sans", sans-serif;
+    font-size: 16px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
+  }
+
+  /* ── 1. Top accent strip ─────────────────────────────────────────── */
+  .accent {
+    height: 120px;
+    background: linear-gradient(
+      120deg,
+      var(--accent-from) 0%,
+      var(--accent-via) 50%,
+      var(--accent-to) 100%
+    );
+    position: relative;
+  }
+  .accent::after {
+    /* Soft inner shadow / depth without an image. */
+    content: "";
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(120% 100% at 50% 0%, rgba(255,255,255,0.18), transparent 60%),
+      linear-gradient(0deg, rgba(0,0,0,0.10), transparent 30%);
+  }
+
+  /* ── 2. Header (name + one-liner) ────────────────────────────────── */
+  .header {
+    padding: 36px 56px 20px;
+  }
+  .eyebrow {
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: var(--ink-faint);
+    font-weight: 600;
+  }
+  .name {
+    font-size: 44px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 8px 0 10px;
+    line-height: 1.12;
+  }
+  .one-liner {
+    font-size: 19px;
+    color: var(--ink-muted);
+    line-height: 1.45;
+    max-width: 1080px;
+  }
+
+  /* ── 3. Demographics chips ──────────────────────────────────────── */
+  .chips {
+    padding: 18px 56px 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: var(--bg-soft);
+    border: 1px solid var(--rule);
+    font-size: 13px;
+    color: var(--ink-muted);
+    font-weight: 500;
+  }
+  .chip strong { color: var(--ink); font-weight: 600; }
+
+  /* ── 4. Three-column claim grid ─────────────────────────────────── */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .grid-cell {
+    padding: 28px 32px 32px;
+    border-right: 1px solid var(--rule);
+  }
+  .grid-cell:last-child { border-right: none; }
+  .grid-cell h3 {
+    margin: 0 0 16px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .grid-cell ul { list-style: none; margin: 0; padding: 0; }
+  .grid-cell li {
+    position: relative;
+    padding: 10px 0 10px 18px;
+    border-top: 1px solid var(--rule);
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--ink);
+  }
+  .grid-cell li:first-child { border-top: none; }
+  .grid-cell li::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 18px;
+    width: 6px; height: 6px;
+    border-radius: 999px;
+    background: var(--ink-faint);
+  }
+  /* Severity bullets only show on pain points; the renderer adds the class. */
+  .grid-cell li.sev-high::before   { background: var(--severity-high); }
+  .grid-cell li.sev-medium::before { background: var(--severity-medium); }
+  .grid-cell li.sev-low::before    { background: var(--severity-low); }
+
+  /* Coverage badge that lives on a section header when bucket = 'unverified'. */
+  .badge-unverified {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #835b00;
+    background: #fff4d9;
+    border-radius: 4px;
+  }
+
+  /* ── 5. Representative quotes ───────────────────────────────────── */
+  .quotes {
+    padding: 28px 56px 32px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .quotes h3 {
+    margin: 0 0 18px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .quote {
+    padding: 14px 16px 14px 22px;
+    background: var(--bg-soft);
+    border-left: 3px solid var(--accent-via);
+    border-radius: 0 8px 8px 0;
+    margin-bottom: 12px;
+  }
+  .quote:last-child { margin-bottom: 0; }
+  .quote-text {
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--ink);
+  }
+  .quote-translated {
+    font-size: 13px;
+    color: var(--ink-muted);
+    margin-top: 6px;
+    font-style: italic;
+  }
+  .quote-meta {
+    margin-top: 10px;
+    display: flex;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--ink-muted);
+  }
+  .quote-meta .source-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    background: #fff;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .quote-meta .lang-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    background: var(--bg);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* Placeholder shown when the LLM returned no quotes. */
+  .quotes-empty {
+    padding: 20px 16px;
+    text-align: center;
+    color: var(--ink-faint);
+    font-size: 14px;
+    border: 1px dashed var(--rule);
+    border-radius: 8px;
+    background: var(--bg-soft);
+  }
+
+  /* ── 6. Footer: coverage + IDs ─────────────────────────────────── */
+  .footer {
+    padding: 24px 56px 32px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 24px;
+    align-items: center;
+  }
+  .coverage-strip {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .coverage-icons {
+    display: flex;
+    gap: 6px;
+  }
+  .cov-icon {
+    width: 34px; height: 34px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 8px;
+    font-size: 18px;
+    background: var(--bg-soft);
+    border: 1px solid var(--rule);
+    color: var(--ink-muted);
+  }
+  .cov-icon.present {
+    background: #eaf2ec;
+    border-color: #c7dcc9;
+    color: #2e6c33;
+  }
+  .cov-icon.missing {
+    color: var(--ink-faint);
+    opacity: 0.55;
+  }
+  .bias {
+    font-size: 12px;
+    color: var(--ink-muted);
+    line-height: 1.4;
+    max-width: 720px;
+  }
+  .ids {
+    text-align: right;
+    font-size: 11px;
+    color: var(--ink-faint);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    line-height: 1.5;
+  }
+  .confidence-pill {
+    display: inline-block;
+    padding: 4px 10px;
+    background: var(--bg-soft);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 8px;
+  }
+</style>
+</head>
+<body>
+
+<div class="accent"></div>
+
+<section class="header">
+  <div class="eyebrow">Persona · HK · Forum + reviews</div>
+  <h1 class="name">阿明 — Frustrated Daily Commuter</h1>
+  <p class="one-liner">
+    Long-time HK MTR rider who relies on the mobile app for daily fare lookups
+    and Octopus reloads, but increasingly distrusts both because the interface
+    lags and reloads silently fail.
+  </p>
+</section>
+
+<div class="chips">
+  <span class="chip">Age <strong>25–45</strong></span>
+  <span class="chip">Occupation <strong>Office worker · Student</strong></span>
+  <span class="chip">Region <strong>Hong Kong</strong></span>
+  <span class="chip">Cluster size <strong>27 posts</strong></span>
+</div>
+
+<div class="grid">
+  <div class="grid-cell">
+    <h3>Goals</h3>
+    <ul>
+      <li>Look up the correct fare in one tap</li>
+      <li>Reload Octopus without queuing at a machine</li>
+      <li>See accurate next-train times during peak hour</li>
+    </ul>
+  </div>
+  <div class="grid-cell">
+    <h3>Motivations</h3>
+    <ul>
+      <li>Save the minutes that machine queues eat every weekday</li>
+      <li>Trust the number on screen and stop double-checking</li>
+      <li>Avoid being the person staring at the gate, holding people up</li>
+    </ul>
+  </div>
+  <div class="grid-cell">
+    <h3>Pain Points <span class="badge-unverified">unverified</span></h3>
+    <ul>
+      <li class="sev-high">Octopus reload fails silently, money disappears for hours</li>
+      <li class="sev-high">App interface lags 3–6 seconds on common routes</li>
+      <li class="sev-medium">Posted arrival times drift wildly during rush hour</li>
+      <li class="sev-low">Update broke dark-mode contrast on some screens</li>
+    </ul>
+  </div>
+</div>
+
+<section class="quotes">
+  <h3>Representative Quotes</h3>
+
+  <div class="quote">
+    <div class="quote-text">用咗呢個 app 好多年, 個介面真係好難用, reload Octopus 又成日 fail 咗都唔知</div>
+    <div class="quote-translated">
+      I've used this app for years; the interface is really hard to use,
+      and Octopus reloads silently fail.
+    </div>
+    <div class="quote-meta">
+      <span class="source-badge">lihkg</span>
+      <span class="lang-tag">zh-HK</span>
+      <span>· post_001</span>
+    </div>
+  </div>
+
+  <div class="quote">
+    <div class="quote-text">Latest update made the app even slower. Three taps to check a fare now.</div>
+    <div class="quote-meta">
+      <span class="source-badge">reddit_old</span>
+      <span class="lang-tag">en</span>
+      <span>· post_002</span>
+    </div>
+  </div>
+
+  <div class="quote">
+    <div class="quote-text">Octopus reload 喺 MTR app 失敗咗三次, 錢都唔知去咗邊, 客服又話冇問題</div>
+    <div class="quote-translated">
+      Octopus reload failed three times in the MTR app, my money seems gone,
+      and customer service says there's no problem.
+    </div>
+    <div class="quote-meta">
+      <span class="source-badge">app_store_hk</span>
+      <span class="lang-tag">zh-HK</span>
+      <span>· post_005</span>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="coverage-strip">
+    <div class="coverage-icons" title="Data source coverage by category">
+      <span class="cov-icon present" title="Forums">&#x1F4AC;</span>
+      <span class="cov-icon present" title="Reviews">&#x2B50;</span>
+      <span class="cov-icon missing" title="Q&amp;A (no data)">&#x2753;</span>
+      <span class="cov-icon missing" title="Blogs (no data)">&#x1F4DD;</span>
+      <span class="cov-icon missing" title="News (no data)">&#x1F4F0;</span>
+      <span class="cov-icon missing" title="Social (no data)">&#x1F4F1;</span>
+      <span class="cov-icon missing" title="Video (no data)">&#x1F3A5;</span>
+    </div>
+    <p class="bias">
+      Coverage: <strong>limited</strong> — only forums + reviews represented.
+      Missing categories likely under-weight visual / influencer-led perspectives.
+    </p>
+  </div>
+  <div class="ids">
+    <span class="confidence-pill">Confidence 0.78</span><br>
+    run_20260519T080000Z<br>
+    persona_a4f9c7e2
+  </div>
+</footer>
+
+</body>
+</html>
