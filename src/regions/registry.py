@@ -54,6 +54,9 @@ _AUDIT_DATE = date(2026, 5, 17)
 # Phase 6 — five new HK scrapers landed on 2026-05-18. last_verified_working
 # is set on each parser-test pass and updated by `mkt scrape-doctor` thereafter.
 _PHASE6_DATE = date(2026, 5, 18)
+# Phase 11 — yahoo_news_us + yahoo_news_jp landed on 2026-05-19. Parsers pinned
+# against synthetic fixtures; last_verified_working stays None until live capture.
+_PHASE11_DATE = date(2026, 5, 19)
 
 
 class SourceConfig(BaseModel):
@@ -651,6 +654,18 @@ REGIONS: dict[str, RegionConfig] = {
                          default_enabled=False,
                          tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
                          notes="Medium US. Generalized from medium_hk. Built May 2026."),
+            # ---- news_comments -------------------------------------------
+            SourceConfig(source_id="yahoo_news_us", category=SourceCategory.NEWS_COMMENTS, priority=1,
+                         access_method=AccessMethod.HTML, tos_risk=TosRisk.MEDIUM, auth_required=False,
+                         signal_type=SignalType.OPINION, persona_value=3, journey_value=2,
+                         default_enabled=True,
+                         tos_scraping_stance=ToSStance.SILENT,
+                         last_checked=_PHASE11_DATE,
+                         last_verified_working=None,
+                         notes=(
+                             "Yahoo News US. Same Yahoo caas-* CMS as yahoo_news_tw — "
+                             "domain news.yahoo.com, region US, en. Built May 2026."
+                         )),
             # ---- excluded by no-API constraint --------------------------
             SourceConfig(source_id="reddit", category=SourceCategory.FORUMS, priority=99,
                          access_method=AccessMethod.API, tos_risk=TosRisk.LOW, auth_required=True,
@@ -888,6 +903,20 @@ REGIONS: dict[str, RegionConfig] = {
                          default_enabled=True,
                          tos_scraping_stance=ToSStance.SILENT, last_checked=_AUDIT_DATE,
                          notes="App Store JP via iTunes RSS (ja storefront)."),
+            # ---- news_comments -------------------------------------------
+            SourceConfig(source_id="yahoo_news_jp", category=SourceCategory.NEWS_COMMENTS, priority=1,
+                         access_method=AccessMethod.HTML, tos_risk=TosRisk.MEDIUM, auth_required=False,
+                         signal_type=SignalType.OPINION, persona_value=3, journey_value=2,
+                         default_enabled=True,
+                         tos_scraping_stance=ToSStance.SILENT,
+                         last_checked=_PHASE11_DATE,
+                         last_verified_working=None,
+                         notes=(
+                             "Yahoo News Japan (news.yahoo.co.jp) — separate platform from "
+                             "the caas-* Yahoo CMS used by TW/US. Uses .article_body / "
+                             ".source / .commentCount selectors. Built May 2026; selectors "
+                             "may need verification on live capture."
+                         )),
             # ---- video_comments ------------------------------------------
             SourceConfig(source_id="youtube_html", category=SourceCategory.VIDEO_COMMENTS, priority=1,
                          access_method=AccessMethod.HTML_JS, tos_risk=TosRisk.HIGH, auth_required=False,

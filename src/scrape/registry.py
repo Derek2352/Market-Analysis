@@ -35,7 +35,9 @@ from src.scrape.reddit_old import RedditOldScraper
 from src.scrape.tabelog import TabelogScraper
 from src.scrape.trustpilot import TrustpilotScraper
 from src.scrape.yahoo_japan_reviews import YahooJapanReviewsScraper
+from src.scrape.yahoo_news_jp import YahooNewsJPScraper
 from src.scrape.yahoo_news_tw import YahooNewsTWScraper
+from src.scrape.yahoo_news_us import YahooNewsUSScraper
 from src.scrape.yelp_html import YelpHtmlScraper
 from src.scrape.youtube_html import YoutubeHTMLScraper
 
@@ -72,7 +74,9 @@ _FACTORIES: dict[str, Callable[[], SourceScraper]] = {
     "tabelog": TabelogScraper,
     "trustpilot": TrustpilotScraper,
     "yahoo_japan_reviews": YahooJapanReviewsScraper,
+    "yahoo_news_jp": YahooNewsJPScraper,
     "yahoo_news_tw": YahooNewsTWScraper,
+    "yahoo_news_us": YahooNewsUSScraper,
     "yelp_html": YelpHtmlScraper,
     "youtube_html": YoutubeHTMLScraper,
 }
