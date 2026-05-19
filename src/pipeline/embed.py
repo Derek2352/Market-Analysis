@@ -54,10 +54,13 @@ class EmbeddingStore:
         self,
         db_path: Path,
         model_cache_dir: Path = MODEL_CACHE_DIR,
+        *,
+        use_cache: bool = True,
     ) -> None:
         self.db_path = db_path
         self.model_cache_dir = model_cache_dir
         self.model_cache_dir.mkdir(parents=True, exist_ok=True)
+        self.use_cache = use_cache
         self._model = None
         self._con = None
 
@@ -89,7 +92,13 @@ class EmbeddingStore:
         # If the post text hasn't changed since the last embed run, skip
         # everything (no DB query, no model load).  This is what does the
         # heavy-lifting on a re-run.
-        cache = self._load_cache()
+        #
+        # Cache can be disabled via EmbeddingStore(use_cache=False) for
+        # tests and one-off runs where cache isolation is needed.
+        cache_hits = 0
+        cache: dict[str, str] = {}
+        if self.use_cache:
+            cache = self._load_cache()
         cache_hits = 0
         uncached_posts: list[RawPost] = []
         for post in posts:
@@ -143,7 +152,8 @@ class EmbeddingStore:
         if not new_texts:
             _log.info("embed.all_skipped", count=len(post_ids))
             # Still persist the cache — uncached posts were found in DB
-            self._save_cache(cache)
+            if self.use_cache:
+                self._save_cache(cache)
             return 0
 
         # Chunk and embed
@@ -162,7 +172,8 @@ class EmbeddingStore:
             stored += 1
 
         # Persist updated cache
-        self._save_cache(cache)
+        if self.use_cache:
+            self._save_cache(cache)
 
         _log.info(
             "embed.done",

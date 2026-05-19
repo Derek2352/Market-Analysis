@@ -87,7 +87,7 @@ def test_embedding_determinism():
     from src.pipeline.embed import EmbeddingStore
 
     db_path = Path("/tmp") / "test_determinism.duckdb"
-    store = EmbeddingStore(db_path=db_path)
+    store = EmbeddingStore(db_path=db_path, use_cache=False)
 
     post1 = RawPost(
         id="test_det_1",
@@ -125,7 +125,7 @@ def test_embedding_multilingual_similarity():
     from src.pipeline.embed import EmbeddingStore
 
     db_path = Path("/tmp") / "test_multilingual.duckdb"
-    store = EmbeddingStore(db_path=db_path)
+    store = EmbeddingStore(db_path=db_path, use_cache=False)
 
     post_zh = RawPost(
         id="test_zh_1",
@@ -255,7 +255,7 @@ def test_synthetic_cluster_recovery():
 
     # Embed
     db_path = Path("/tmp") / "test_recovery.duckdb"
-    store = EmbeddingStore(db_path=db_path)
+    store = EmbeddingStore(db_path=db_path, use_cache=False)
     store.embed_posts(posts, topic="test_recovery", region="HK")
 
     # Get vectors
