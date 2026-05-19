@@ -46,12 +46,16 @@ Openrice introduced the Playwright path. HTML fixtures live in `tests/fixtures/h
 ```
 mkt scrape          # scrape one or more sources
 mkt scrape-doctor   # run parser tests against stored fixtures
+mkt doctor          # health-check all scrapers before pipeline runs
 mkt embed           # embed scraped posts with BGE-M3
 mkt cluster         # UMAP + HDBSCAN over embeddings
 mkt diag            # c-TF-IDF keyword report per cluster
-mkt persona         # Claude-synthesized personas (needs ANTHROPIC_API_KEY)
-mkt journey         # Claude-synthesized journey maps (needs ANTHROPIC_API_KEY)
-mkt analyze         # combined pipeline runner
+mkt synthesize      # Claude-synthesized personas + journeys (needs ANTHROPIC_API_KEY)
+mkt synthesize-temporal  # time-bucketed trend analysis
+mkt synthesize-compare   # cross-region comparative analysis
+mkt analyze         # combined scrape → embed → cluster → synthesize
+mkt export          # CSV export of raw posts and personas
+mkt eval            # run eval suite against product fixtures (mock or live LLM)
 ```
 
 ## Setup
@@ -133,3 +137,23 @@ Some tests are environment-gated and skip cleanly without their dependency:
 - **No-API-registration rule.** Every data source must be a free, public HTTP endpoint (JSON or HTML). No API keys, no OAuth, no developer registration. Sources that fail this test stay in the registry tagged `excluded_by_constraint=True` so we can revisit if the rule relaxes. The Anthropic API key is the single paid-service exception, used for synthesis only.
 - **Polite scraping.** Honest User-Agent (`MarketAnalyticsBot/0.1 (research; https://github.com/Derek2352/Market-Analysis/issues)`), respect robots.txt, hard-fail on 403, 1–3 req/sec/domain.
 - **ToS-prohibited sources are flagged, not silently included.** Per-source `tos_scraping_stance` in the registry; the CLI / docs surface the flag so the user makes their own call.
+
+## Eval
+
+`mkt eval` runs the persona/journey quality suite against frozen product fixtures under `eval/products/`. Five fixtures ship: WhatsApp HK, MTR Mobile HK, Tabelog JP, iPhone US, Dcard TW. Each holds 12 synthetic posts in 3 clusters plus hand-curated expected pain points.
+
+```
+mkt eval --provider mock             # replay canned LLM responses (no API key)
+mkt eval --provider anthropic        # live Claude — measures real synthesis quality
+mkt eval --min-recovery 0.6          # exit non-zero if mean recovery < 60% (CI gate)
+mkt eval --json                      # machine-readable JSON output
+```
+
+Two metrics are scored per fixture:
+
+- **recovery_rate** — fraction of expected pain points found in any persona's claims
+- **mean_coverage_score** — source-mix breadth across generated personas (1–4 scale)
+
+`--provider mock` replays canned LLM responses via httpx transport — zero cost, CI-friendly. `--min-recovery` gates CI: the suite exits non-zero if the mean recovery rate falls below the threshold.
+
+See `make eval` (live Anthropic) and `make eval-mock` (keyless).
