@@ -51,8 +51,8 @@ def test_embed_cache_hits_on_unchanged_text(tmp_path: Path):
         n1 = store.embed_posts([post], topic="cache_test", region="HK")
         assert n1 == 1, f"First run should embed: got {n1}"
 
-        # Verify cache file exists
-        cache_file = cache_dir_override / "1.0" / "hashes.json"
+        # Verify cache file exists (per-database naming: <db_stem>_hashes.json)
+        cache_file = cache_dir_override / "1.0" / "cache_hit_hashes.json"
         assert cache_file.exists(), "Cache file should be created after embedding"
 
         store.close()
@@ -163,8 +163,8 @@ def test_embed_cache_corrupted_file(tmp_path: Path):
     cache_dir_override = tmp_path / "embedding_cache"
 
     with patch("src.pipeline.embed.EMBEDDING_CACHE_DIR", cache_dir_override):
-        # Create a corrupted cache file
-        cache_file = cache_dir_override / "1.0" / "hashes.json"
+        # Create a corrupted cache file (per-DB naming: cache_corrupt_hashes.json)
+        cache_file = cache_dir_override / "1.0" / "cache_corrupt_hashes.json"
         cache_file.parent.mkdir(parents=True, exist_ok=True)
         cache_file.write_text("NOT VALID JSON {{{")
 
