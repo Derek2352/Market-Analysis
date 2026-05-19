@@ -244,10 +244,16 @@ class EmbeddingStore:
 
     @property
     def _cache_path(self) -> Path:
-        """Path to the JSON cache file, keyed by model version."""
+        """Path to the JSON cache file, keyed by model version and database.
+
+        Each database gets its own cache file — this prevents cross-test
+        contamination where one test's embedded posts are incorrectly
+        skipped in another test using a different DuckDB file.
+        """
+        db_key = self.db_path.stem  # e.g. "alipayhk", "test_determinism"
         cache_dir = EMBEDDING_CACHE_DIR / MODEL_VERSION
         cache_dir.mkdir(parents=True, exist_ok=True)
-        return cache_dir / "hashes.json"
+        return cache_dir / f"{db_key}_hashes.json"
 
     def _load_cache(self) -> dict[str, str]:
         """Load SHA256 → post_id cache from disk. Returns empty dict on first run."""
