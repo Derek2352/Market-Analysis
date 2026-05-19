@@ -27,11 +27,15 @@ def _chromium_available() -> bool:
         from playwright._impl._driver import compute_driver_executable  # noqa: F401
     except Exception:
         return False
-    cache = os.path.expanduser("~/.cache/ms-playwright")
-    if os.path.isdir(cache):
-        for entry in os.listdir(cache):
-            if entry.startswith("chromium"):
-                return True
+    # Check both Linux/macOS and Windows cache locations
+    for cache in [
+        os.path.expanduser("~/.cache/ms-playwright"),
+        os.path.expanduser("~/AppData/Local/ms-playwright"),
+    ]:
+        if os.path.isdir(cache):
+            for entry in os.listdir(cache):
+                if entry.startswith("chromium"):
+                    return True
     return False
 
 
