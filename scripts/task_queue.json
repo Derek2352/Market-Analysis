@@ -60,33 +60,34 @@
       "title": "Add tqdm progress bars to scrape and embed phases",
       "category": "ux",
       "priority": 5,
-      "status": "in_progress",
+      "status": "completed",
       "description": "Add tqdm progress bars to scrape (per-source, per-page) and embed (per-batch). Use `--no-progress` flag for cron/pipe mode. Already have tqdm in deps.",
       "files": [
         "src/pipeline/embed.py",
         "src/cli/scrape.py"
       ],
       "test_cmd": ".venv/Scripts/python.exe -m pytest tests/ -v",
-      "started_at": "2026-05-18T21:12:52.882062+00:00"
+      "completed_at": "2026-05-18T21:21:41.034968+00:00"
     },
     {
       "id": "multi-topic-pipeline",
       "title": "Extend overnight pipeline to multiple topics",
       "category": "feature",
       "priority": 6,
-      "status": "pending",
+      "status": "completed",
       "description": "Make TOPIC a list in overnight_pipeline.py: ['AlipayHK', 'Octopus', 'WeChat Pay HK', 'FPS']. Run full pipeline per topic. Should 4x our persona coverage overnight.",
       "files": [
         "scripts/overnight_pipeline.py"
       ],
-      "test_cmd": ".venv/Scripts/python.exe scripts/overnight_pipeline.py --dry-run"
+      "test_cmd": ".venv/Scripts/python.exe scripts/overnight_pipeline.py --dry-run",
+      "completed_at": "2026-05-18T21:41:35.683479+00:00"
     },
     {
       "id": "better-errors",
       "title": "Improve CLI error messages with suggestions",
       "category": "ux",
       "priority": 7,
-      "status": "pending",
+      "status": "completed",
       "description": "Catch common errors and suggest fixes: missing API key → 'set DEEPSEEK_API_KEY in .env', no posts → 'try --sources app_store_hk', empty clusters → 'need >50 posts for clustering'.",
       "files": [
         "src/cli.py",
@@ -94,20 +95,22 @@
         "src/cli/scrape.py",
         "src/cli/cluster.py"
       ],
-      "test_cmd": ".venv/Scripts/python.exe -m pytest tests/ -v"
+      "test_cmd": ".venv/Scripts/python.exe -m pytest tests/ -v",
+      "completed_at": "2026-05-18T21:51:27.522600+00:00"
     },
     {
       "id": "scrape-health-dashboard",
       "title": "Add scrape-doctor health monitoring",
       "category": "ops",
       "priority": 8,
-      "status": "pending",
+      "status": "completed",
       "description": "`mkt doctor` command: test each scraper, report success/failure, last successful scrape timestamp, rate limit status. Outputs JSON + color-coded terminal table. Helps detect broken scrapers before pipeline runs.",
       "files": [
         "src/cli_doctor.py",
         "src/cli.py"
       ],
-      "test_cmd": ".venv/Scripts/python.exe -m pytest tests/ -v -k doctor"
+      "test_cmd": ".venv/Scripts/python.exe -m pytest tests/ -v -k doctor",
+      "completed_at": "2026-05-18T21:57:20.824775+00:00"
     }
   ],
   "completed": [
@@ -130,12 +133,32 @@
       "id": "temporal-trends",
       "title": "Add temporal trend analysis to synthesis",
       "completed_at": "2026-05-18T20:22:08.157250+00:00"
+    },
+    {
+      "id": "progress-bars",
+      "title": "Add tqdm progress bars to scrape and embed phases",
+      "completed_at": "2026-05-18T21:21:41.034968+00:00"
+    },
+    {
+      "id": "multi-topic-pipeline",
+      "title": "Extend overnight pipeline to multiple topics",
+      "completed_at": "2026-05-18T21:41:35.683479+00:00"
+    },
+    {
+      "id": "better-errors",
+      "title": "Improve CLI error messages with suggestions",
+      "completed_at": "2026-05-18T21:51:27.522600+00:00"
+    },
+    {
+      "id": "scrape-health-dashboard",
+      "title": "Add scrape-doctor health monitoring",
+      "completed_at": "2026-05-18T21:57:20.824775+00:00"
     }
   ],
   "stats": {
     "total": 8,
-    "pending": 3,
-    "in_progress": 1,
-    "completed": 4
+    "pending": 0,
+    "in_progress": 0,
+    "completed": 8
   }
 }
