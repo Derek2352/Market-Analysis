@@ -2,6 +2,7 @@ import type {
   DocResponse,
   JourneyMap,
   Persona,
+  RegionInfo,
   RunCreated,
   RunDetail,
   RunRequest,
@@ -74,4 +75,9 @@ export async function getDoc(
 
 export function streamUrl(runId: string): string {
   return `${API_BASE}/runs/${runId}/stream`;
+}
+
+export async function listRegions(): Promise<RegionInfo[]> {
+  const resp = await fetch(`${API_BASE}/regions`, { cache: "no-store" });
+  return asJson<RegionInfo[]>(resp);
 }

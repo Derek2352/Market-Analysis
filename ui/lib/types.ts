@@ -2,6 +2,29 @@
 // strongly typed without a code generator. Anything new on the backend
 // needs a matching line here.
 
+// GET /regions response shape — drives the launcher's region+sources UI.
+export interface SourceInfo {
+  source_id: string;
+  category: string;
+  priority: number;
+  default_enabled: boolean;
+  tos_scraping_stance:
+    | "silent"
+    | "allowed_with_conditions"
+    | "prohibited"
+    | "unknown";
+  last_verified_working: string | null;
+  notes: string;
+}
+
+export interface RegionInfo {
+  region_id: string;
+  display_name: string;
+  primary_languages: string[];
+  default_sources: SourceInfo[];
+  opt_in_sources: SourceInfo[];
+}
+
 export type RunStatus =
   | "queued"
   | "running"
@@ -12,7 +35,10 @@ export type RunStatus =
 export type PipelineStage = "scrape" | "embed" | "cluster" | "synthesize";
 export type Provider = "anthropic" | "deepseek";
 
-export type Region = "HK" | "US" | "TW" | "JP";
+// Region codes the API has actually wired. New regions added on the
+// backend show up in GET /regions automatically — Region is a soft
+// type that accepts those without a UI rebuild.
+export type Region = string;
 
 export interface RunRequest {
   topic: string;
