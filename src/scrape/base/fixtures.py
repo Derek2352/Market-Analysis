@@ -73,35 +73,53 @@ class FixtureStore:
     # ------------------------------------------------------------------
 
     def load(self, name: str) -> tuple[str, dict[str, Any]]:
-        """Load an HTML fixture by name.
+        """Load a fixture by name.
 
-        Returns ``(html, metadata_dict)``.
+        Returns ``(body, metadata_dict)``. The body is the raw text of the
+        saved fixture file — HTML for HTML scrapers, JSON for JSON-API
+        scrapers (Reddit, app stores). Sources whose ``doctor_check`` parses
+        the payload decide on the format.
 
-        Raises ``FileNotFoundError`` if the fixture doesn't exist.
+        Raises ``FileNotFoundError`` if neither ``<name>.html`` nor
+        ``<name>.json`` exists.
         """
         slug = _slug(name)
-        html_path = self._dir / f"{slug}.html"
-        meta_path = self._dir / f"{slug}.meta.json"
-
-        if not html_path.exists():
-            raise FileNotFoundError(f"Fixture not found: {html_path}")
-
-        html = html_path.read_text(encoding="utf-8")
-        if meta_path.exists():
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        for ext in (".html", ".json"):
+            body_path = self._dir / f"{slug}{ext}"
+            if body_path.exists():
+                break
         else:
-            meta = {}
-        return html, meta
+            raise FileNotFoundError(
+                f"Fixture not found: {self._dir / f'{slug}.{{html,json}}'}",
+            )
+
+        body = body_path.read_text(encoding="utf-8")
+        meta_path = self._dir / f"{slug}.meta.json"
+        meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
+        return body, meta
 
     def list_fixtures(self) -> list[str]:
-        """List available fixture names (without extension)."""
-        return sorted(
-            p.stem for p in self._dir.glob("*.html") if not p.name.startswith(".")
-        )
+        """List available fixture names (without extension).
+
+        Globs both ``*.html`` and ``*.json`` so JSON-API scrapers (Reddit,
+        app stores) can drop their fixtures alongside the HTML ones without
+        a parallel directory tree.
+        """
+        names: set[str] = set()
+        for ext in ("*.html", "*.json"):
+            for p in self._dir.glob(ext):
+                if p.name.startswith(".") or p.name.endswith(".meta.json"):
+                    continue
+                names.add(p.stem)
+        return sorted(names)
 
     def fixture_path(self, name: str) -> Path:
-        """Absolute path to a fixture's HTML file."""
-        return self._dir / f"{_slug(name)}.html"
+        """Absolute path to a fixture's body file (.html if present, else .json)."""
+        slug = _slug(name)
+        html_path = self._dir / f"{slug}.html"
+        if html_path.exists():
+            return html_path
+        return self._dir / f"{slug}.json"
 
 
 def _slug(name: str) -> str:

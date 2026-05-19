@@ -1,0 +1,103 @@
+{
+  "kind": "Listing",
+  "data": {
+    "after": "t3_aaaaaa",
+    "before": null,
+    "modhash": "",
+    "dist": 5,
+    "children": [
+      {
+        "kind": "t3",
+        "data": {
+          "id": "1a2b3c",
+          "title": "MTR fare increase 2026 — are people really paying double?",
+          "selftext": "I commute Tseung Kwan O → Central daily. With the latest fare adjustment my Octopus is draining faster than rent. Anyone else noticing this? Has the monthly pass actually helped or is it just smoke?",
+          "author": "hk_commuter_4242",
+          "subreddit": "HongKong",
+          "permalink": "/r/HongKong/comments/1a2b3c/mtr_fare_increase_2026/",
+          "url": "https://old.reddit.com/r/HongKong/comments/1a2b3c/mtr_fare_increase_2026/",
+          "created_utc": 1715000000.0,
+          "score": 287,
+          "num_comments": 142,
+          "is_self": true,
+          "domain": "self.HongKong",
+          "over_18": false,
+          "link_flair_text": "Discussion"
+        }
+      },
+      {
+        "kind": "t3",
+        "data": {
+          "id": "2b3c4d",
+          "title": "MTR Mobile app: anyone else getting random crashes on iOS 18?",
+          "selftext": "App crashes whenever I try to top up Octopus through it. Three updates in a month and still no fix.",
+          "author": "[deleted]",
+          "subreddit": "HongKong",
+          "permalink": "/r/HongKong/comments/2b3c4d/mtr_mobile_app/",
+          "url": "https://old.reddit.com/r/HongKong/comments/2b3c4d/mtr_mobile_app/",
+          "created_utc": 1714900000.0,
+          "score": 54,
+          "num_comments": 31,
+          "is_self": true,
+          "domain": "self.HongKong",
+          "over_18": false,
+          "link_flair_text": null
+        }
+      },
+      {
+        "kind": "t3",
+        "data": {
+          "id": "3c4d5e",
+          "title": "SCMP: MTR records highest-ever daily ridership in May",
+          "selftext": "",
+          "author": "newsbot_hk",
+          "subreddit": "HongKong",
+          "permalink": "/r/HongKong/comments/3c4d5e/scmp_mtr_records/",
+          "url": "https://www.scmp.com/news/hong-kong/transport/article/3300000/mtr-record-ridership",
+          "created_utc": 1714800000.0,
+          "score": 42,
+          "num_comments": 8,
+          "is_self": false,
+          "domain": "scmp.com",
+          "over_18": false,
+          "link_flair_text": "News"
+        }
+      },
+      {
+        "kind": "t1",
+        "data": {
+          "id": "comment_xyz",
+          "body": "This is a comment, not a post — the parser should skip it.",
+          "author": "commenter",
+          "subreddit": "HongKong"
+        }
+      },
+      {
+        "kind": "t3",
+        "data": {
+          "id": "",
+          "title": "Malformed post with no id — parser should skip"
+        }
+      },
+      {
+        "kind": "t3",
+        "data": {
+          "id": "5e6f7g",
+          "title": "屯馬線轉車真係改變左我生活",
+          "selftext": "以前由屯門去馬鞍山要轉三次，而家一程過。Cantonese-language post in HK subreddit.",
+          "author": "yuen_long_resident",
+          "subreddit": "HongKong",
+          "permalink": "/r/HongKong/comments/5e6f7g/tuen_ma_line/",
+          "url": "https://old.reddit.com/r/HongKong/comments/5e6f7g/tuen_ma_line/",
+          "created_utc": 1714700000.0,
+          "score": 198,
+          "num_comments": 47,
+          "is_self": true,
+          "domain": "self.HongKong",
+          "over_18": false,
+          "link_flair_text": null
+        }
+      }
+    ]
+  }
+}
