@@ -1,0 +1,1256 @@
+{
+  "name": "iphone_us",
+  "topic": "iPhone",
+  "region": "US",
+  "posts": [
+    {
+      "id": "post_001",
+      "body": "iPhone battery life plummeted after the latest iOS update.",
+      "source": "reddit_old",
+      "url": "https://old.reddit.com/r/iphone/comments/ip/1",
+      "lang": "en"
+    },
+    {
+      "id": "post_002",
+      "body": "My iPhone barely lasts half a day now — battery is shot.",
+      "source": "reddit_old",
+      "url": "https://old.reddit.com/r/iphone/comments/ip/2",
+      "lang": "en"
+    },
+    {
+      "id": "post_003",
+      "body": "iPhone battery drain is unbearable after iOS 18 update.",
+      "source": "app_store_us",
+      "url": "https://apps.apple.com/us/iphone#review-3",
+      "lang": "en"
+    },
+    {
+      "id": "post_004",
+      "body": "After updating to the latest iOS, my battery drains in hours.",
+      "source": "yahoo_news_us",
+      "url": "https://news.yahoo.com/iphone-battery-4.html",
+      "lang": "en"
+    },
+    {
+      "id": "post_005",
+      "body": "iPhone is so expensive now — $1200 for the base model is insane.",
+      "source": "reddit_old",
+      "url": "https://old.reddit.com/r/iphone/comments/ip/5",
+      "lang": "en"
+    },
+    {
+      "id": "post_006",
+      "body": "Pricing keeps creeping up. iPhone is no longer affordable.",
+      "source": "yahoo_news_us",
+      "url": "https://news.yahoo.com/iphone-price-6.html",
+      "lang": "en"
+    },
+    {
+      "id": "post_007",
+      "body": "iPhone price gouging at this point — barely any new features.",
+      "source": "reddit_old",
+      "url": "https://old.reddit.com/r/iphone/comments/ip/7",
+      "lang": "en"
+    },
+    {
+      "id": "post_008",
+      "body": "$1200 for an iPhone with the same camera? No thanks.",
+      "source": "app_store_us",
+      "url": "https://apps.apple.com/us/iphone#review-8",
+      "lang": "en"
+    },
+    {
+      "id": "post_009",
+      "body": "iOS 18 has too many bugs — Apple needs to slow down releases.",
+      "source": "reddit_old",
+      "url": "https://old.reddit.com/r/iphone/comments/ip/9",
+      "lang": "en"
+    },
+    {
+      "id": "post_010",
+      "body": "Latest iOS update broke my camera and Bluetooth.",
+      "source": "app_store_us",
+      "url": "https://apps.apple.com/us/iphone#review-10",
+      "lang": "en"
+    },
+    {
+      "id": "post_011",
+      "body": "iOS bugs are getting worse with each release.",
+      "source": "yahoo_news_us",
+      "url": "https://news.yahoo.com/ios-bugs-11.html",
+      "lang": "en"
+    },
+    {
+      "id": "post_012",
+      "body": "iOS 18 is buggy — Bluetooth disconnects constantly.",
+      "source": "reddit_old",
+      "url": "https://old.reddit.com/r/iphone/comments/ip/12",
+      "lang": "en"
+    }
+  ],
+  "clusters": [
+    {
+      "cluster_id": "ip_battery",
+      "post_ids": [
+        "post_001",
+        "post_002",
+        "post_003",
+        "post_004"
+      ],
+      "keyword_summary": [
+        "battery",
+        "drain",
+        "life",
+        "ios",
+        "update"
+      ],
+      "source_distribution": {
+        "reddit_old": 2,
+        "app_store_us": 1,
+        "yahoo_news_us": 1
+      },
+      "language_distribution": {
+        "en": 4
+      }
+    },
+    {
+      "cluster_id": "ip_price",
+      "post_ids": [
+        "post_005",
+        "post_006",
+        "post_007",
+        "post_008"
+      ],
+      "keyword_summary": [
+        "price",
+        "expensive",
+        "1200",
+        "afford",
+        "gouging"
+      ],
+      "source_distribution": {
+        "reddit_old": 2,
+        "yahoo_news_us": 1,
+        "app_store_us": 1
+      },
+      "language_distribution": {
+        "en": 4
+      }
+    },
+    {
+      "cluster_id": "ip_bugs",
+      "post_ids": [
+        "post_009",
+        "post_010",
+        "post_011",
+        "post_012"
+      ],
+      "keyword_summary": [
+        "bug",
+        "ios",
+        "bluetooth",
+        "camera",
+        "update"
+      ],
+      "source_distribution": {
+        "reddit_old": 2,
+        "app_store_us": 1,
+        "yahoo_news_us": 1
+      },
+      "language_distribution": {
+        "en": 4
+      }
+    }
+  ],
+  "expected_pain_points": [
+    {
+      "theme": "battery drain after iOS update",
+      "keywords": [
+        "battery",
+        "drain",
+        "life"
+      ],
+      "phrases": [
+        "battery drain",
+        "battery life"
+      ]
+    },
+    {
+      "theme": "iPhone is too expensive",
+      "keywords": [
+        "expensive",
+        "price",
+        "afford",
+        "gouging"
+      ],
+      "phrases": [
+        "too expensive",
+        "expensive"
+      ]
+    },
+    {
+      "theme": "iOS bugs (Bluetooth, camera)",
+      "keywords": [
+        "bug",
+        "bluetooth",
+        "camera"
+      ],
+      "phrases": [
+        "ios bugs",
+        "bluetooth"
+      ]
+    },
+    {
+      "theme": "updates make things worse",
+      "keywords": [
+        "update",
+        "broke",
+        "worse"
+      ],
+      "phrases": [
+        "update broke",
+        "update made"
+      ]
+    }
+  ],
+  "mock_persona_responses": {
+    "ip_battery": {
+      "name": "Battery-Drained Power User",
+      "one_liner": "iPhone owner whose battery collapsed after an iOS update.",
+      "demographics": {
+        "age_range": "25-45",
+        "evidence": [
+          "<post_001>"
+        ]
+      },
+      "goals": [
+        {
+          "claim": "Use the product reliably",
+          "evidence": [
+            "<post_001>"
+          ]
+        }
+      ],
+      "motivations": [
+        {
+          "claim": "Daily utility",
+          "evidence": [
+            "<post_001>"
+          ]
+        }
+      ],
+      "pain_points": [
+        {
+          "claim": "Battery drains in hours after iOS update",
+          "severity": "high",
+          "evidence": [
+            "<post_001>"
+          ]
+        },
+        {
+          "claim": "Battery life is unbearable",
+          "severity": "high",
+          "evidence": [
+            "<post_002>"
+          ]
+        }
+      ],
+      "preferred_channels": [
+        {
+          "claim": "Online forums",
+          "evidence": [
+            "<post_001>"
+          ]
+        }
+      ],
+      "behaviors": [
+        {
+          "claim": "Posts about issues publicly",
+          "evidence": [
+            "<post_001>"
+          ]
+        }
+      ],
+      "representative_quotes": [
+        {
+          "text_original": "iPhone battery life plummeted after the latest iOS update",
+          "lang": "en",
+          "doc_id": "<post_001>"
+        },
+        {
+          "text_original": "battery drains in hours",
+          "lang": "en",
+          "doc_id": "<post_004>"
+        },
+        {
+          "text_original": "iPhone battery drain is unbearable",
+          "lang": "en",
+          "doc_id": "<post_003>"
+        }
+      ]
+    },
+    "ip_price": {
+      "name": "Sticker-Shock Buyer",
+      "one_liner": "US iPhone shopper put off by the price.",
+      "demographics": {
+        "age_range": "25-45",
+        "evidence": [
+          "<post_005>"
+        ]
+      },
+      "goals": [
+        {
+          "claim": "Use the product reliably",
+          "evidence": [
+            "<post_005>"
+          ]
+        }
+      ],
+      "motivations": [
+        {
+          "claim": "Daily utility",
+          "evidence": [
+            "<post_005>"
+          ]
+        }
+      ],
+      "pain_points": [
+        {
+          "claim": "iPhone is too expensive at $1200",
+          "severity": "high",
+          "evidence": [
+            "<post_005>"
+          ]
+        },
+        {
+          "claim": "Price gouging with few new features",
+          "severity": "high",
+          "evidence": [
+            "<post_006>"
+          ]
+        }
+      ],
+      "preferred_channels": [
+        {
+          "claim": "Online forums",
+          "evidence": [
+            "<post_005>"
+          ]
+        }
+      ],
+      "behaviors": [
+        {
+          "claim": "Posts about issues publicly",
+          "evidence": [
+            "<post_005>"
+          ]
+        }
+      ],
+      "representative_quotes": [
+        {
+          "text_original": "iPhone is so expensive now",
+          "lang": "en",
+          "doc_id": "<post_005>"
+        },
+        {
+          "text_original": "iPhone is no longer affordable",
+          "lang": "en",
+          "doc_id": "<post_006>"
+        },
+        {
+          "text_original": "iPhone price gouging at this point",
+          "lang": "en",
+          "doc_id": "<post_007>"
+        }
+      ]
+    },
+    "ip_bugs": {
+      "name": "Bug-Plagued Updater",
+      "one_liner": "iPhone user hit by iOS update regressions.",
+      "demographics": {
+        "age_range": "25-45",
+        "evidence": [
+          "<post_009>"
+        ]
+      },
+      "goals": [
+        {
+          "claim": "Use the product reliably",
+          "evidence": [
+            "<post_009>"
+          ]
+        }
+      ],
+      "motivations": [
+        {
+          "claim": "Daily utility",
+          "evidence": [
+            "<post_009>"
+          ]
+        }
+      ],
+      "pain_points": [
+        {
+          "claim": "iOS update broke camera and Bluetooth",
+          "severity": "high",
+          "evidence": [
+            "<post_009>"
+          ]
+        },
+        {
+          "claim": "iOS bugs worsen with each release",
+          "severity": "high",
+          "evidence": [
+            "<post_010>"
+          ]
+        },
+        {
+          "claim": "Bluetooth disconnects constantly",
+          "severity": "high",
+          "evidence": [
+            "<post_011>"
+          ]
+        }
+      ],
+      "preferred_channels": [
+        {
+          "claim": "Online forums",
+          "evidence": [
+            "<post_009>"
+          ]
+        }
+      ],
+      "behaviors": [
+        {
+          "claim": "Posts about issues publicly",
+          "evidence": [
+            "<post_009>"
+          ]
+        }
+      ],
+      "representative_quotes": [
+        {
+          "text_original": "iOS 18 has too many bugs",
+          "lang": "en",
+          "doc_id": "<post_009>"
+        },
+        {
+          "text_original": "Latest iOS update broke my camera and Bluetooth",
+          "lang": "en",
+          "doc_id": "<post_010>"
+        },
+        {
+          "text_original": "iOS bugs are getting worse",
+          "lang": "en",
+          "doc_id": "<post_011>"
+        }
+      ]
+    }
+  },
+  "mock_journey_responses": {
+    "ip_battery": {
+      "stages": [
+        {
+          "stage": "Awareness",
+          "touchpoints": [
+            {
+              "claim": "Awareness touchpoint",
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Awareness action",
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Awareness friction",
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Awareness opportunity",
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Consideration",
+          "touchpoints": [
+            {
+              "claim": "Consideration touchpoint",
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Consideration action",
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Consideration friction",
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Consideration opportunity",
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Decision",
+          "touchpoints": [
+            {
+              "claim": "Decision touchpoint",
+              "evidence": [
+                "<post_003>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Decision action",
+              "evidence": [
+                "<post_003>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_003>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Decision friction",
+              "evidence": [
+                "<post_003>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Decision opportunity",
+              "evidence": [
+                "<post_003>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Onboarding",
+          "touchpoints": [
+            {
+              "claim": "Onboarding touchpoint",
+              "evidence": [
+                "<post_004>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Onboarding action",
+              "evidence": [
+                "<post_004>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_004>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Onboarding friction",
+              "evidence": [
+                "<post_004>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Onboarding opportunity",
+              "evidence": [
+                "<post_004>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Use",
+          "touchpoints": [
+            {
+              "claim": "Use touchpoint",
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Use action",
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Use friction",
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Use opportunity",
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Loyalty/Churn",
+          "touchpoints": [
+            {
+              "claim": "Loyalty/Churn touchpoint",
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Loyalty/Churn action",
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Loyalty/Churn friction",
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Loyalty/Churn opportunity",
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "ip_price": {
+      "stages": [
+        {
+          "stage": "Awareness",
+          "touchpoints": [
+            {
+              "claim": "Awareness touchpoint",
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Awareness action",
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Awareness friction",
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Awareness opportunity",
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Consideration",
+          "touchpoints": [
+            {
+              "claim": "Consideration touchpoint",
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Consideration action",
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Consideration friction",
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Consideration opportunity",
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Decision",
+          "touchpoints": [
+            {
+              "claim": "Decision touchpoint",
+              "evidence": [
+                "<post_007>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Decision action",
+              "evidence": [
+                "<post_007>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_007>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Decision friction",
+              "evidence": [
+                "<post_007>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Decision opportunity",
+              "evidence": [
+                "<post_007>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Onboarding",
+          "touchpoints": [
+            {
+              "claim": "Onboarding touchpoint",
+              "evidence": [
+                "<post_008>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Onboarding action",
+              "evidence": [
+                "<post_008>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_008>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Onboarding friction",
+              "evidence": [
+                "<post_008>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Onboarding opportunity",
+              "evidence": [
+                "<post_008>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Use",
+          "touchpoints": [
+            {
+              "claim": "Use touchpoint",
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Use action",
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Use friction",
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Use opportunity",
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Loyalty/Churn",
+          "touchpoints": [
+            {
+              "claim": "Loyalty/Churn touchpoint",
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Loyalty/Churn action",
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Loyalty/Churn friction",
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Loyalty/Churn opportunity",
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "ip_bugs": {
+      "stages": [
+        {
+          "stage": "Awareness",
+          "touchpoints": [
+            {
+              "claim": "Awareness touchpoint",
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Awareness action",
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Awareness friction",
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Awareness opportunity",
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Consideration",
+          "touchpoints": [
+            {
+              "claim": "Consideration touchpoint",
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Consideration action",
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Consideration friction",
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Consideration opportunity",
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Decision",
+          "touchpoints": [
+            {
+              "claim": "Decision touchpoint",
+              "evidence": [
+                "<post_011>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Decision action",
+              "evidence": [
+                "<post_011>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_011>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Decision friction",
+              "evidence": [
+                "<post_011>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Decision opportunity",
+              "evidence": [
+                "<post_011>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Onboarding",
+          "touchpoints": [
+            {
+              "claim": "Onboarding touchpoint",
+              "evidence": [
+                "<post_012>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Onboarding action",
+              "evidence": [
+                "<post_012>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_012>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Onboarding friction",
+              "evidence": [
+                "<post_012>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Onboarding opportunity",
+              "evidence": [
+                "<post_012>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Use",
+          "touchpoints": [
+            {
+              "claim": "Use touchpoint",
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Use action",
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Use friction",
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Use opportunity",
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Loyalty/Churn",
+          "touchpoints": [
+            {
+              "claim": "Loyalty/Churn touchpoint",
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Loyalty/Churn action",
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Loyalty/Churn friction",
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Loyalty/Churn opportunity",
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

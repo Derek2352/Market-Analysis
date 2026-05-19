@@ -22,6 +22,7 @@ from src.schemas.raw import RawPost
 from src.scrape.doctor import app as doctor_app
 from src.cli_export import _export_app
 from src.cli_doctor import doctor as _doctor_cmd
+from src.cli_eval import eval_cmd as _eval_cmd
 
 # Pipeline typeshed
 _PIPELINE_AVAILABLE = True
@@ -44,6 +45,7 @@ app = typer.Typer(no_args_is_help=True, add_completion=False)
 app.add_typer(doctor_app, name="scrape-doctor")
 app.add_typer(_export_app, name="export")
 app.command(name="doctor")(_doctor_cmd)
+app.command(name="eval")(_eval_cmd)
 
 
 @app.callback()

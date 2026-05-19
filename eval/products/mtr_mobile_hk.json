@@ -1,0 +1,1261 @@
+{
+  "name": "mtr_mobile_hk",
+  "topic": "MTR Mobile",
+  "region": "HK",
+  "posts": [
+    {
+      "id": "post_001",
+      "body": "MTR Mobile 個 app 越嚟越慢, 出 fare 都要等成分鐘",
+      "source": "lihkg",
+      "url": "https://lihkg.com/thread/mtr/1",
+      "lang": "zh"
+    },
+    {
+      "id": "post_002",
+      "body": "MTR app interface is sluggish on iOS 18 — fare lookup takes forever.",
+      "source": "reddit_old",
+      "url": "https://old.reddit.com/r/HongKong/comments/mtr/2",
+      "lang": "en"
+    },
+    {
+      "id": "post_003",
+      "body": "個 MTR app 開個 timetable 都會 hang 機",
+      "source": "discuss_hk",
+      "url": "https://www.discuss.com.hk/mtr/3",
+      "lang": "zh"
+    },
+    {
+      "id": "post_004",
+      "body": "MTR app hangs when I open the timetable view.",
+      "source": "lihkg",
+      "url": "https://lihkg.com/thread/mtr/4",
+      "lang": "en"
+    },
+    {
+      "id": "post_005",
+      "body": "Octopus reload 喺 MTR app 失敗咗三次, 錢都唔知去咗邊",
+      "source": "app_store_hk",
+      "url": "https://apps.apple.com/hk/mtr#review-5",
+      "lang": "zh"
+    },
+    {
+      "id": "post_006",
+      "body": "Octopus reload through the MTR app failed and my money is stuck.",
+      "source": "app_store_hk",
+      "url": "https://apps.apple.com/hk/mtr#review-6",
+      "lang": "en"
+    },
+    {
+      "id": "post_007",
+      "body": "增值 Octopus 之後 balance 唔即時 update, 仲要 reboot 部機",
+      "source": "app_store_hk",
+      "url": "https://apps.apple.com/hk/mtr#review-7",
+      "lang": "zh"
+    },
+    {
+      "id": "post_008",
+      "body": "Reload feature is unreliable — balance does not update.",
+      "source": "app_store_hk",
+      "url": "https://apps.apple.com/hk/mtr#review-8",
+      "lang": "en"
+    },
+    {
+      "id": "post_009",
+      "body": "MTR app 班次資料成日唔啱, 寫住 4 分鐘但等咗 10 分鐘",
+      "source": "lihkg",
+      "url": "https://lihkg.com/thread/mtr/9",
+      "lang": "zh"
+    },
+    {
+      "id": "post_010",
+      "body": "Real-time train times in the MTR app are wrong.",
+      "source": "reddit_old",
+      "url": "https://old.reddit.com/r/HongKong/comments/mtr/10",
+      "lang": "en"
+    },
+    {
+      "id": "post_011",
+      "body": "MTR app 顯示班次但實際時間相差好遠",
+      "source": "discuss_hk",
+      "url": "https://www.discuss.com.hk/mtr/11",
+      "lang": "zh"
+    },
+    {
+      "id": "post_012",
+      "body": "Posted arrivals in the MTR app are inaccurate during peak hours.",
+      "source": "reddit_old",
+      "url": "https://old.reddit.com/r/HongKong/comments/mtr/12",
+      "lang": "en"
+    }
+  ],
+  "clusters": [
+    {
+      "cluster_id": "mtr_slow",
+      "post_ids": [
+        "post_001",
+        "post_002",
+        "post_003",
+        "post_004"
+      ],
+      "keyword_summary": [
+        "slow",
+        "hang",
+        "interface",
+        "timetable",
+        "sluggish"
+      ],
+      "source_distribution": {
+        "lihkg": 2,
+        "reddit_old": 1,
+        "discuss_hk": 1
+      },
+      "language_distribution": {
+        "zh": 2,
+        "en": 2
+      }
+    },
+    {
+      "cluster_id": "mtr_octopus",
+      "post_ids": [
+        "post_005",
+        "post_006",
+        "post_007",
+        "post_008"
+      ],
+      "keyword_summary": [
+        "octopus",
+        "reload",
+        "fail",
+        "balance",
+        "money"
+      ],
+      "source_distribution": {
+        "app_store_hk": 4
+      },
+      "language_distribution": {
+        "zh": 2,
+        "en": 2
+      }
+    },
+    {
+      "cluster_id": "mtr_realtime",
+      "post_ids": [
+        "post_009",
+        "post_010",
+        "post_011",
+        "post_012"
+      ],
+      "keyword_summary": [
+        "realtime",
+        "arrival",
+        "wrong",
+        "schedule",
+        "inaccurate"
+      ],
+      "source_distribution": {
+        "lihkg": 1,
+        "reddit_old": 2,
+        "discuss_hk": 1
+      },
+      "language_distribution": {
+        "zh": 2,
+        "en": 2
+      }
+    }
+  ],
+  "expected_pain_points": [
+    {
+      "theme": "slow / laggy interface",
+      "keywords": [
+        "slow",
+        "lag",
+        "hang",
+        "sluggish",
+        "interface"
+      ],
+      "phrases": [
+        "app is slow",
+        "interface lag"
+      ]
+    },
+    {
+      "theme": "octopus reload failures",
+      "keywords": [
+        "octopus",
+        "reload",
+        "fail",
+        "stuck",
+        "balance"
+      ],
+      "phrases": [
+        "octopus reload"
+      ]
+    },
+    {
+      "theme": "wrong real-time arrivals",
+      "keywords": [
+        "realtime",
+        "arrival",
+        "wrong",
+        "inaccurate",
+        "time"
+      ],
+      "phrases": [
+        "real-time",
+        "arrival time"
+      ]
+    },
+    {
+      "theme": "money stuck after reload",
+      "keywords": [
+        "stuck",
+        "money",
+        "balance"
+      ],
+      "phrases": [
+        "money is stuck",
+        "balance"
+      ]
+    }
+  ],
+  "mock_persona_responses": {
+    "mtr_slow": {
+      "name": "Lagged Daily Commuter",
+      "one_liner": "Long-time MTR user frustrated by the app's interface lag.",
+      "demographics": {
+        "age_range": "25-45",
+        "evidence": [
+          "<post_001>"
+        ]
+      },
+      "goals": [
+        {
+          "claim": "Use the product reliably",
+          "evidence": [
+            "<post_001>"
+          ]
+        }
+      ],
+      "motivations": [
+        {
+          "claim": "Daily utility",
+          "evidence": [
+            "<post_001>"
+          ]
+        }
+      ],
+      "pain_points": [
+        {
+          "claim": "Interface is slow and unresponsive",
+          "severity": "high",
+          "evidence": [
+            "<post_001>"
+          ]
+        },
+        {
+          "claim": "App hangs when opening timetable",
+          "severity": "high",
+          "evidence": [
+            "<post_002>"
+          ]
+        }
+      ],
+      "preferred_channels": [
+        {
+          "claim": "Online forums",
+          "evidence": [
+            "<post_001>"
+          ]
+        }
+      ],
+      "behaviors": [
+        {
+          "claim": "Posts about issues publicly",
+          "evidence": [
+            "<post_001>"
+          ]
+        }
+      ],
+      "representative_quotes": [
+        {
+          "text_original": "MTR Mobile 個 app 越嚟越慢",
+          "lang": "zh",
+          "doc_id": "<post_001>"
+        },
+        {
+          "text_original": "MTR app interface is sluggish on iOS 18",
+          "lang": "en",
+          "doc_id": "<post_002>"
+        },
+        {
+          "text_original": "MTR app hangs when I open the timetable view",
+          "lang": "en",
+          "doc_id": "<post_004>"
+        }
+      ]
+    },
+    "mtr_octopus": {
+      "name": "Octopus Reload Sufferer",
+      "one_liner": "HK rider relying on Octopus integration that frequently fails.",
+      "demographics": {
+        "age_range": "25-45",
+        "evidence": [
+          "<post_005>"
+        ]
+      },
+      "goals": [
+        {
+          "claim": "Use the product reliably",
+          "evidence": [
+            "<post_005>"
+          ]
+        }
+      ],
+      "motivations": [
+        {
+          "claim": "Daily utility",
+          "evidence": [
+            "<post_005>"
+          ]
+        }
+      ],
+      "pain_points": [
+        {
+          "claim": "Octopus reload fails repeatedly",
+          "severity": "high",
+          "evidence": [
+            "<post_005>"
+          ]
+        },
+        {
+          "claim": "Money gets stuck after failed reloads",
+          "severity": "high",
+          "evidence": [
+            "<post_006>"
+          ]
+        },
+        {
+          "claim": "Balance does not update after reload",
+          "severity": "high",
+          "evidence": [
+            "<post_007>"
+          ]
+        }
+      ],
+      "preferred_channels": [
+        {
+          "claim": "Online forums",
+          "evidence": [
+            "<post_005>"
+          ]
+        }
+      ],
+      "behaviors": [
+        {
+          "claim": "Posts about issues publicly",
+          "evidence": [
+            "<post_005>"
+          ]
+        }
+      ],
+      "representative_quotes": [
+        {
+          "text_original": "Octopus reload 喺 MTR app 失敗咗三次",
+          "lang": "zh",
+          "doc_id": "<post_005>"
+        },
+        {
+          "text_original": "Octopus reload through the MTR app failed and my money is stuck",
+          "lang": "en",
+          "doc_id": "<post_006>"
+        },
+        {
+          "text_original": "Reload feature is unreliable",
+          "lang": "en",
+          "doc_id": "<post_008>"
+        }
+      ]
+    },
+    "mtr_realtime": {
+      "name": "Real-time Skeptic",
+      "one_liner": "Rider who can no longer trust posted arrival times.",
+      "demographics": {
+        "age_range": "25-45",
+        "evidence": [
+          "<post_009>"
+        ]
+      },
+      "goals": [
+        {
+          "claim": "Use the product reliably",
+          "evidence": [
+            "<post_009>"
+          ]
+        }
+      ],
+      "motivations": [
+        {
+          "claim": "Daily utility",
+          "evidence": [
+            "<post_009>"
+          ]
+        }
+      ],
+      "pain_points": [
+        {
+          "claim": "Real-time arrivals are wrong",
+          "severity": "high",
+          "evidence": [
+            "<post_009>"
+          ]
+        },
+        {
+          "claim": "Posted times are inaccurate during peak hours",
+          "severity": "high",
+          "evidence": [
+            "<post_010>"
+          ]
+        }
+      ],
+      "preferred_channels": [
+        {
+          "claim": "Online forums",
+          "evidence": [
+            "<post_009>"
+          ]
+        }
+      ],
+      "behaviors": [
+        {
+          "claim": "Posts about issues publicly",
+          "evidence": [
+            "<post_009>"
+          ]
+        }
+      ],
+      "representative_quotes": [
+        {
+          "text_original": "MTR app 班次資料成日唔啱",
+          "lang": "zh",
+          "doc_id": "<post_009>"
+        },
+        {
+          "text_original": "Real-time train times in the MTR app are wrong",
+          "lang": "en",
+          "doc_id": "<post_010>"
+        },
+        {
+          "text_original": "Posted arrivals in the MTR app are inaccurate",
+          "lang": "en",
+          "doc_id": "<post_012>"
+        }
+      ]
+    }
+  },
+  "mock_journey_responses": {
+    "mtr_slow": {
+      "stages": [
+        {
+          "stage": "Awareness",
+          "touchpoints": [
+            {
+              "claim": "Awareness touchpoint",
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Awareness action",
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Awareness friction",
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Awareness opportunity",
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Consideration",
+          "touchpoints": [
+            {
+              "claim": "Consideration touchpoint",
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Consideration action",
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Consideration friction",
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Consideration opportunity",
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Decision",
+          "touchpoints": [
+            {
+              "claim": "Decision touchpoint",
+              "evidence": [
+                "<post_003>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Decision action",
+              "evidence": [
+                "<post_003>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_003>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Decision friction",
+              "evidence": [
+                "<post_003>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Decision opportunity",
+              "evidence": [
+                "<post_003>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Onboarding",
+          "touchpoints": [
+            {
+              "claim": "Onboarding touchpoint",
+              "evidence": [
+                "<post_004>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Onboarding action",
+              "evidence": [
+                "<post_004>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_004>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Onboarding friction",
+              "evidence": [
+                "<post_004>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Onboarding opportunity",
+              "evidence": [
+                "<post_004>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Use",
+          "touchpoints": [
+            {
+              "claim": "Use touchpoint",
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Use action",
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Use friction",
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Use opportunity",
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Loyalty/Churn",
+          "touchpoints": [
+            {
+              "claim": "Loyalty/Churn touchpoint",
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Loyalty/Churn action",
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Loyalty/Churn friction",
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Loyalty/Churn opportunity",
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "mtr_octopus": {
+      "stages": [
+        {
+          "stage": "Awareness",
+          "touchpoints": [
+            {
+              "claim": "Awareness touchpoint",
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Awareness action",
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Awareness friction",
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Awareness opportunity",
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Consideration",
+          "touchpoints": [
+            {
+              "claim": "Consideration touchpoint",
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Consideration action",
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Consideration friction",
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Consideration opportunity",
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Decision",
+          "touchpoints": [
+            {
+              "claim": "Decision touchpoint",
+              "evidence": [
+                "<post_007>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Decision action",
+              "evidence": [
+                "<post_007>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_007>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Decision friction",
+              "evidence": [
+                "<post_007>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Decision opportunity",
+              "evidence": [
+                "<post_007>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Onboarding",
+          "touchpoints": [
+            {
+              "claim": "Onboarding touchpoint",
+              "evidence": [
+                "<post_008>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Onboarding action",
+              "evidence": [
+                "<post_008>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_008>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Onboarding friction",
+              "evidence": [
+                "<post_008>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Onboarding opportunity",
+              "evidence": [
+                "<post_008>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Use",
+          "touchpoints": [
+            {
+              "claim": "Use touchpoint",
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Use action",
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Use friction",
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Use opportunity",
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Loyalty/Churn",
+          "touchpoints": [
+            {
+              "claim": "Loyalty/Churn touchpoint",
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Loyalty/Churn action",
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Loyalty/Churn friction",
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Loyalty/Churn opportunity",
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "mtr_realtime": {
+      "stages": [
+        {
+          "stage": "Awareness",
+          "touchpoints": [
+            {
+              "claim": "Awareness touchpoint",
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Awareness action",
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Awareness friction",
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Awareness opportunity",
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Consideration",
+          "touchpoints": [
+            {
+              "claim": "Consideration touchpoint",
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Consideration action",
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Consideration friction",
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Consideration opportunity",
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Decision",
+          "touchpoints": [
+            {
+              "claim": "Decision touchpoint",
+              "evidence": [
+                "<post_011>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Decision action",
+              "evidence": [
+                "<post_011>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_011>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Decision friction",
+              "evidence": [
+                "<post_011>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Decision opportunity",
+              "evidence": [
+                "<post_011>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Onboarding",
+          "touchpoints": [
+            {
+              "claim": "Onboarding touchpoint",
+              "evidence": [
+                "<post_012>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Onboarding action",
+              "evidence": [
+                "<post_012>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_012>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Onboarding friction",
+              "evidence": [
+                "<post_012>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Onboarding opportunity",
+              "evidence": [
+                "<post_012>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Use",
+          "touchpoints": [
+            {
+              "claim": "Use touchpoint",
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Use action",
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Use friction",
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Use opportunity",
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Loyalty/Churn",
+          "touchpoints": [
+            {
+              "claim": "Loyalty/Churn touchpoint",
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Loyalty/Churn action",
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Loyalty/Churn friction",
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Loyalty/Churn opportunity",
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

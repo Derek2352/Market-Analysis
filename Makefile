@@ -1,4 +1,4 @@
-.PHONY: install scrape test test-live lint fmt clean dev-api dev-ui
+.PHONY: install scrape test test-live lint fmt clean dev-api dev-ui eval eval-mock
 
 PY ?= python
 VENV ?= .venv
@@ -44,3 +44,13 @@ ui-build:
 
 ui-install:
 	cd ui && npm install
+
+# Eval suite — 5 frozen product fixtures with ground-truth pain points.
+# `make eval-mock` replays canned LLM responses (no API key) — for CI.
+# `make eval`      drives the real LLM (set ANTHROPIC_API_KEY first) —
+#                  for measuring the impact of a prompt change.
+eval-mock:
+	$(BIN)/mkt eval --provider mock --min-recovery 0.6
+
+eval:
+	$(BIN)/mkt eval --provider anthropic --min-recovery 0.5

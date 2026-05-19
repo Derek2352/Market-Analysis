@@ -1,0 +1,132 @@
+{
+  "name": "whatsapp_hk",
+  "topic": "WhatsApp",
+  "region": "HK",
+  "posts": [
+    {"id": "post_001", "body": "WhatsApp 通話質素好差, 經常斷線", "source": "lihkg", "url": "https://lihkg.com/thread/1/post/1", "lang": "zh"},
+    {"id": "post_002", "body": "WhatsApp call quality dropped after last update — voice keeps cutting out.", "source": "reddit_old", "url": "https://old.reddit.com/r/HongKong/comments/abc/post_002", "lang": "en"},
+    {"id": "post_003", "body": "用咗 WhatsApp 多年, 但個 voice call 越嚟越差", "source": "discuss_hk", "url": "https://www.discuss.com.hk/viewthread.php?tid=003", "lang": "zh"},
+    {"id": "post_004", "body": "Voice quality on WhatsApp calls is terrible in HK — even on wifi.", "source": "lihkg", "url": "https://lihkg.com/thread/1/post/4", "lang": "en"},
+
+    {"id": "post_005", "body": "WhatsApp 越來越多 spam message, 好煩", "source": "lihkg", "url": "https://lihkg.com/thread/2/post/5", "lang": "zh"},
+    {"id": "post_006", "body": "Getting spam from unknown numbers every day on WhatsApp.", "source": "reddit_old", "url": "https://old.reddit.com/r/HongKong/comments/def/post_006", "lang": "en"},
+    {"id": "post_007", "body": "好多陌生人加我 WhatsApp 群組, 點 block 都 block 唔晒", "source": "discuss_hk", "url": "https://www.discuss.com.hk/viewthread.php?tid=007", "lang": "zh"},
+    {"id": "post_008", "body": "Strangers keep adding me to random WhatsApp groups — can't stop it.", "source": "lihkg", "url": "https://lihkg.com/thread/2/post/8", "lang": "en"},
+
+    {"id": "post_009", "body": "WhatsApp 用 Octopus 付款好慢, 經常 timeout", "source": "app_store_hk", "url": "https://apps.apple.com/hk/app/whatsapp/id001#review-009", "lang": "zh"},
+    {"id": "post_010", "body": "Octopus payment in WhatsApp Pay is slow and unreliable.", "source": "app_store_hk", "url": "https://apps.apple.com/hk/app/whatsapp/id001#review-010", "lang": "en"},
+    {"id": "post_011", "body": "想用 WhatsApp Pay 但成日 fail, 好麻煩", "source": "app_store_hk", "url": "https://apps.apple.com/hk/app/whatsapp/id001#review-011", "lang": "zh"},
+    {"id": "post_012", "body": "Payment integration fails half the time. Octopus reload is broken.", "source": "app_store_hk", "url": "https://apps.apple.com/hk/app/whatsapp/id001#review-012", "lang": "en"}
+  ],
+  "clusters": [
+    {
+      "cluster_id": "wa_calls",
+      "post_ids": ["post_001", "post_002", "post_003", "post_004"],
+      "keyword_summary": ["call", "voice", "quality", "drop", "wifi"],
+      "source_distribution": {"lihkg": 2, "reddit_old": 1, "discuss_hk": 1},
+      "language_distribution": {"zh": 2, "en": 2}
+    },
+    {
+      "cluster_id": "wa_spam",
+      "post_ids": ["post_005", "post_006", "post_007", "post_008"],
+      "keyword_summary": ["spam", "stranger", "group", "block", "unknown"],
+      "source_distribution": {"lihkg": 2, "reddit_old": 1, "discuss_hk": 1},
+      "language_distribution": {"zh": 2, "en": 2}
+    },
+    {
+      "cluster_id": "wa_pay",
+      "post_ids": ["post_009", "post_010", "post_011", "post_012"],
+      "keyword_summary": ["pay", "octopus", "payment", "fail", "timeout"],
+      "source_distribution": {"app_store_hk": 4},
+      "language_distribution": {"zh": 2, "en": 2}
+    }
+  ],
+  "expected_pain_points": [
+    {"theme": "voice call quality drops", "keywords": ["call", "voice", "quality", "drop"], "phrases": ["voice call", "call quality"]},
+    {"theme": "spam from strangers", "keywords": ["spam", "stranger", "unknown"], "phrases": ["spam", "strangers"]},
+    {"theme": "added to random groups", "keywords": ["group", "block", "added"], "phrases": ["random group", "added to"]},
+    {"theme": "octopus payment failures", "keywords": ["octopus", "payment", "fail", "timeout"], "phrases": ["octopus", "payment"]}
+  ],
+  "mock_persona_responses": {
+    "wa_calls": {
+      "name": "Frustrated Voice Caller",
+      "one_liner": "Long-time WhatsApp user in HK who relies on it for daily voice calls.",
+      "demographics": {"age_range": "25-45", "evidence": ["<post_001>"]},
+      "goals": [{"claim": "Hold a stable voice call without drops", "evidence": ["<post_001>"]}],
+      "motivations": [{"claim": "Daily contact with family abroad", "evidence": ["<post_002>"]}],
+      "pain_points": [
+        {"claim": "Voice call quality drops mid-conversation", "severity": "high", "evidence": ["<post_001>", "<post_004>"]},
+        {"claim": "Calls cut out even on wifi", "severity": "high", "evidence": ["<post_002>"]}
+      ],
+      "preferred_channels": [{"claim": "Forums and Reddit complaints", "evidence": ["<post_003>"]}],
+      "behaviors": [{"claim": "Switches to other apps when WhatsApp drops", "evidence": ["<post_004>"]}],
+      "representative_quotes": [
+        {"text_original": "WhatsApp 通話質素好差", "lang": "zh", "doc_id": "<post_001>"},
+        {"text_original": "WhatsApp call quality dropped", "lang": "en", "doc_id": "<post_002>"},
+        {"text_original": "Voice quality on WhatsApp calls is terrible", "lang": "en", "doc_id": "<post_004>"}
+      ]
+    },
+    "wa_spam": {
+      "name": "Spam-Bombarded Group Member",
+      "one_liner": "HK user fed up with unsolicited group adds and spam.",
+      "demographics": {"age_range": "20-40", "evidence": ["<post_005>"]},
+      "goals": [{"claim": "Keep contact list clean", "evidence": ["<post_006>"]}],
+      "motivations": [{"claim": "Avoid scams and noise", "evidence": ["<post_005>"]}],
+      "pain_points": [
+        {"claim": "Spam from strangers floods inbox daily", "severity": "high", "evidence": ["<post_005>", "<post_006>"]},
+        {"claim": "Added to random groups by strangers", "severity": "medium", "evidence": ["<post_007>", "<post_008>"]}
+      ],
+      "preferred_channels": [{"claim": "Forum threads about scams", "evidence": ["<post_007>"]}],
+      "behaviors": [{"claim": "Blocks unknown numbers reactively", "evidence": ["<post_008>"]}],
+      "representative_quotes": [
+        {"text_original": "WhatsApp 越來越多 spam message", "lang": "zh", "doc_id": "<post_005>"},
+        {"text_original": "Strangers keep adding me to random WhatsApp groups", "lang": "en", "doc_id": "<post_008>"},
+        {"text_original": "spam from unknown numbers every day", "lang": "en", "doc_id": "<post_006>"}
+      ]
+    },
+    "wa_pay": {
+      "name": "Octopus-Reliant Payer",
+      "one_liner": "HK user who tries to use WhatsApp Pay with Octopus.",
+      "demographics": {"age_range": "25-50", "evidence": ["<post_009>"]},
+      "goals": [{"claim": "Pay friends quickly without leaving chat", "evidence": ["<post_011>"]}],
+      "motivations": [{"claim": "Convenience of in-chat payments", "evidence": ["<post_010>"]}],
+      "pain_points": [
+        {"claim": "Octopus payment fails frequently", "severity": "high", "evidence": ["<post_009>", "<post_012>"]},
+        {"claim": "Payment timeout makes the feature unreliable", "severity": "high", "evidence": ["<post_009>"]}
+      ],
+      "preferred_channels": [{"claim": "App store reviews", "evidence": ["<post_011>"]}],
+      "behaviors": [{"claim": "Falls back to other payment apps after failure", "evidence": ["<post_012>"]}],
+      "representative_quotes": [
+        {"text_original": "Octopus payment in WhatsApp Pay is slow", "lang": "en", "doc_id": "<post_010>"},
+        {"text_original": "WhatsApp 用 Octopus 付款好慢", "lang": "zh", "doc_id": "<post_009>"},
+        {"text_original": "Payment integration fails half the time", "lang": "en", "doc_id": "<post_012>"}
+      ]
+    }
+  },
+  "mock_journey_responses": {
+    "wa_calls": {"stages": [
+      {"stage": "Awareness", "touchpoints": [{"claim": "Friends mention WhatsApp", "evidence": ["<post_001>"]}], "user_actions": [{"claim": "Install the app", "evidence": ["<post_001>"]}], "emotions": [{"label": "neutral", "intensity": 0.5, "evidence": ["<post_001>"]}], "frictions": [{"claim": "None", "evidence": ["<post_001>"]}], "opportunities": [{"claim": "Onboard with call test", "evidence": ["<post_002>"]}]},
+      {"stage": "Consideration", "touchpoints": [{"claim": "Reddit reviews", "evidence": ["<post_002>"]}], "user_actions": [{"claim": "Read complaints", "evidence": ["<post_002>"]}], "emotions": [{"label": "skeptical", "intensity": 0.6, "evidence": ["<post_002>"]}], "frictions": [{"claim": "Mixed reports", "evidence": ["<post_002>"]}], "opportunities": [{"claim": "Publish QoS data", "evidence": ["<post_004>"]}]},
+      {"stage": "Decision", "touchpoints": [{"claim": "Free download", "evidence": ["<post_003>"]}], "user_actions": [{"claim": "Try it", "evidence": ["<post_003>"]}], "emotions": [{"label": "hopeful", "intensity": 0.6, "evidence": ["<post_003>"]}], "frictions": [{"claim": "Setup unclear", "evidence": ["<post_003>"]}], "opportunities": [{"claim": "Smoother first call", "evidence": ["<post_004>"]}]},
+      {"stage": "Onboarding", "touchpoints": [{"claim": "First call", "evidence": ["<post_001>"]}], "user_actions": [{"claim": "Calls a contact", "evidence": ["<post_001>"]}], "emotions": [{"label": "frustrated", "intensity": 0.7, "evidence": ["<post_001>"]}], "frictions": [{"claim": "Drops within seconds", "evidence": ["<post_001>"]}], "opportunities": [{"claim": "Latency banner", "evidence": ["<post_002>"]}]},
+      {"stage": "Use", "touchpoints": [{"claim": "Daily voice calls", "evidence": ["<post_004>"]}], "user_actions": [{"claim": "Retry on drop", "evidence": ["<post_004>"]}], "emotions": [{"label": "frustrated", "intensity": 0.8, "evidence": ["<post_004>"]}], "frictions": [{"claim": "Drops mid-call", "evidence": ["<post_001>"]}], "opportunities": [{"claim": "Adaptive codec switch", "evidence": ["<post_004>"]}]},
+      {"stage": "Loyalty/Churn", "touchpoints": [{"claim": "Forum venting", "evidence": ["<post_003>"]}], "user_actions": [{"claim": "Considers Signal", "evidence": ["<post_004>"]}], "emotions": [{"label": "resigned", "intensity": 0.7, "evidence": ["<post_004>"]}], "frictions": [{"claim": "Network ubiquity locks them in", "evidence": ["<post_003>"]}], "opportunities": [{"claim": "Address QoS to retain", "evidence": ["<post_001>"]}]}
+    ]},
+    "wa_spam": {"stages": [
+      {"stage": "Awareness", "touchpoints": [{"claim": "Friends recommend WhatsApp", "evidence": ["<post_005>"]}], "user_actions": [{"claim": "Install", "evidence": ["<post_005>"]}], "emotions": [{"label": "neutral", "intensity": 0.5, "evidence": ["<post_005>"]}], "frictions": [{"claim": "None", "evidence": ["<post_005>"]}], "opportunities": [{"claim": "Privacy intro", "evidence": ["<post_006>"]}]},
+      {"stage": "Consideration", "touchpoints": [{"claim": "Reads reviews", "evidence": ["<post_006>"]}], "user_actions": [{"claim": "Compare with Signal", "evidence": ["<post_006>"]}], "emotions": [{"label": "uncertain", "intensity": 0.6, "evidence": ["<post_006>"]}], "frictions": [{"claim": "Spam concerns", "evidence": ["<post_006>"]}], "opportunities": [{"claim": "Spam guarantees", "evidence": ["<post_007>"]}]},
+      {"stage": "Decision", "touchpoints": [{"claim": "Sign-up flow", "evidence": ["<post_007>"]}], "user_actions": [{"claim": "Register number", "evidence": ["<post_007>"]}], "emotions": [{"label": "hopeful", "intensity": 0.6, "evidence": ["<post_007>"]}], "frictions": [{"claim": "Phone exposed publicly", "evidence": ["<post_007>"]}], "opportunities": [{"claim": "Number masking", "evidence": ["<post_008>"]}]},
+      {"stage": "Onboarding", "touchpoints": [{"claim": "First chats", "evidence": ["<post_008>"]}], "user_actions": [{"claim": "Joins family groups", "evidence": ["<post_008>"]}], "emotions": [{"label": "annoyed", "intensity": 0.7, "evidence": ["<post_005>"]}], "frictions": [{"claim": "Random groups appear", "evidence": ["<post_008>"]}], "opportunities": [{"claim": "Opt-in group adds", "evidence": ["<post_007>"]}]},
+      {"stage": "Use", "touchpoints": [{"claim": "Daily messaging", "evidence": ["<post_005>"]}], "user_actions": [{"claim": "Mutes groups", "evidence": ["<post_008>"]}], "emotions": [{"label": "frustrated", "intensity": 0.7, "evidence": ["<post_005>"]}], "frictions": [{"claim": "Spam flood", "evidence": ["<post_005>"]}], "opportunities": [{"claim": "Smarter spam filter", "evidence": ["<post_006>"]}]},
+      {"stage": "Loyalty/Churn", "touchpoints": [{"claim": "Trusted contacts only", "evidence": ["<post_007>"]}], "user_actions": [{"claim": "Limits group activity", "evidence": ["<post_007>"]}], "emotions": [{"label": "resigned", "intensity": 0.6, "evidence": ["<post_007>"]}], "frictions": [{"claim": "Hard to leave network", "evidence": ["<post_007>"]}], "opportunities": [{"claim": "Privacy-first onboarding", "evidence": ["<post_008>"]}]}
+    ]},
+    "wa_pay": {"stages": [
+      {"stage": "Awareness", "touchpoints": [{"claim": "Sees Pay banner in app", "evidence": ["<post_009>"]}], "user_actions": [{"claim": "Reads about Pay", "evidence": ["<post_009>"]}], "emotions": [{"label": "curious", "intensity": 0.6, "evidence": ["<post_009>"]}], "frictions": [{"claim": "None", "evidence": ["<post_009>"]}], "opportunities": [{"claim": "Tutorial", "evidence": ["<post_010>"]}]},
+      {"stage": "Consideration", "touchpoints": [{"claim": "App store reviews", "evidence": ["<post_010>"]}], "user_actions": [{"claim": "Reads concerns about reliability", "evidence": ["<post_010>"]}], "emotions": [{"label": "cautious", "intensity": 0.5, "evidence": ["<post_010>"]}], "frictions": [{"claim": "Reliability doubts", "evidence": ["<post_010>"]}], "opportunities": [{"claim": "Publish reliability metrics", "evidence": ["<post_011>"]}]},
+      {"stage": "Decision", "touchpoints": [{"claim": "Setup screen", "evidence": ["<post_011>"]}], "user_actions": [{"claim": "Links Octopus", "evidence": ["<post_011>"]}], "emotions": [{"label": "hopeful", "intensity": 0.5, "evidence": ["<post_011>"]}], "frictions": [{"claim": "Multi-step linking", "evidence": ["<post_011>"]}], "opportunities": [{"claim": "Single-tap linking", "evidence": ["<post_012>"]}]},
+      {"stage": "Onboarding", "touchpoints": [{"claim": "First payment", "evidence": ["<post_009>"]}], "user_actions": [{"claim": "Sends test transfer", "evidence": ["<post_009>"]}], "emotions": [{"label": "frustrated", "intensity": 0.7, "evidence": ["<post_009>"]}], "frictions": [{"claim": "Payment times out", "evidence": ["<post_009>"]}], "opportunities": [{"claim": "Retry queue", "evidence": ["<post_010>"]}]},
+      {"stage": "Use", "touchpoints": [{"claim": "Daily transfers", "evidence": ["<post_012>"]}], "user_actions": [{"claim": "Retries on failure", "evidence": ["<post_012>"]}], "emotions": [{"label": "frustrated", "intensity": 0.8, "evidence": ["<post_012>"]}], "frictions": [{"claim": "Half of payments fail", "evidence": ["<post_012>"]}], "opportunities": [{"claim": "Stability fix", "evidence": ["<post_011>"]}]},
+      {"stage": "Loyalty/Churn", "touchpoints": [{"claim": "Switches to other apps", "evidence": ["<post_012>"]}], "user_actions": [{"claim": "Uses alternatives", "evidence": ["<post_012>"]}], "emotions": [{"label": "resigned", "intensity": 0.6, "evidence": ["<post_012>"]}], "frictions": [{"claim": "Trust lost", "evidence": ["<post_012>"]}], "opportunities": [{"claim": "Win back via reliability", "evidence": ["<post_011>"]}]}
+    ]}
+  }
+}

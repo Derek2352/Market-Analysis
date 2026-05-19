@@ -1,0 +1,1272 @@
+{
+  "name": "dcard_tw",
+  "topic": "Dcard",
+  "region": "TW",
+  "posts": [
+    {
+      "id": "post_001",
+      "body": "Dcard 的審查越來越嚴格,連正常分享都被刪",
+      "source": "dcard",
+      "url": "https://www.dcard.tw/f/talk/p/1",
+      "lang": "zh"
+    },
+    {
+      "id": "post_002",
+      "body": "Dcard moderation removes normal posts for no reason.",
+      "source": "reddit_old",
+      "url": "https://old.reddit.com/r/taiwan/comments/dc/2",
+      "lang": "en"
+    },
+    {
+      "id": "post_003",
+      "body": "Dcard 的版規模糊不清,動不動就被刪文",
+      "source": "ptt",
+      "url": "https://www.ptt.cc/bbs/dcard/3.html",
+      "lang": "zh"
+    },
+    {
+      "id": "post_004",
+      "body": "Dcard mods are heavy-handed; posts get deleted with no warning.",
+      "source": "mobile01",
+      "url": "https://www.mobile01.com/topic.php?t=4",
+      "lang": "en"
+    },
+    {
+      "id": "post_005",
+      "body": "Dcard 的留言串很難看,沒有 nested reply",
+      "source": "dcard",
+      "url": "https://www.dcard.tw/f/talk/p/5",
+      "lang": "zh"
+    },
+    {
+      "id": "post_006",
+      "body": "Dcard comment threading is awful — replies get lost.",
+      "source": "reddit_old",
+      "url": "https://old.reddit.com/r/taiwan/comments/dc/6",
+      "lang": "en"
+    },
+    {
+      "id": "post_007",
+      "body": "為什麼 Dcard 不能像 Reddit 一樣有 nested 留言",
+      "source": "ptt",
+      "url": "https://www.ptt.cc/bbs/dcard/7.html",
+      "lang": "zh"
+    },
+    {
+      "id": "post_008",
+      "body": "Threading on Dcard is broken — you can't follow conversations.",
+      "source": "mobile01",
+      "url": "https://www.mobile01.com/topic.php?t=8",
+      "lang": "en"
+    },
+    {
+      "id": "post_009",
+      "body": "Dcard 登入經常失敗, 一定要 reset 密碼",
+      "source": "app_store_tw",
+      "url": "https://apps.apple.com/tw/dcard#review-9",
+      "lang": "zh"
+    },
+    {
+      "id": "post_010",
+      "body": "Dcard login keeps failing — forced to reset password constantly.",
+      "source": "google_play_tw",
+      "url": "https://play.google.com/store/apps/details?id=tw.dcard&review=10",
+      "lang": "en"
+    },
+    {
+      "id": "post_011",
+      "body": "登入 Dcard 老是 timeout, 還要重設密碼",
+      "source": "app_store_tw",
+      "url": "https://apps.apple.com/tw/dcard#review-11",
+      "lang": "zh"
+    },
+    {
+      "id": "post_012",
+      "body": "Login on Dcard times out and password reset is the only fix.",
+      "source": "google_play_tw",
+      "url": "https://play.google.com/store/apps/details?id=tw.dcard&review=12",
+      "lang": "en"
+    }
+  ],
+  "clusters": [
+    {
+      "cluster_id": "dc_mod",
+      "post_ids": [
+        "post_001",
+        "post_002",
+        "post_003",
+        "post_004"
+      ],
+      "keyword_summary": [
+        "moderation",
+        "deleted",
+        "rule",
+        "审查",
+        "review"
+      ],
+      "source_distribution": {
+        "dcard": 1,
+        "reddit_old": 1,
+        "ptt": 1,
+        "mobile01": 1
+      },
+      "language_distribution": {
+        "zh": 2,
+        "en": 2
+      }
+    },
+    {
+      "cluster_id": "dc_thread",
+      "post_ids": [
+        "post_005",
+        "post_006",
+        "post_007",
+        "post_008"
+      ],
+      "keyword_summary": [
+        "thread",
+        "reply",
+        "nested",
+        "comment",
+        "broken"
+      ],
+      "source_distribution": {
+        "dcard": 1,
+        "reddit_old": 1,
+        "ptt": 1,
+        "mobile01": 1
+      },
+      "language_distribution": {
+        "zh": 2,
+        "en": 2
+      }
+    },
+    {
+      "cluster_id": "dc_login",
+      "post_ids": [
+        "post_009",
+        "post_010",
+        "post_011",
+        "post_012"
+      ],
+      "keyword_summary": [
+        "login",
+        "password",
+        "reset",
+        "timeout",
+        "fail"
+      ],
+      "source_distribution": {
+        "app_store_tw": 2,
+        "google_play_tw": 2
+      },
+      "language_distribution": {
+        "zh": 2,
+        "en": 2
+      }
+    }
+  ],
+  "expected_pain_points": [
+    {
+      "theme": "heavy-handed moderation",
+      "keywords": [
+        "moderation",
+        "deleted",
+        "removed",
+        "rule",
+        "审查"
+      ],
+      "phrases": [
+        "heavy-handed",
+        "removed",
+        "deleted"
+      ]
+    },
+    {
+      "theme": "comment threading broken",
+      "keywords": [
+        "thread",
+        "reply",
+        "nested",
+        "comment"
+      ],
+      "phrases": [
+        "threading",
+        "nested"
+      ]
+    },
+    {
+      "theme": "login failures + password reset",
+      "keywords": [
+        "login",
+        "password",
+        "reset",
+        "timeout"
+      ],
+      "phrases": [
+        "login",
+        "password reset"
+      ]
+    },
+    {
+      "theme": "unclear moderation rules",
+      "keywords": [
+        "rule",
+        "guideline",
+        "unclear",
+        "vague"
+      ],
+      "phrases": [
+        "rules",
+        "guidelines"
+      ]
+    }
+  ],
+  "mock_persona_responses": {
+    "dc_mod": {
+      "name": "Censored Poster",
+      "one_liner": "Dcard user repeatedly hit by aggressive moderation.",
+      "demographics": {
+        "age_range": "25-45",
+        "evidence": [
+          "<post_001>"
+        ]
+      },
+      "goals": [
+        {
+          "claim": "Use the product reliably",
+          "evidence": [
+            "<post_001>"
+          ]
+        }
+      ],
+      "motivations": [
+        {
+          "claim": "Daily utility",
+          "evidence": [
+            "<post_001>"
+          ]
+        }
+      ],
+      "pain_points": [
+        {
+          "claim": "Posts are deleted without warning",
+          "severity": "high",
+          "evidence": [
+            "<post_001>"
+          ]
+        },
+        {
+          "claim": "Moderation rules are unclear",
+          "severity": "high",
+          "evidence": [
+            "<post_002>"
+          ]
+        },
+        {
+          "claim": "Normal sharing gets removed by heavy-handed moderation",
+          "severity": "high",
+          "evidence": [
+            "<post_003>"
+          ]
+        }
+      ],
+      "preferred_channels": [
+        {
+          "claim": "Online forums",
+          "evidence": [
+            "<post_001>"
+          ]
+        }
+      ],
+      "behaviors": [
+        {
+          "claim": "Posts about issues publicly",
+          "evidence": [
+            "<post_001>"
+          ]
+        }
+      ],
+      "representative_quotes": [
+        {
+          "text_original": "Dcard 的審查越來越嚴格",
+          "lang": "zh",
+          "doc_id": "<post_001>"
+        },
+        {
+          "text_original": "Dcard moderation removes normal posts",
+          "lang": "en",
+          "doc_id": "<post_002>"
+        },
+        {
+          "text_original": "Dcard mods are heavy-handed",
+          "lang": "en",
+          "doc_id": "<post_004>"
+        }
+      ]
+    },
+    "dc_thread": {
+      "name": "Lost-in-Threads Reader",
+      "one_liner": "Dcard reader who can't follow conversations.",
+      "demographics": {
+        "age_range": "25-45",
+        "evidence": [
+          "<post_005>"
+        ]
+      },
+      "goals": [
+        {
+          "claim": "Use the product reliably",
+          "evidence": [
+            "<post_005>"
+          ]
+        }
+      ],
+      "motivations": [
+        {
+          "claim": "Daily utility",
+          "evidence": [
+            "<post_005>"
+          ]
+        }
+      ],
+      "pain_points": [
+        {
+          "claim": "Comment threading is broken — replies get lost",
+          "severity": "high",
+          "evidence": [
+            "<post_005>"
+          ]
+        },
+        {
+          "claim": "No nested replies",
+          "severity": "high",
+          "evidence": [
+            "<post_006>"
+          ]
+        }
+      ],
+      "preferred_channels": [
+        {
+          "claim": "Online forums",
+          "evidence": [
+            "<post_005>"
+          ]
+        }
+      ],
+      "behaviors": [
+        {
+          "claim": "Posts about issues publicly",
+          "evidence": [
+            "<post_005>"
+          ]
+        }
+      ],
+      "representative_quotes": [
+        {
+          "text_original": "Dcard 的留言串很難看",
+          "lang": "zh",
+          "doc_id": "<post_005>"
+        },
+        {
+          "text_original": "Dcard comment threading is awful",
+          "lang": "en",
+          "doc_id": "<post_006>"
+        },
+        {
+          "text_original": "Threading on Dcard is broken",
+          "lang": "en",
+          "doc_id": "<post_008>"
+        }
+      ]
+    },
+    "dc_login": {
+      "name": "Locked-Out User",
+      "one_liner": "Dcard user whose login fails repeatedly.",
+      "demographics": {
+        "age_range": "25-45",
+        "evidence": [
+          "<post_009>"
+        ]
+      },
+      "goals": [
+        {
+          "claim": "Use the product reliably",
+          "evidence": [
+            "<post_009>"
+          ]
+        }
+      ],
+      "motivations": [
+        {
+          "claim": "Daily utility",
+          "evidence": [
+            "<post_009>"
+          ]
+        }
+      ],
+      "pain_points": [
+        {
+          "claim": "Login keeps failing",
+          "severity": "high",
+          "evidence": [
+            "<post_009>"
+          ]
+        },
+        {
+          "claim": "Forced to reset password constantly",
+          "severity": "high",
+          "evidence": [
+            "<post_010>"
+          ]
+        },
+        {
+          "claim": "Login times out",
+          "severity": "high",
+          "evidence": [
+            "<post_011>"
+          ]
+        }
+      ],
+      "preferred_channels": [
+        {
+          "claim": "Online forums",
+          "evidence": [
+            "<post_009>"
+          ]
+        }
+      ],
+      "behaviors": [
+        {
+          "claim": "Posts about issues publicly",
+          "evidence": [
+            "<post_009>"
+          ]
+        }
+      ],
+      "representative_quotes": [
+        {
+          "text_original": "Dcard 登入經常失敗",
+          "lang": "zh",
+          "doc_id": "<post_009>"
+        },
+        {
+          "text_original": "Dcard login keeps failing",
+          "lang": "en",
+          "doc_id": "<post_010>"
+        },
+        {
+          "text_original": "Login on Dcard times out",
+          "lang": "en",
+          "doc_id": "<post_012>"
+        }
+      ]
+    }
+  },
+  "mock_journey_responses": {
+    "dc_mod": {
+      "stages": [
+        {
+          "stage": "Awareness",
+          "touchpoints": [
+            {
+              "claim": "Awareness touchpoint",
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Awareness action",
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Awareness friction",
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Awareness opportunity",
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Consideration",
+          "touchpoints": [
+            {
+              "claim": "Consideration touchpoint",
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Consideration action",
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Consideration friction",
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Consideration opportunity",
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Decision",
+          "touchpoints": [
+            {
+              "claim": "Decision touchpoint",
+              "evidence": [
+                "<post_003>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Decision action",
+              "evidence": [
+                "<post_003>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_003>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Decision friction",
+              "evidence": [
+                "<post_003>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Decision opportunity",
+              "evidence": [
+                "<post_003>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Onboarding",
+          "touchpoints": [
+            {
+              "claim": "Onboarding touchpoint",
+              "evidence": [
+                "<post_004>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Onboarding action",
+              "evidence": [
+                "<post_004>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_004>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Onboarding friction",
+              "evidence": [
+                "<post_004>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Onboarding opportunity",
+              "evidence": [
+                "<post_004>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Use",
+          "touchpoints": [
+            {
+              "claim": "Use touchpoint",
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Use action",
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Use friction",
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Use opportunity",
+              "evidence": [
+                "<post_001>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Loyalty/Churn",
+          "touchpoints": [
+            {
+              "claim": "Loyalty/Churn touchpoint",
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Loyalty/Churn action",
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Loyalty/Churn friction",
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Loyalty/Churn opportunity",
+              "evidence": [
+                "<post_002>"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "dc_thread": {
+      "stages": [
+        {
+          "stage": "Awareness",
+          "touchpoints": [
+            {
+              "claim": "Awareness touchpoint",
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Awareness action",
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Awareness friction",
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Awareness opportunity",
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Consideration",
+          "touchpoints": [
+            {
+              "claim": "Consideration touchpoint",
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Consideration action",
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Consideration friction",
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Consideration opportunity",
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Decision",
+          "touchpoints": [
+            {
+              "claim": "Decision touchpoint",
+              "evidence": [
+                "<post_007>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Decision action",
+              "evidence": [
+                "<post_007>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_007>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Decision friction",
+              "evidence": [
+                "<post_007>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Decision opportunity",
+              "evidence": [
+                "<post_007>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Onboarding",
+          "touchpoints": [
+            {
+              "claim": "Onboarding touchpoint",
+              "evidence": [
+                "<post_008>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Onboarding action",
+              "evidence": [
+                "<post_008>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_008>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Onboarding friction",
+              "evidence": [
+                "<post_008>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Onboarding opportunity",
+              "evidence": [
+                "<post_008>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Use",
+          "touchpoints": [
+            {
+              "claim": "Use touchpoint",
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Use action",
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Use friction",
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Use opportunity",
+              "evidence": [
+                "<post_005>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Loyalty/Churn",
+          "touchpoints": [
+            {
+              "claim": "Loyalty/Churn touchpoint",
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Loyalty/Churn action",
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Loyalty/Churn friction",
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Loyalty/Churn opportunity",
+              "evidence": [
+                "<post_006>"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "dc_login": {
+      "stages": [
+        {
+          "stage": "Awareness",
+          "touchpoints": [
+            {
+              "claim": "Awareness touchpoint",
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Awareness action",
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Awareness friction",
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Awareness opportunity",
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Consideration",
+          "touchpoints": [
+            {
+              "claim": "Consideration touchpoint",
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Consideration action",
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Consideration friction",
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Consideration opportunity",
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Decision",
+          "touchpoints": [
+            {
+              "claim": "Decision touchpoint",
+              "evidence": [
+                "<post_011>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Decision action",
+              "evidence": [
+                "<post_011>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_011>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Decision friction",
+              "evidence": [
+                "<post_011>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Decision opportunity",
+              "evidence": [
+                "<post_011>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Onboarding",
+          "touchpoints": [
+            {
+              "claim": "Onboarding touchpoint",
+              "evidence": [
+                "<post_012>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Onboarding action",
+              "evidence": [
+                "<post_012>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_012>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Onboarding friction",
+              "evidence": [
+                "<post_012>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Onboarding opportunity",
+              "evidence": [
+                "<post_012>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Use",
+          "touchpoints": [
+            {
+              "claim": "Use touchpoint",
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Use action",
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Use friction",
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Use opportunity",
+              "evidence": [
+                "<post_009>"
+              ]
+            }
+          ]
+        },
+        {
+          "stage": "Loyalty/Churn",
+          "touchpoints": [
+            {
+              "claim": "Loyalty/Churn touchpoint",
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ],
+          "user_actions": [
+            {
+              "claim": "Loyalty/Churn action",
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ],
+          "emotions": [
+            {
+              "label": "neutral",
+              "intensity": 0.5,
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ],
+          "frictions": [
+            {
+              "claim": "Loyalty/Churn friction",
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ],
+          "opportunities": [
+            {
+              "claim": "Loyalty/Churn opportunity",
+              "evidence": [
+                "<post_010>"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
