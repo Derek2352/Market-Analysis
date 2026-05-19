@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<!--
+  Journey map template — 2400×1400 landscape.
+  Six stage columns × five rows. The Emotions row is an inline SVG
+  with a Catmull-Rom-style smooth Bézier curve through the per-stage
+  intensities; it's the visual centerpiece and gets the most space.
+
+  Open this file directly in a browser to iterate. The Python renderer
+  fills slot tokens before Playwright screenshots it.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Journey Map</title>
+<style>
+  :root {
+    --ink:        #1c2533;
+    --ink-muted:  #5b6473;
+    --ink-faint:  #98a0ac;
+    --bg:         #ffffff;
+    --bg-soft:    #f6f7fa;
+    --bg-softer:  #fafbfd;
+    --rule:       #e6e9ef;
+
+    --accent:     #3b556e;
+    --accent-soft:#dde6ef;
+
+    --emo-low:    #5a8a99;
+    --emo-mid:    #cdb255;
+    --emo-high:   #c2474a;
+  }
+
+  html, body { margin: 0; padding: 0; background: var(--bg); }
+  body {
+    width: 2400px;
+    height: 1400px;
+    color: var(--ink);
+    font-family:
+      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      "Noto Sans CJK TC", "Noto Sans CJK SC", "Noto Sans CJK JP",
+      "Noto Sans CJK KR", "Noto Sans", sans-serif;
+    font-size: 17px;
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
+  }
+
+  /* ── Header strip ──────────────────────────────────────────────── */
+  .header {
+    padding: 28px 56px 22px;
+    border-bottom: 1px solid var(--rule);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 32px;
+    align-items: end;
+  }
+  .h-left .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 12px;
+    color: var(--ink-faint);
+    font-weight: 600;
+  }
+  .h-left h1 {
+    margin: 6px 0 4px;
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .h-left .sub {
+    color: var(--ink-muted);
+    font-size: 15px;
+  }
+  .h-right { text-align: right; }
+  .cov-pill {
+    display: inline-block;
+    padding: 5px 12px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .h-right .ids {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    line-height: 1.55;
+  }
+
+  /* ── Six-column grid ─────────────────────────────────────────── */
+  .grid {
+    --col-count: 6;
+    --row-label-w: 200px;
+    display: grid;
+    grid-template-columns: var(--row-label-w) repeat(var(--col-count), 1fr);
+    border-bottom: 1px solid var(--rule);
+  }
+  .stage-head {
+    padding: 14px 18px;
+    border-right: 1px solid var(--rule);
+    background: var(--bg-soft);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    text-align: center;
+    border-bottom: 1px solid var(--rule);
+  }
+  .stage-head:last-child { border-right: none; }
+  .row-label {
+    padding: 18px 22px;
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    background: var(--bg-softer);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    display: flex;
+    align-items: flex-start;
+  }
+  .corner { background: var(--bg-soft); }
+
+  .cell {
+    padding: 16px 18px;
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    background: var(--bg);
+    vertical-align: top;
+    min-height: 130px;
+    box-sizing: border-box;
+  }
+  .cell:last-child { border-right: none; }
+  .cell ul { list-style: none; margin: 0; padding: 0; }
+  .cell li {
+    padding: 8px 0;
+    border-top: 1px solid var(--rule);
+    font-size: 14px;
+    color: var(--ink);
+    line-height: 1.4;
+  }
+  .cell li:first-child { border-top: none; }
+  .cite {
+    color: var(--ink-faint);
+    font-size: 10px;
+    vertical-align: super;
+    margin-left: 2px;
+    font-weight: 600;
+  }
+  .placeholder {
+    color: var(--ink-faint);
+    font-size: 14px;
+    font-style: italic;
+    text-align: center;
+    padding-top: 30px;
+  }
+  .cell.thin {
+    background: repeating-linear-gradient(
+      45deg,
+      var(--bg) 0 16px,
+      var(--bg-softer) 16px 32px
+    );
+    position: relative;
+  }
+  .thin-tag {
+    position: absolute;
+    top: 6px; right: 8px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #835b00;
+    background: #fff4d9;
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+
+  /* ── Emotion row (the centerpiece) ───────────────────────────── */
+  .emo-row {
+    grid-column: 1 / -1;
+    border-bottom: 1px solid var(--rule);
+    background: linear-gradient(
+      180deg,
+      var(--bg-softer) 0%,
+      var(--bg) 60%
+    );
+    position: relative;
+  }
+  .emo-inner {
+    display: grid;
+    grid-template-columns: var(--row-label-w) 1fr;
+    height: 280px;
+  }
+  .emo-label {
+    padding: 18px 22px;
+    background: var(--bg-softer);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    border-right: 1px solid var(--rule);
+  }
+  .emo-svg-wrap { position: relative; }
+  .emo-svg-wrap svg { display: block; width: 100%; height: 280px; }
+  .emo-axis {
+    position: absolute;
+    left: 8px; top: 8px; bottom: 8px;
+    width: 56px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    pointer-events: none;
+  }
+
+  /* ── Footnote strip ──────────────────────────────────────────── */
+  .footnotes {
+    padding: 18px 56px 24px;
+    column-count: 3;
+    column-gap: 40px;
+    font-size: 12px;
+    color: var(--ink-muted);
+    line-height: 1.55;
+  }
+  .footnotes .fn {
+    break-inside: avoid;
+    margin: 0 0 4px;
+  }
+  .footnotes .fn .num {
+    color: var(--accent);
+    font-weight: 700;
+    margin-right: 4px;
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="h-left">
+    <div class="eyebrow">Journey map · HK · Daily commute</div>
+    <h1>阿明 — Frustrated Daily Commuter · MTR Mobile</h1>
+    <div class="sub">12 representative posts · 27-post cluster · clusters span forums + app reviews</div>
+  </div>
+  <div class="h-right">
+    <span class="cov-pill">Coverage: limited</span>
+    <div class="ids">
+      run_20260519T080000Z<br>
+      persona_a4f9c7e2 · journey_b7e2da40
+    </div>
+  </div>
+</header>
+
+<div class="grid">
+  <!-- Stage headers -->
+  <div class="corner stage-head">&nbsp;</div>
+  <div class="stage-head">Awareness</div>
+  <div class="stage-head">Consideration</div>
+  <div class="stage-head">Decision</div>
+  <div class="stage-head">Onboarding</div>
+  <div class="stage-head">Use</div>
+  <div class="stage-head">Loyalty / Churn</div>
+
+  <!-- Row 1: Touchpoints -->
+  <div class="row-label">Touchpoints</div>
+  <div class="cell"><ul>
+    <li>Word of mouth from colleagues<span class="cite">[1]</span></li>
+    <li>Forum threads about delays<span class="cite">[2]</span></li>
+  </ul></div>
+  <div class="cell"><ul>
+    <li>App-store reviews flagging slowness<span class="cite">[3]</span></li>
+    <li>Reddit r/HongKong discussions<span class="cite">[4]</span></li>
+  </ul></div>
+  <div class="cell"><ul>
+    <li>Direct install from App Store<span class="cite">[5]</span></li>
+  </ul></div>
+  <div class="cell"><ul>
+    <li>First fare lookup<span class="cite">[6]</span></li>
+    <li>First Octopus link attempt<span class="cite">[7]</span></li>
+  </ul></div>
+  <div class="cell"><ul>
+    <li>Daily peak-hour fare checks<span class="cite">[8]</span></li>
+    <li>Octopus reloads<span class="cite">[9]</span></li>
+  </ul></div>
+  <div class="cell thin">
+    <span class="thin-tag">limited data</span>
+    <ul><li>Forum venting after failed reloads<span class="cite">[10]</span></li></ul>
+  </div>
+
+  <!-- Row 2: User actions -->
+  <div class="row-label">User Actions</div>
+  <div class="cell"><ul>
+    <li>Searches "MTR app" in App Store<span class="cite">[1]</span></li>
+  </ul></div>
+  <div class="cell"><ul>
+    <li>Reads forum recommendations vs. third-party apps<span class="cite">[2]</span></li>
+    <li>Skims App Store ratings<span class="cite">[3]</span></li>
+  </ul></div>
+  <div class="cell"><ul>
+    <li>Downloads the official app rather than third-party alternative<span class="cite">[5]</span></li>
+  </ul></div>
+  <div class="cell"><ul>
+    <li>Grants location permission<span class="cite">[6]</span></li>
+    <li>Links Octopus card via NFC<span class="cite">[7]</span></li>
+  </ul></div>
+  <div class="cell"><ul>
+    <li>Looks up fare before commute<span class="cite">[8]</span></li>
+    <li>Reloads Octopus when balance is low<span class="cite">[9]</span></li>
+    <li>Force-closes app when it lags<span class="cite">[11]</span></li>
+  </ul></div>
+  <div class="cell"><ul>
+    <li>Vents on LIHKG / Reddit<span class="cite">[10]</span></li>
+    <li>Continues using because there's no real alternative<span class="cite">[12]</span></li>
+  </ul></div>
+
+  <!-- Emotion row spans all columns -->
+  <div class="emo-row">
+    <div class="emo-inner">
+      <div class="emo-label">Emotions</div>
+      <div class="emo-svg-wrap">
+        <div class="emo-axis">
+          <span>High</span><span>Mid</span><span>Low</span>
+        </div>
+        <!--
+          Stage intensity values for the mock data:
+            Awareness     0.55  curious
+            Consideration 0.40  skeptical
+            Decision      0.60  hopeful
+            Onboarding    0.45  uncertain
+            Use           0.20  frustrated  (low number = negative)
+            Loyalty/Churn 0.30  resigned
+          The y axis is "positivity" 0..1 → 1 = top.
+          Each stage column centre is at x = label_w + (i + 0.5) * col_w
+          Viewport: viewBox 0 0 2200 280 (width = 2400 - 200 row label).
+          col_w = 2200 / 6 ≈ 366.67.  centres = 183, 550, 916, 1283, 1650, 2016.
+        -->
+        <svg viewBox="0 0 2200 280" preserveAspectRatio="none"
+             xmlns="http://www.w3.org/2000/svg">
+          <!-- Background gridlines -->
+          <line x1="0" y1="40"  x2="2200" y2="40"  stroke="#e6e9ef" stroke-dasharray="4 6"/>
+          <line x1="0" y1="140" x2="2200" y2="140" stroke="#e6e9ef" stroke-dasharray="4 6"/>
+          <line x1="0" y1="240" x2="2200" y2="240" stroke="#e6e9ef" stroke-dasharray="4 6"/>
+
+          <!-- Stage column separators (subtle) -->
+          <line x1="366.67" y1="0" x2="366.67" y2="280" stroke="#eef0f4"/>
+          <line x1="733.33" y1="0" x2="733.33" y2="280" stroke="#eef0f4"/>
+          <line x1="1100"   y1="0" x2="1100"   y2="280" stroke="#eef0f4"/>
+          <line x1="1466.67" y1="0" x2="1466.67" y2="280" stroke="#eef0f4"/>
+          <line x1="1833.33" y1="0" x2="1833.33" y2="280" stroke="#eef0f4"/>
+
+          <!-- Filled area under the curve -->
+          <!-- Curve points (y inverted: y_px = 40 + (1 - intensity) * 200): -->
+          <!--   0.55 → 130  · 0.40 → 160 · 0.60 → 120 · 0.45 → 150 · 0.20 → 200 · 0.30 → 180 -->
+          <path d="
+              M 183 130
+              C 275 130, 458 160, 550 160
+              S 824 120, 916 120
+              S 1191 150, 1283 150
+              S 1558 200, 1650 200
+              S 1924 180, 2016 180
+              L 2016 280 L 183 280 Z"
+            fill="#3b556e" fill-opacity="0.06"/>
+
+          <!-- Curve line -->
+          <path d="
+              M 183 130
+              C 275 130, 458 160, 550 160
+              S 824 120, 916 120
+              S 1191 150, 1283 150
+              S 1558 200, 1650 200
+              S 1924 180, 2016 180"
+            fill="none" stroke="#3b556e" stroke-width="3" stroke-linecap="round"/>
+
+          <!-- Stage markers + intensity values + labels -->
+          <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+             font-size="14" fill="#1c2533" text-anchor="middle">
+            <!-- Awareness -->
+            <circle cx="183"  cy="130" r="9" fill="#5a8a99" stroke="#fff" stroke-width="3"/>
+            <text x="183" y="100" font-weight="600">😯 curious</text>
+            <text x="183" y="262" fill="#98a0ac" font-size="11">0.55</text>
+            <!-- Consideration -->
+            <circle cx="550"  cy="160" r="9" fill="#5a8a99" stroke="#fff" stroke-width="3"/>
+            <text x="550" y="130" font-weight="600">🤨 skeptical</text>
+            <text x="550" y="262" fill="#98a0ac" font-size="11">0.40</text>
+            <!-- Decision -->
+            <circle cx="916"  cy="120" r="9" fill="#cdb255" stroke="#fff" stroke-width="3"/>
+            <text x="916" y="90"  font-weight="600">🙂 hopeful</text>
+            <text x="916" y="262" fill="#98a0ac" font-size="11">0.60</text>
+            <!-- Onboarding -->
+            <circle cx="1283" cy="150" r="9" fill="#5a8a99" stroke="#fff" stroke-width="3"/>
+            <text x="1283" y="120" font-weight="600">😐 uncertain</text>
+            <text x="1283" y="262" fill="#98a0ac" font-size="11">0.45</text>
+            <!-- Use -->
+            <circle cx="1650" cy="200" r="9" fill="#c2474a" stroke="#fff" stroke-width="3"/>
+            <text x="1650" y="232" font-weight="600">😤 frustrated</text>
+            <text x="1650" y="262" fill="#98a0ac" font-size="11">0.20</text>
+            <!-- Loyalty / Churn -->
+            <circle cx="2016" cy="180" r="9" fill="#c2474a" stroke="#fff" stroke-width="3"/>
+            <text x="2016" y="212" font-weight="600">😞 resigned</text>
+            <text x="2016" y="262" fill="#98a0ac" font-size="11">0.30</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 4: Frictions -->
+  <div class="row-label">Frictions</div>
+  <div class="cell"><ul>
+    <li>Hard to find official app among knock-offs<span class="cite">[1]</span></li>
+  </ul></div>
+  <div class="cell"><ul>
+    <li>Mixed reviews — hard to read past complaints<span class="cite">[3]</span></li>
+  </ul></div>
+  <div class="cell"><ul>
+    <li>Multi-step Octopus linking flow<span class="cite">[7]</span></li>
+  </ul></div>
+  <div class="cell"><ul>
+    <li>NFC linking fails on older devices<span class="cite">[7]</span></li>
+    <li>Permission requests are unclear<span class="cite">[6]</span></li>
+  </ul></div>
+  <div class="cell"><ul>
+    <li>Reload silently fails, balance not updated<span class="cite">[11]</span></li>
+    <li>3–6 second fare-lookup lag<span class="cite">[12]</span></li>
+    <li>Real-time arrivals drift in peak hours<span class="cite">[8]</span></li>
+  </ul></div>
+  <div class="cell"><ul>
+    <li>No real competitor app to switch to<span class="cite">[12]</span></li>
+  </ul></div>
+
+  <!-- Row 5: Opportunities -->
+  <div class="row-label">Opportunities</div>
+  <div class="cell"><ul>
+    <li>Surface official app prominently in HK search results<span class="cite">[1]</span></li>
+  </ul></div>
+  <div class="cell"><ul>
+    <li>Publish reliability metrics to reset reviewer narrative<span class="cite">[2]</span></li>
+  </ul></div>
+  <div class="cell"><ul>
+    <li>One-tap Octopus linking with clearer status<span class="cite">[7]</span></li>
+  </ul></div>
+  <div class="cell"><ul>
+    <li>Onboarding tutorial that previews reload + lookup<span class="cite">[7]</span></li>
+  </ul></div>
+  <div class="cell"><ul>
+    <li>Reload retry queue with explicit "stuck" state<span class="cite">[11]</span></li>
+    <li>Adaptive arrival-time accuracy banner during peak<span class="cite">[8]</span></li>
+  </ul></div>
+  <div class="cell thin">
+    <span class="thin-tag">limited data</span>
+    <ul><li>Win-back outreach for users who churn to no alternative<span class="cite">[12]</span></li></ul>
+  </div>
+</div>
+
+<aside class="footnotes">
+  <p class="fn"><span class="num">[1]</span> lihkg.com/thread/mtr/intro · word-of-mouth recommendations</p>
+  <p class="fn"><span class="num">[2]</span> discuss.com.hk/viewthread.php?tid=mtr-delays-2026</p>
+  <p class="fn"><span class="num">[3]</span> apps.apple.com/hk/app/mtr-mobile/id… · review-2026-05</p>
+  <p class="fn"><span class="num">[4]</span> old.reddit.com/r/HongKong/comments/mtr-app-thread</p>
+  <p class="fn"><span class="num">[5]</span> apps.apple.com/hk/app/mtr-mobile · install referrer</p>
+  <p class="fn"><span class="num">[6]</span> lihkg.com/thread/mtr/permissions</p>
+  <p class="fn"><span class="num">[7]</span> apps.apple.com/hk/app/mtr-mobile · review-octopus-link-failure</p>
+  <p class="fn"><span class="num">[8]</span> old.reddit.com/r/HongKong/comments/mtr-realtime-wrong</p>
+  <p class="fn"><span class="num">[9]</span> apps.apple.com/hk/app/mtr-mobile · review-reload</p>
+  <p class="fn"><span class="num">[10]</span> lihkg.com/thread/mtr/reload-fail · forum venting</p>
+  <p class="fn"><span class="num">[11]</span> apps.apple.com/hk/app/mtr-mobile · review-stuck-balance</p>
+  <p class="fn"><span class="num">[12]</span> old.reddit.com/r/HongKong/comments/no-mtr-alternative</p>
+</aside>
+
+</body>
+</html>
