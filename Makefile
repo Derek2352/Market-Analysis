@@ -1,4 +1,4 @@
-.PHONY: install scrape test test-live lint fmt clean dev-api dev-ui eval eval-mock
+.PHONY: install scrape test test-live test-render lint fmt clean dev-api dev-ui eval eval-mock render render-zip
 
 PY ?= python
 VENV ?= .venv
@@ -54,3 +54,19 @@ eval-mock:
 
 eval:
 	$(BIN)/mkt eval --provider anthropic --min-recovery 0.5
+
+# Phase 8 — render personas + journeys to shareable PNGs.
+#
+#   make render RUN_ID=20260519T... — render bundle for one run
+#   make render-zip RUN_ID=...      — same, plus a {run_id}.zip
+#   make test-render                — Playwright-driven render tests
+RUN_ID ?= $(error set RUN_ID=YYYYMMDDTHHMMSSZ)
+
+render:
+	$(BIN)/mkt render run $(RUN_ID)
+
+render-zip:
+	$(BIN)/mkt render run $(RUN_ID) --zip
+
+test-render:
+	$(BIN)/pytest -q tests/render/
