@@ -23,6 +23,7 @@ from src.scrape.doctor import app as doctor_app
 from src.cli_export import _export_app
 from src.cli_doctor import doctor as _doctor_cmd
 from src.cli_eval import eval_cmd as _eval_cmd
+from src.cli_render import render_app as _render_app
 
 # Pipeline typeshed
 _PIPELINE_AVAILABLE = True
@@ -46,6 +47,7 @@ app.add_typer(doctor_app, name="scrape-doctor")
 app.add_typer(_export_app, name="export")
 app.command(name="doctor")(_doctor_cmd)
 app.command(name="eval")(_eval_cmd)
+app.add_typer(_render_app, name="render")
 
 
 @app.callback()

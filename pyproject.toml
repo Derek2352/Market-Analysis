@@ -44,3 +44,6 @@ packages = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 filterwarnings = ["ignore::DeprecationWarning"]
+markers = [
+    "slow: end-to-end render tests that drive Playwright (~30s)",
+]
