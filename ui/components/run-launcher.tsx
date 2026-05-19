@@ -1,50 +1,79 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { createRun } from "@/lib/api";
-import type { Provider, Region } from "@/lib/types";
-
-const REGIONS: { value: Region; label: string; sources: string[] }[] = [
-  { value: "HK", label: "Hong Kong", sources: ["lihkg", "openrice", "app_store_hk", "google_play_hk", "reddit_old"] },
-  { value: "US", label: "United States", sources: ["reddit_old", "app_store_hk"] },
-  { value: "TW", label: "Taiwan", sources: ["reddit_old"] },
-  { value: "JP", label: "Japan", sources: ["reddit_old"] },
-];
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { createRun, listRegions } from "@/lib/api";
+import type { Provider, RegionInfo, SourceInfo } from "@/lib/types";
 
 const SINCE_PRESETS = [30, 90, 180, 365];
 
 export function RunLauncher() {
   const router = useRouter();
+  const [regions, setRegions] = useState<RegionInfo[] | null>(null);
+  const [regionsError, setRegionsError] = useState<string | null>(null);
   const [topic, setTopic] = useState("");
-  const [region, setRegion] = useState<Region>("HK");
-  const [selectedSources, setSelectedSources] = useState<string[]>([
-    "lihkg",
-    "app_store_hk",
-    "google_play_hk",
-  ]);
+  const [regionId, setRegionId] = useState<string>("HK");
+  const [selectedSources, setSelectedSources] = useState<Set<string>>(new Set());
   const [sinceDays, setSinceDays] = useState<number>(90);
   const [provider, setProvider] = useState<Provider>("deepseek");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [acceptTosRisk, setAcceptTosRisk] = useState(false);
 
-  const region_cfg = REGIONS.find((r) => r.value === region)!;
+  // Fetch regions on mount; default to HK if present, else first available.
+  useEffect(() => {
+    listRegions()
+      .then((rs) => {
+        setRegions(rs);
+        const hk = rs.find((r) => r.region_id === "HK") ?? rs[0];
+        if (hk) {
+          setRegionId(hk.region_id);
+          setSelectedSources(
+            new Set(hk.default_sources.slice(0, 5).map((s) => s.source_id)),
+          );
+        }
+      })
+      .catch((e: Error) => setRegionsError(e.message));
+  }, []);
 
-  const toggleSource = (s: string) => {
-    setSelectedSources((arr) =>
-      arr.includes(s) ? arr.filter((x) => x !== s) : [...arr, s],
-    );
+  const currentRegion = regions?.find((r) => r.region_id === regionId);
+  const allSources: SourceInfo[] = currentRegion
+    ? [...currentRegion.default_sources, ...currentRegion.opt_in_sources]
+    : [];
+
+  // Track whether the user has any opt-in sources active.
+  const optInActive = allSources.some(
+    (s) => selectedSources.has(s.source_id) && !s.default_enabled,
+  );
+
+  const onRegionChange = (next: string) => {
+    setRegionId(next);
+    const r = regions?.find((x) => x.region_id === next);
+    if (r) {
+      setSelectedSources(
+        new Set(r.default_sources.slice(0, 5).map((s) => s.source_id)),
+      );
+    }
   };
 
-  const onRegionChange = (next: Region) => {
-    setRegion(next);
-    const next_cfg = REGIONS.find((r) => r.value === next)!;
-    setSelectedSources(next_cfg.sources.slice(0, 3));
+  const toggleSource = (sourceId: string) => {
+    setSelectedSources((prev) => {
+      const next = new Set(prev);
+      if (next.has(sourceId)) next.delete(sourceId);
+      else next.add(sourceId);
+      return next;
+    });
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -55,10 +84,12 @@ export function RunLauncher() {
     try {
       const r = await createRun({
         topic: topic.trim(),
-        region,
-        sources: selectedSources,
+        region: regionId,
+        sources: Array.from(selectedSources),
         since_days: sinceDays,
         provider,
+        // No --accept-tos-risk in the API payload yet; the CLI emits a
+        // warning that's purely informational. UI surfaces it pre-submit.
       });
       router.push(`/runs/${r.run_id}`);
     } catch (err) {
@@ -92,46 +123,128 @@ export function RunLauncher() {
 
           <div className="space-y-2">
             <Label>Region</Label>
-            <div className="flex flex-wrap gap-2">
-              {REGIONS.map((r) => (
-                <button
-                  key={r.value}
-                  type="button"
-                  onClick={() => onRegionChange(r.value)}
-                  className={`px-3 py-1.5 rounded-md text-sm border transition-colors ${
-                    region === r.value
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background hover:bg-accent"
-                  }`}
-                >
-                  {r.label}
-                </button>
-              ))}
-            </div>
+            {regionsError && (
+              <div className="text-xs text-destructive">
+                Couldn't load regions: {regionsError}. Start the backend with{" "}
+                <code>make dev-api</code>.
+              </div>
+            )}
+            {!regions && !regionsError && (
+              <div className="flex gap-2">
+                <Skeleton className="h-9 w-28" />
+                <Skeleton className="h-9 w-32" />
+                <Skeleton className="h-9 w-20" />
+                <Skeleton className="h-9 w-20" />
+              </div>
+            )}
+            {regions && (
+              <div className="flex flex-wrap gap-2">
+                {regions.map((r) => {
+                  const total = r.default_sources.length + r.opt_in_sources.length;
+                  return (
+                    <button
+                      key={r.region_id}
+                      type="button"
+                      onClick={() => onRegionChange(r.region_id)}
+                      className={`px-3 py-1.5 rounded-md text-sm border transition-colors ${
+                        regionId === r.region_id
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background hover:bg-accent"
+                      }`}
+                    >
+                      {r.display_name}{" "}
+                      <span className="opacity-60 text-xs">({total})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
             <Label>Sources</Label>
-            <div className="flex flex-wrap gap-2">
-              {region_cfg.sources.map((s) => {
-                const on = selectedSources.includes(s);
-                return (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => toggleSource(s)}
-                    className={`px-3 py-1.5 rounded-md text-xs font-mono border transition-colors ${
-                      on
-                        ? "bg-secondary text-secondary-foreground border-border"
-                        : "bg-background text-muted-foreground hover:bg-accent"
-                    }`}
-                  >
-                    {on ? "✓" : "○"} {s}
-                  </button>
-                );
-              })}
-            </div>
+            {currentRegion && (
+              <p className="text-xs text-muted-foreground">
+                {currentRegion.default_sources.length} default-on,{" "}
+                {currentRegion.opt_in_sources.length} opt-in (ToS-prohibited).
+                Languages: {currentRegion.primary_languages.join(", ")}.
+              </p>
+            )}
+            <TooltipProvider>
+              <div className="flex flex-wrap gap-2">
+                {allSources.map((s) => {
+                  const on = selectedSources.has(s.source_id);
+                  const prohibited =
+                    s.tos_scraping_stance === "prohibited";
+                  return (
+                    <Tooltip key={s.source_id}>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={() => toggleSource(s.source_id)}
+                          className={`px-3 py-1.5 rounded-md text-xs font-mono border transition-colors ${
+                            on
+                              ? prohibited
+                                ? "bg-warning/15 text-warning-foreground border-warning/40"
+                                : "bg-secondary text-secondary-foreground border-border"
+                              : "bg-background text-muted-foreground hover:bg-accent"
+                          }`}
+                        >
+                          {on ? "✓" : "○"} {s.source_id}
+                          {prohibited && (
+                            <span className="ml-1 text-[10px] opacity-80">
+                              ⚠
+                            </span>
+                          )}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <div className="text-xs">
+                          <div className="font-medium">{s.category}</div>
+                          {prohibited && (
+                            <div className="text-warning-foreground">
+                              ToS prohibits scraping — opt-in only
+                            </div>
+                          )}
+                          {!prohibited && s.tos_scraping_stance && (
+                            <div className="text-muted-foreground">
+                              ToS: {s.tos_scraping_stance}
+                            </div>
+                          )}
+                          {s.notes && (
+                            <div className="text-muted-foreground mt-1 max-w-xs whitespace-normal">
+                              {s.notes}
+                            </div>
+                          )}
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </div>
+            </TooltipProvider>
           </div>
+
+          {optInActive && (
+            <div className="border border-warning/40 bg-warning/10 rounded p-2 text-xs">
+              <div className="font-medium">⚠ Opt-in sources active</div>
+              <div className="mt-1 text-muted-foreground">
+                You've enabled one or more sources whose Terms of Service
+                prohibit automated access. Use of this tool for commercial
+                purposes against those sources may violate their terms — you
+                accept that responsibility.
+              </div>
+              <label className="mt-2 flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={acceptTosRisk}
+                  onChange={(e) => setAcceptTosRisk(e.target.checked)}
+                  className="accent-warning"
+                />
+                I understand and accept the risk.
+              </label>
+            </div>
+          )}
 
           <div className="space-y-2">
             <div className="flex justify-between">
@@ -181,7 +294,7 @@ export function RunLauncher() {
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              DeepSeek is ~10x cheaper. Both honor the $4 per-run cost cap.
+              DeepSeek is ~10x cheaper.
             </p>
           </div>
 
@@ -191,7 +304,16 @@ export function RunLauncher() {
             </div>
           )}
 
-          <Button type="submit" disabled={submitting || !topic.trim()} className="w-full">
+          <Button
+            type="submit"
+            disabled={
+              submitting ||
+              !topic.trim() ||
+              selectedSources.size === 0 ||
+              (optInActive && !acceptTosRisk)
+            }
+            className="w-full"
+          >
             {submitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -201,9 +323,9 @@ export function RunLauncher() {
               <>Start run →</>
             )}
           </Button>
-          {selectedSources.length === 0 && (
+          {selectedSources.size === 0 && (
             <p className="text-xs text-muted-foreground text-center">
-              No sources selected — the run will use the region default list.
+              Pick at least one source to start.
             </p>
           )}
         </form>

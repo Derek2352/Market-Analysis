@@ -91,3 +91,34 @@ class DocResponse(BaseModel):
 class OkResponse(BaseModel):
     ok: bool = True
     message: str = ""
+
+
+class SourceInfo(BaseModel):
+    """One source description in a RegionResponse."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source_id: str
+    category: str
+    priority: int
+    default_enabled: bool
+    tos_scraping_stance: str         # silent | allowed_with_conditions | prohibited | unknown
+    last_verified_working: str | None = None
+    notes: str = ""
+
+
+class RegionResponse(BaseModel):
+    """One region in GET /regions.
+
+    Surfaces what the UI needs to render the launcher: the region's
+    canonical id + display name, primary languages, and the list of
+    sources implemented for it (split into default-enabled vs opt-in).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    region_id: str
+    display_name: str
+    primary_languages: list[str] = Field(default_factory=list)
+    default_sources: list[SourceInfo] = Field(default_factory=list)
+    opt_in_sources: list[SourceInfo] = Field(default_factory=list)
