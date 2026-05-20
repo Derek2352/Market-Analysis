@@ -149,6 +149,7 @@ def _scrape_step(state: RunState, data_dir: Path) -> int:
     run_id = state.summary.run_id
     since_dt = datetime.now(timezone.utc) - timedelta(days=since_days)
     total = 0
+    failed: list[dict[str, str]] = []  # [{source, error}] — per-source failures
     with DedupIndex(data_dir / "dedup.sqlite") as index:
         for s_idx, source_id in enumerate(sources):
             state.set_progress(
@@ -164,7 +165,24 @@ def _scrape_step(state: RunState, data_dir: Path) -> int:
                 data_dir=data_dir, topic_slug=topic_slug,
                 region=region, source=source_id, run_id=run_id,
             )
-            scraper = get_scraper(source_id)
+            try:
+                scraper = get_scraper(source_id)
+            except Exception as exc:  # noqa: BLE001
+                # Couldn't even construct the scraper — log and skip.
+                _log.warning(
+                    "scrape.source.error", source=source_id,
+                    error=str(exc), emitted=0,
+                )
+                events.emit("scrape.source.error", {
+                    "stage": "scrape",
+                    "source": source_id,
+                    "error": str(exc),
+                    "emitted": 0,
+                    "message": f"⚠ {source_id}: {exc}",
+                })
+                failed.append({"source": source_id, "error": str(exc)})
+                writer.finalize()
+                continue
             emitted = 0
             try:
                 for post in scraper.search(topic, since=since_dt, limit=limit):
@@ -181,6 +199,19 @@ def _scrape_step(state: RunState, data_dir: Path) -> int:
                                 "pct": (s_idx + emitted / max(limit, 1)) / len(sources),
                                 "message": f"Scraping {source_id}: {emitted} new posts",
                             })
+            except Exception as exc:  # noqa: BLE001 — mirror CLI: one source dying must not kill the run
+                _log.warning(
+                    "scrape.source.error", source=source_id,
+                    error=str(exc), emitted=emitted,
+                )
+                events.emit("scrape.source.error", {
+                    "stage": "scrape",
+                    "source": source_id,
+                    "error": str(exc),
+                    "emitted": emitted,
+                    "message": f"⚠ {source_id}: {exc}",
+                })
+                failed.append({"source": source_id, "error": str(exc)})
             finally:
                 close = getattr(scraper, "close", None)
                 if callable(close):
@@ -193,10 +224,19 @@ def _scrape_step(state: RunState, data_dir: Path) -> int:
                 "message": f"{source_id}: {emitted} new posts",
             })
 
-    events.emit("stage_done", {
-        "stage": "scrape",
-        "message": f"Scraped {total} new posts across {len(sources)} source(s)",
-    })
+    msg = f"Scraped {total} new posts across {len(sources)} source(s)"
+    if failed:
+        ok = len(sources) - len(failed)
+        msg += f" — {len(failed)} source(s) failed, {ok} ok"
+    events.emit("stage_done", {"stage": "scrape", "message": msg, "failed_sources": failed})
+
+    # Only hard-fail if *every* source failed AND none produced posts.
+    # Otherwise the run continues with whatever did succeed.
+    if total == 0 and failed and len(failed) == len(sources):
+        raise RuntimeError(
+            f"All {len(sources)} source(s) failed: "
+            + "; ".join(f"{f['source']}: {f['error']}" for f in failed)
+        )
     return total
 
 

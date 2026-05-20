@@ -8,6 +8,9 @@ from typing import Annotated, Any
 import typer
 from dotenv import load_dotenv
 
+from src.util_stdio import force_utf8_stdio
+
+force_utf8_stdio()  # Windows: → ⚠ ✓ … in echo lines won't crash on cp1252.
 load_dotenv()
 
 from src.config import get_default_region as _get_default_region

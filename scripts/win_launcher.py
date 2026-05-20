@@ -158,6 +158,12 @@ def start_fastapi(group: ProcessGroup, port: int) -> subprocess.Popen[bytes]:
     if env.get("PYTHONPATH"):
         pythonpath = pythonpath + os.pathsep + env["PYTHONPATH"]
     env["PYTHONPATH"] = pythonpath
+    # Force UTF-8 stdio in the spawned uvicorn worker — the API emits
+    # → ⚠ ✓ in progress messages, and Windows' cp1252 default crashes
+    # the first time one shows up. force_utf8_stdio() inside app.py
+    # handles already-running Python; this covers the bootstrap window.
+    env.setdefault("PYTHONIOENCODING", "utf-8")
+    env.setdefault("PYTHONUTF8", "1")
     cmd = [
         sys.executable, "-m", "uvicorn",
         "src.api.app:app",

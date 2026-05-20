@@ -305,6 +305,7 @@ Go to **<http://localhost:3000/>** in your browser. You should see the landing p
 | `Cannot run scripts on this system` (Activate.ps1) | PowerShell execution policy. | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once. |
 | `Address already in use` on :8000 or :3000 | Another process is using the port. | Kill it, or run uvicorn with `--port 8001` / Next.js with `npm run dev -- -p 3001`. |
 | `Executable doesn't exist` from Playwright | Chromium not installed. | `playwright install chromium`, or set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. |
+| `'charmap' codec can't encode character '→'` (or similar) on Windows | PowerShell's default codec is cp1252; the API and CLI print Unicode arrows. | Already fixed in the app — but if you still see it, set `$env:PYTHONIOENCODING="utf-8"` before launching, or run `chcp 65001` once in the same PowerShell window. |
 | `ModuleNotFoundError: No module named 'src'` | Ran `uvicorn` from outside the repo root or without activating `.venv`. | `cd` into the repo root and activate the venv first. |
 | Backend starts but UI can't reach it | UI is hard-wired to `http://127.0.0.1:8000`. | Make sure the backend is on `:8000` and `.env` has `AUTHOR_HASH_SALT` (uvicorn refuses to scrape without it). |
 
