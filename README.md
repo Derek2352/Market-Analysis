@@ -166,23 +166,149 @@ On Windows, if you'd rather not juggle terminals at all, build the `.exe` launch
 
 ## Setup
 
-```
-make install
-cp .env.example .env
-# edit .env: AUTHOR_HASH_SALT=<long random string>
-# for synthesis:    ANTHROPIC_API_KEY=sk-ant-...
-# for DeepSeek:     DEEPSEEK_API_KEY=sk-...
-cd ui && npm ci       # install UI dependencies (one-off)
+> **TL;DR (macOS / Linux):** `make install && cp .env.example .env && (cd ui && npm ci)`. Edit `.env` to set `AUTHOR_HASH_SALT` and at least one of `DEEPSEEK_API_KEY` / `ANTHROPIC_API_KEY`. Then start two terminals: `make dev-api` in one, `make dev-ui` in the other. Open `http://localhost:3000/`.
+
+### Step-by-step (beginner-friendly, works on Windows, macOS, Linux)
+
+If you already have Python 3.11+ and Node 18+ on your `PATH`, skip to step 3.
+
+#### 1. Install Python 3.11 or newer
+
+- **Windows:** Download the installer from [python.org/downloads](https://www.python.org/downloads/). **Important:** tick *"Add Python to PATH"* on the first install screen.
+- **macOS:** `brew install python@3.11` (install Homebrew first from [brew.sh](https://brew.sh) if you don't have it).
+- **Linux (Debian/Ubuntu):** `sudo apt install python3.11 python3.11-venv`
+
+Verify: open a new terminal and run `python --version` (Windows) or `python3 --version` (macOS/Linux). It should print `Python 3.11.x` or higher.
+
+#### 2. Install Node.js 18+ (20 LTS recommended)
+
+- **Windows / macOS:** Download the **LTS** installer from [nodejs.org](https://nodejs.org/).
+- **Linux:** `curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt install -y nodejs`
+
+Verify: `node --version` should print `v18.x` or higher.
+
+#### 3. Clone the repo
+
+```bash
+git clone https://github.com/Derek2352/Market-Analysis.git
+cd Market-Analysis
 ```
 
-The `AUTHOR_HASH_SALT` is the only required env var for scraping; `ANTHROPIC_API_KEY` is only needed for `mkt synthesize`. For the PNG render layer:
+#### 4. Set up the Python backend
+
+**Windows (PowerShell):**
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
+```
+
+If PowerShell rejects `Activate.ps1` with an *"execution of scripts is disabled"* error, run this **once** (as your normal user, not Administrator) and try again:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+**macOS / Linux:**
+
+```bash
+make install        # creates .venv and installs all Python deps
+```
+
+#### 5. Install the UI dependencies
+
+```bash
+cd ui
+npm ci              # ~1–2 min the first time; downloads node_modules
+cd ..
+```
+
+> Skipping this is the #1 cause of `'next' is not recognized` later on.
+
+#### 6. Create and fill in your `.env` file
+
+```bash
+cp .env.example .env        # macOS / Linux
+copy .env.example .env      # Windows PowerShell / CMD
+```
+
+Open `.env` in any text editor and set **at minimum**:
 
 ```
-playwright install chromium    # ~150 MB download; one-off, fully offline thereafter
-apt install fonts-noto-cjk     # CJK fallback fonts (Cantonese-colloquial, JP, KR)
+AUTHOR_HASH_SALT=<paste a long random string here>
+# Pick at least one — DeepSeek is the default and ~10x cheaper.
+DEEPSEEK_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-If `cdn.playwright.dev` is blocked by your network, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/path/to/chrome` to point at a system binary instead.
+How to generate a salt:
+
+- **Windows PowerShell:** `[guid]::NewGuid().ToString() + [guid]::NewGuid().ToString()`
+- **macOS / Linux:** `openssl rand -hex 32`
+
+Where to get API keys (free tiers exist on both):
+
+- **DeepSeek** → [platform.deepseek.com](https://platform.deepseek.com)
+- **Anthropic / Claude** → [console.anthropic.com](https://console.anthropic.com)
+
+#### 7. (Optional) Install Chromium for PNG renders
+
+Only needed if you'll run `mkt render` or `make test-render`. **Skip this if you only want the web UI.**
+
+```bash
+playwright install chromium      # ~150 MB, fully offline thereafter
+# Linux only — CJK glyph fallback for the render layer:
+sudo apt install fonts-noto-cjk
+```
+
+If your network blocks `cdn.playwright.dev`, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/path/to/chrome` to a system Chrome/Chromium instead.
+
+#### 8. Start the two dev servers
+
+You need **two terminals** both pointed at the `Market-Analysis` directory.
+
+**Terminal 1 — backend (FastAPI on :8000):**
+
+```powershell
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
+uvicorn src.api.app:app --reload --host 127.0.0.1 --port 8000
+```
+
+```bash
+# macOS / Linux
+make dev-api
+```
+
+**Terminal 2 — frontend (Next.js on :3000):**
+
+```bash
+cd ui
+npm run dev
+```
+
+Wait until both servers say they're ready — uvicorn prints `Application startup complete`; Next.js prints `Ready in Xs`.
+
+#### 9. Open the app
+
+Go to **<http://localhost:3000/>** in your browser. You should see the landing page. Click **Start run →** to launch your first run.
+
+### Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `'make' is not recognized` | Windows doesn't ship Make. | Use the raw PowerShell commands shown under each step. |
+| `'next' is not recognized` | UI deps not installed. | `cd ui && npm ci`, then retry `npm run dev`. |
+| `AUTHOR_HASH_SALT is required` | `.env` missing or empty. | Step 6 — create `.env` and set the salt. |
+| `Cannot run scripts on this system` (Activate.ps1) | PowerShell execution policy. | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once. |
+| `Address already in use` on :8000 or :3000 | Another process is using the port. | Kill it, or run uvicorn with `--port 8001` / Next.js with `npm run dev -- -p 3001`. |
+| `Executable doesn't exist` from Playwright | Chromium not installed. | `playwright install chromium`, or set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. |
+| `ModuleNotFoundError: No module named 'src'` | Ran `uvicorn` from outside the repo root or without activating `.venv`. | `cd` into the repo root and activate the venv first. |
+| Backend starts but UI can't reach it | UI is hard-wired to `http://127.0.0.1:8000`. | Make sure the backend is on `:8000` and `.env` has `AUTHOR_HASH_SALT` (uvicorn refuses to scrape without it). |
+
+Prefer not to juggle terminals at all? On Windows you can build the `.exe` launcher instead — see [Windows packaging](#windows-packaging) below.
 
 ## Run
 
