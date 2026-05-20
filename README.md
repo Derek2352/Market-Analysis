@@ -1,10 +1,10 @@
 # Market Analytics Tool
 
-Generate **Personas** and **User Journey Maps** for a product, brand, or category, grounded in publicly scrapeable online discussion. Region-aware. Phase 1 region is **HK**. See [`PROJECT_PLAN.md`](./PROJECT_PLAN.md) for the full plan.
+Generate **Personas** and **User Journey Maps** for a product, brand, or category, grounded in publicly scrapeable online discussion. Region-aware — **HK, JP, TW, and US** are wired today. See [`PROJECT_PLAN.md`](./PROJECT_PLAN.md) for the full plan.
 
 ## What's shipped
 
-Phases 1–4 are end-to-end runnable.
+Phases 1–12 are end-to-end runnable.
 
 ### Phase 1 — Scraping framework + first sources
 
@@ -39,7 +39,27 @@ Openrice introduced the Playwright path. HTML fixtures live in `tests/fixtures/h
 
 ### Phase 4 — LLM synthesis
 
-- `src/pipeline/synthesize.py` — Claude (`claude-sonnet-4-20250514` by default) generates Persona and Journey Map JSON from clusters. **Every claim must cite a `doc_id` from the evidence pack.**
+- `src/pipeline/synthesize.py` — Claude (`claude-sonnet-4-6` by default) generates Persona and Journey Map JSON from clusters. **Every claim must cite a `doc_id` from the evidence pack.** Prompt caching ships the system+evidence block once per cluster — ~70% saving on the journey call. Validator + retry-once-then-mark-`unverified`; verbatim-quote check; deterministic `data_source_coverage`.
+
+### Phase 5 — FastAPI + Next.js UI
+
+- `src/api/` — FastAPI app exposing `POST /runs`, `GET /runs/{id}`, `GET /regions`, persona/journey/doc readers. Pipeline runs serialise behind one asyncio.Lock; SSE-streamed `GET /runs/{id}/stream` replays event history then tails live events.
+- `ui/` — Next.js 16 + Tailwind v4 + shadcn/ui launcher, persona cards, journey grid, citation drawer.
+
+### Phases 6–7 — Multi-region expansion
+
+- HK fan-out (`discuss_hk`, `medium_hk`, `hk01`, `youtube_html`, `quora_hk`) and a full TW + JP + US build-out: 34 registered scrapers across 4 regions, per-language tokenisers in `src/lang/`, cross-language query expansion with compound splitting, region switcher in the UI. Synthesis got quantitative grounding (`mentioned_by_n_users` / `pct_of_cluster` backfilled pre-LLM), adversarial validation, temporal + comparative analysis, PDF export.
+
+### Phase 8 — Shareable PNG renders
+
+- `src/render/` — every persona and journey synthesised by `mkt synthesize` can be exported as an offline, deterministic PNG: a 1200×1600 persona card (gradient accent strip, severity-coloured pain points, citation footnote strip) and a 2400×1400 journey map (six stages × five rows, with a continuous emotion curve as the centrepiece). Same JSON → byte-identical PNG; CJK glyphs (嘅 咗 喺 冇 …) render via system Noto Sans CJK fallbacks; no network calls at render time.
+
+### Phases 9–12 — Health, eval, region polish
+
+- **Phase 9.** `reddit_old` offline fixtures + JSON-fixture support in scrape-doctor.
+- **Phase 10.** UI multi-region selector, quantitative-grounding badges, adversarial flags, PDF download — driven by a new `GET /regions` endpoint that's the single source of truth (replaces the previously hard-coded UI table).
+- **Phase 11.** `yahoo_news_us` (caas-* CMS shared with TW) and `yahoo_news_jp` (separate `news.yahoo.co.jp` platform, JP-specific selectors).
+- **Phase 12.** Eval set — `mkt eval` runs five frozen product fixtures (WhatsApp HK, MTR Mobile HK, Tabelog JP, iPhone US, Dcard TW), measures pain-point recovery + source-mix coverage, gates CI on a `--min-recovery` threshold.
 
 ## CLI
 
@@ -56,6 +76,9 @@ mkt synthesize-compare   # cross-region comparative analysis
 mkt analyze         # combined scrape → embed → cluster → synthesize
 mkt export          # CSV export of raw posts and personas
 mkt eval            # run eval suite against product fixtures (mock or live LLM)
+mkt render persona  # render one persona to a PNG card
+mkt render journey  # render one journey map to a PNG
+mkt render run      # render a whole run + index.html bundle (optional --zip)
 ```
 
 ## Setup
@@ -67,7 +90,14 @@ cp .env.example .env
 # for synthesis: ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-The `AUTHOR_HASH_SALT` is the only required env var for scraping; `ANTHROPIC_API_KEY` is only needed for `mkt persona` / `mkt journey`.
+The `AUTHOR_HASH_SALT` is the only required env var for scraping; `ANTHROPIC_API_KEY` is only needed for `mkt synthesize`. For the PNG render layer:
+
+```
+playwright install chromium    # ~150 MB download; one-off, fully offline thereafter
+apt install fonts-noto-cjk     # CJK fallback fonts (Cantonese-colloquial, JP, KR)
+```
+
+If `cdn.playwright.dev` is blocked by your network, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/path/to/chrome` to point at a system binary instead.
 
 ## Run
 
@@ -84,8 +114,10 @@ mkt cluster --topic "MTR Mobile" --region HK
 mkt diag --topic "MTR Mobile" --region HK
 
 # And synthesize personas + journeys
-mkt persona --topic "MTR Mobile" --region HK
-mkt journey --topic "MTR Mobile" --region HK
+mkt synthesize --topic "MTR Mobile" --region HK
+
+# Render PNG persona cards + journey maps for the run
+mkt render run 20260519T080000Z --zip
 ```
 
 Sources marked ToS-prohibited or de-prioritized (Openrice, Google Play HK, App Store HK, etc.) must be listed explicitly on `--sources` — they don't appear in the default source list.
@@ -107,8 +139,12 @@ data/raw/{topic_slug}/{region}/{source}_{run_id}._run.json   # run metadata side
 data/dedup.sqlite                                            # idempotency index
 data/embeddings.duckdb                                       # vectors + HNSW index
 data/{topic_slug}_{region}_clusters.json                     # clustering output
-data/{topic_slug}_{region}_persona.json                      # Claude synthesis
-data/{topic_slug}_{region}_journey.json                      # Claude synthesis
+data/personas/{topic_slug}/{region}/persona_*.json           # Claude synthesis
+data/journeys/{topic_slug}/{region}/journey_*.json           # Claude synthesis
+data/runs/{run_id}/run.json                                  # API-managed run state
+data/renders/{run_id}/{persona_id|journey_id}.png            # Phase 8 PNG renders
+data/renders/{run_id}/index.html                             # bundle viewer
+data/renders/{run_id}.zip                                    # optional shareable archive
 logs/scrape_{run_id}.jsonl                                   # structured JSON logs
 tests/fixtures/html/{source}/                                # parser-test snapshots
 ```
@@ -116,15 +152,18 @@ tests/fixtures/html/{source}/                                # parser-test snaps
 ## Test
 
 ```
-make test                                       # unit tests
+make test                                       # unit + parser tests
 SCRAPE_LIVE_TESTS=1 make test-live              # network-hitting integration tests
+make test-render                                # Playwright-driven render snapshots
 mkt scrape-doctor                               # parser drift check against HTML fixtures
+mkt eval --provider mock                        # persona/journey quality regression suite
 ```
 
 Some tests are environment-gated and skip cleanly without their dependency:
 - **Live integration test** (App Store HK) skips unless `SCRAPE_LIVE_TESTS=1`.
 - **VSS smoke tests** (`tests/pipeline/test_vss_smoke.py`) skip when the DuckDB VSS extension can't be installed (no egress to `extensions.duckdb.org`). Locally with internet, they verify INSTALL + LOAD + HNSW + cosine-similarity queries end-to-end.
 - **Embedding tests** require the BGE-M3 model — auto-downloaded on first run, ~2 GB.
+- **Render tests** (`tests/render/`) skip when no Chromium binary is reachable. Run `playwright install chromium` (or set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`) to enable them — they verify deterministic PNG bytes, file-size budgets, render-time ceiling, CJK glyph coverage, and bundle layout.
 
 ## Privacy / PII
 
@@ -157,3 +196,28 @@ Two metrics are scored per fixture:
 `--provider mock` replays canned LLM responses via httpx transport — zero cost, CI-friendly. `--min-recovery` gates CI: the suite exits non-zero if the mean recovery rate falls below the threshold.
 
 See `make eval` (live Anthropic) and `make eval-mock` (keyless).
+
+## Render
+
+`mkt render` turns synthesised Persona + JourneyMap JSON into shareable PNGs. Output is deterministic — the same JSON always produces byte-identical bytes, so accidental visual regressions surface as test failures rather than silent drift.
+
+```
+mkt render persona persona_a4f9c7e2                 # one card → data/renders/<id>.png
+mkt render journey persona_a4f9c7e2 --topic "MTR"   # one journey map for that persona
+mkt render run 20260519T080000Z --zip               # whole-run bundle + .zip
+```
+
+What `mkt render run` produces in `data/renders/{run_id}/`:
+
+- one **persona card** PNG per persona (1200×1600 portrait, ≤ 400 KB)
+- one **journey map** PNG per journey (2400×1400 landscape, ≤ 800 KB)
+- `index.html` — a grid view of every card + map for sharing the whole run as one link
+- optional `<run_id>.zip` next to the bundle directory
+
+Design notes:
+
+- **Deterministic visual identity.** The top accent strip is a three-stop CSS gradient whose hue is `sha256(persona_id)[:8] % 360`. Same persona always gets the same colour signature — no API calls, no risk of mis-depicting a person, and cards still feel distinct in a grid.
+- **Emotion curve.** The journey map's centrepiece is a smooth Catmull-Rom Bézier through the six per-stage emotion intensities; negative emotions invert so high y = positive sentiment. Stage markers, emoji labels, and intensity numbers ride on the curve.
+- **Citations preserved.** Every cell in the journey map carries a `[n]` superscript; the bottom footnote strip lists the source URL for every citation, so the image is self-contained when shared.
+- **Offline + free.** Hand-rolled inline CSS (no Tailwind CDN, no webfonts); system fonts only with `Noto Sans CJK` fallbacks. No API calls during rendering after Playwright + Chromium are installed.
+- **Failure modes.** Persona with zero quotes → "no representative quotes selected" placeholder. Journey stage with empty buckets → `—` placeholder, marked "no data". Quote text > 280 chars → ellipsis + footnote anchor.
