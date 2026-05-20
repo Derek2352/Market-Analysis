@@ -7,3 +7,6 @@ dist/
 .DS_Store
 .env*.local
 next-env.d.ts
+
+# TypeScript incremental build cache
+*.tsbuildinfo

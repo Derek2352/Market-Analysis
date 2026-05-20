@@ -1,7 +1,26 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { JetBrains_Mono, Newsreader } from "next/font/google";
+import { HeaderShell } from "@/components/header-shell";
 import "./globals.css";
+
+// Build-time-downloaded fonts — no runtime CDN, fits the project's
+// offline-first policy. JetBrains Mono carries source ids, run ids,
+// CLI commands, file paths. Newsreader italic provides the editorial
+// emphasis the landing design calls for.
+const mono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-mono",
+  display: "swap",
+});
+
+const serif = Newsreader({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  style: ["normal", "italic"],
+  variable: "--font-serif",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Market Analytics — Local",
@@ -12,7 +31,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning className="h-full antialiased">
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`h-full antialiased ${mono.variable} ${serif.variable}`}
+    >
       {/* Inline pre-paint script: pick theme from localStorage or system,
           set <html class="dark"|"light"> before React hydrates to avoid FOUC. */}
       <head>
@@ -23,27 +46,9 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <header className="border-b">
-          <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
-            <Link href="/" className="font-semibold tracking-tight">
-              Market Analytics
-              <span className="ml-2 text-xs font-normal text-muted-foreground">
-                local
-              </span>
-            </Link>
-            <div className="flex items-center gap-3">
-              <a
-                href="http://127.0.0.1:8000/docs"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-muted-foreground hover:text-foreground"
-              >
-                API docs ↗
-              </a>
-              <ThemeToggle />
-            </div>
-          </div>
-        </header>
+        {/* HeaderShell hides itself on the landing route (`/`) so the
+            landing page's own nav can take over without doubling up. */}
+        <HeaderShell />
         <main className="flex-1">{children}</main>
         <footer className="border-t mt-8">
           <div className="mx-auto max-w-7xl px-4 py-3 text-xs text-muted-foreground">
