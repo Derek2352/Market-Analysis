@@ -1,6 +1,6 @@
 # Market Analytics Tool
 
-Generate **Personas** and **User Journey Maps** for a product, brand, or category, grounded in publicly scrapeable online discussion. Region-aware — **HK, JP, TW, and US** are wired today. See [`PROJECT_PLAN.md`](./PROJECT_PLAN.md) for the full plan.
+Generate **Personas** and **User Journey Maps** for a product, brand, or category, grounded in publicly scrapeable online discussion. Region-aware — **HK, JP, TW, and US** are wired today. Ships with a full web UI (landing page → run launcher → live results) and a Windows `.exe` launcher. See [`PROJECT_PLAN.md`](./PROJECT_PLAN.md) for the full plan.
 
 ## What's shipped
 
@@ -44,7 +44,7 @@ Openrice introduced the Playwright path. HTML fixtures live in `tests/fixtures/h
 ### Phase 5 — FastAPI + Next.js UI
 
 - `src/api/` — FastAPI app exposing `POST /runs`, `GET /runs/{id}`, `GET /regions`, persona/journey/doc readers. Pipeline runs serialise behind one asyncio.Lock; SSE-streamed `GET /runs/{id}/stream` replays event history then tails live events.
-- `ui/` — Next.js 16 + Tailwind v4 + shadcn/ui launcher, persona cards, journey grid, citation drawer.
+- `ui/` — Next.js 16 + Tailwind v4 + shadcn/ui. **Landing page** at `/` with animated demo scrape stream, regional source grid, persona previews, journey-map previews, and a hero launcher (topic + region + sources + LLM provider toggle). `/launch` is the full run-configuration form; `/runs/{id}` streams live pipeline events then shows persona cards, journey maps, citation drawer, and PNG download links.
 
 ### Phases 6–7 — Multi-region expansion
 
@@ -81,13 +81,34 @@ mkt render journey  # render one journey map to a PNG
 mkt render run      # render a whole run + index.html bundle (optional --zip)
 ```
 
+## Web UI
+
+Start the development servers:
+
+```bash
+make dev-api      # FastAPI on :8000  (needs .env with AUTHOR_HASH_SALT)
+cd ui && npm run dev   # Next.js on :3000
+```
+
+Then open `http://localhost:3000/`.
+
+**Landing page** (`/`) — editorial overview with animated scrape-stream demo, interactive region + source grid (34 sources across 4 regions), persona and journey-map previews, and a hero launcher. Configure topic, region, sources, look-back window, and LLM provider, then click **Start run →** to jump straight to `/launch` with everything pre-filled.
+
+**Launch page** (`/launch`) — full run-configuration form, pre-populated from the landing hero but fully editable. Opt-in (ToS-prohibited) sources show a warning banner with an explicit acceptance checkbox that must be ticked before the run can start.
+
+**Run page** (`/runs/{id}`) — live SSE stream of pipeline progress (scrape → embed → cluster → synthesise), followed by persona cards with journey maps, citation drawer, and PNG download links.
+
+**Provider selection.** Both the hero and `/launch` offer a **DeepSeek** / **Claude** toggle. DeepSeek (`deepseek-chat`) is the default — roughly 10× cheaper. Claude (`claude-sonnet-4-6`) gives higher-quality synthesis with stronger citation grounding. The choice carries through as a `?provider=` URL param from the landing to the API call.
+
 ## Setup
 
 ```
 make install
 cp .env.example .env
 # edit .env: AUTHOR_HASH_SALT=<long random string>
-# for synthesis: ANTHROPIC_API_KEY=sk-ant-...
+# for synthesis:    ANTHROPIC_API_KEY=sk-ant-...
+# for DeepSeek:     DEEPSEEK_API_KEY=sk-...
+cd ui && npm ci       # install UI dependencies (one-off)
 ```
 
 The `AUTHOR_HASH_SALT` is the only required env var for scraping; `ANTHROPIC_API_KEY` is only needed for `mkt synthesize`. For the PNG render layer:
@@ -180,7 +201,7 @@ At runtime the launcher:
 1. Picks a free port for FastAPI (defaults to `8000`) and one for Next.js (`3000`).
 2. Spawns `uvicorn src.api.app:app` against the bundled Python.
 3. Spawns the Next.js standalone server (`server.js`) under the bundled `node\node.exe`.
-4. Polls both `/health` and `/`, then opens the user's default browser to `http://127.0.0.1:3000/`.
+4. Polls both `/health` and `/`, then opens the user's default browser to `http://127.0.0.1:3000/` — the landing page.
 5. Stays in the console; Ctrl+C in that window stops both processes cleanly.
 
 The BGE-M3 embedding model (~2 GB) is **not** bundled — it downloads to the user's `~/.cache/huggingface/` on first use. Everything else (DuckDB+VSS, scrapers, the FastAPI app, the Next.js UI) ships in the folder. Build prerequisites: Python 3.11+ and Node.js 18+ on `PATH`. See `scripts/build_windows.bat` for the full step list.
