@@ -83,6 +83,8 @@ mkt render run      # render a whole run + index.html bundle (optional --zip)
 
 ## Web UI
 
+> **First time?** Make sure you've run **`cd ui && npm ci`** at least once (covered in [Setup](#setup) below). Without it `npm run dev` will fail with `'next' is not recognized` — the UI dependencies aren't installed yet.
+
 The dev setup is **two long-running processes**, so you need **two terminals** (or a multiplexer like `tmux`).
 
 **macOS / Linux** (Make is preinstalled):
