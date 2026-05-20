@@ -115,7 +115,7 @@ If PowerShell blocks `Activate.ps1`, run once: `Set-ExecutionPolicy -Scope Curre
 
 Then open `http://localhost:3000/` in your browser.
 
-If you really want both in one shell (bash only), run the API in the background:
+If you really want both in one shell (any POSIX shell with job control — bash, zsh, fish via `&`), run the API in the background:
 
 ```bash
 make dev-api &       # backgrounded; logs interleave into this terminal
@@ -148,8 +148,14 @@ On Windows, if you'd rather not juggle terminals at all, build the `.exe` launch
 
 **System packages**
 
-- `fonts-noto-cjk` — CJK glyph fallback for the PNG render layer (Cantonese-colloquial, JP, KR, TC). On Debian/Ubuntu: `apt install fonts-noto-cjk`. macOS ships CJK fonts; Windows ships Yu Gothic + Microsoft JhengHei.
-- A Chromium binary reachable by Playwright. `playwright install chromium` downloads ~150 MB; if `cdn.playwright.dev` is blocked, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/path/to/chrome` to point at a system binary instead.
+- **CJK glyph fallback for the PNG render layer** (Cantonese-colloquial, JP, KR, TC):
+  - Debian / Ubuntu: `sudo apt install fonts-noto-cjk`
+  - Fedora: `sudo dnf install google-noto-sans-cjk-fonts`
+  - Arch: `sudo pacman -S noto-fonts-cjk`
+  - Alpine: `sudo apk add font-noto-cjk`
+  - macOS: PingFang + Hiragino are preinstalled — nothing to do.
+  - Windows: Yu Gothic + Microsoft JhengHei are preinstalled.
+- **Chromium binary for Playwright.** `playwright install chromium` downloads ~150 MB. On Linux you also need the OS libraries Chromium links against: `playwright install-deps` (Debian/Ubuntu only — handles `libnss3`, `libatk1.0`, etc.). On Fedora/Arch you may need to install equivalents manually if Chromium reports "missing library" at runtime. If `cdn.playwright.dev` is blocked by your network, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/path/to/chrome` to point at a system Chrome/Chromium instead.
 
 **Python dependencies** (declared in `pyproject.toml`, installed by `make install`)
 
@@ -175,17 +181,24 @@ If you already have Python 3.11+ and Node 18+ on your `PATH`, skip to step 3.
 #### 1. Install Python 3.11 or newer
 
 - **Windows:** Download the installer from [python.org/downloads](https://www.python.org/downloads/). **Important:** tick *"Add Python to PATH"* on the first install screen.
-- **macOS:** `brew install python@3.11` (install Homebrew first from [brew.sh](https://brew.sh) if you don't have it).
-- **Linux (Debian/Ubuntu):** `sudo apt install python3.11 python3.11-venv`
+- **macOS:** `brew install python@3.11` (install Homebrew first from [brew.sh](https://brew.sh) if you don't have it). If you instead use the installer from python.org, **run `/Applications/Python\ 3.11/Install\ Certificates.command` once** — fresh python.org installs ship without the CA bundle and `httpx` will fail SSL handshakes during scraping until you do this.
+- **Linux (Debian/Ubuntu):** `sudo apt install python3.11 python3.11-venv` (on Ubuntu 22.04 or older you may need the `deadsnakes` PPA first).
+- **Linux (Fedora):** `sudo dnf install python3.11 python3.11-devel`
+- **Linux (Arch):** `sudo pacman -S python` (currently 3.13 — works).
 
 Verify: open a new terminal and run `python --version` (Windows) or `python3 --version` (macOS/Linux). It should print `Python 3.11.x` or higher.
 
+> **Apple Silicon (M-series Macs):** Most wheels (numpy, sentence-transformers, duckdb, playwright) are arm64-native on PyPI. If `pip install -e ".[dev]"` fails compiling `hdbscan` or `umap-learn` from source, install the Xcode Command Line Tools: `xcode-select --install`.
+
 #### 2. Install Node.js 18+ (20 LTS recommended)
 
-- **Windows / macOS:** Download the **LTS** installer from [nodejs.org](https://nodejs.org/).
-- **Linux:** `curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt install -y nodejs`
+- **Windows / macOS:** Download the **LTS** installer from [nodejs.org](https://nodejs.org/). (macOS via Homebrew: `brew install node`.)
+- **Linux (Debian/Ubuntu):** `curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt install -y nodejs`
+- **Linux (Fedora):** `sudo dnf install nodejs npm`
+- **Linux (Arch):** `sudo pacman -S nodejs npm`
+- **Linux (Alpine):** `sudo apk add nodejs npm`
 
-Verify: `node --version` should print `v18.x` or higher.
+Verify: `node --version` should print `v18.x` or higher. Note the package-manager versions on Debian/Ubuntu can be very old; if `node --version` shows `v12` or `v14`, install via NodeSource or [nvm](https://github.com/nvm-sh/nvm) instead.
 
 #### 3. Clone the repo
 
@@ -215,7 +228,10 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 
 ```bash
 make install        # creates .venv and installs all Python deps
+source .venv/bin/activate   # so `mkt` and `uvicorn` are on PATH for this shell
 ```
+
+The `mkt` CLI lives in `.venv/bin/mkt`. After activation, `mkt --help` works directly; without activation, prefix every command with `.venv/bin/` (e.g. `.venv/bin/mkt scrape ...`). The `make` targets handle this for you, so `make dev-api`, `make eval`, etc. work either way.
 
 #### 5. Install the UI dependencies
 
@@ -306,6 +322,12 @@ Go to **<http://localhost:3000/>** in your browser. You should see the landing p
 | `Address already in use` on :8000 or :3000 | Another process is using the port. | Kill it, or run uvicorn with `--port 8001` / Next.js with `npm run dev -- -p 3001`. |
 | `Executable doesn't exist` from Playwright | Chromium not installed. | `playwright install chromium`, or set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. |
 | `'charmap' codec can't encode character '→'` (or similar) on Windows | PowerShell's default codec is cp1252; the API and CLI print Unicode arrows. | Already fixed in the app — but if you still see it, set `$env:PYTHONIOENCODING="utf-8"` before launching, or run `chcp 65001` once in the same PowerShell window. |
+| `mkt: command not found` on macOS/Linux | venv not activated. | `source .venv/bin/activate`, or use `.venv/bin/mkt` directly. |
+| `SSL: CERTIFICATE_VERIFY_FAILED` on macOS during scrape | Fresh python.org Python installs ship without the CA bundle. | Run `/Applications/Python\ 3.11/Install\ Certificates.command` once. (Homebrew Python doesn't have this issue.) |
+| `pip install` fails on `hdbscan` / `umap-learn` on Apple Silicon | No prebuilt arm64 wheel — pip tries to compile and the toolchain is missing. | `xcode-select --install`, then re-run `make install`. |
+| Chromium crashes on Linux with "missing library" | Playwright didn't install system deps. | Debian/Ubuntu: `playwright install-deps` (sudo). Fedora/Arch: install the equivalents (libnss3, libatk1.0, libxkbcommon, libdrm, libgbm) via your package manager. |
+| CJK glyphs render as boxes (☐☐☐) in PNG output on Linux | No Noto CJK fonts. | Install per the System packages section above (`fonts-noto-cjk` / `google-noto-sans-cjk-fonts` / `noto-fonts-cjk`). |
+| Next.js `ENOSPC: System limit for number of file watchers reached` on Linux | inotify default is low. | `echo fs.inotify.max_user_watches=524288 \| sudo tee -a /etc/sysctl.conf && sudo sysctl -p` |
 | `ModuleNotFoundError: No module named 'src'` | Ran `uvicorn` from outside the repo root or without activating `.venv`. | `cd` into the repo root and activate the venv first. |
 | Backend starts but UI can't reach it | UI is hard-wired to `http://127.0.0.1:8000`. | Make sure the backend is on `:8000` and `.env` has `AUTHOR_HASH_SALT` (uvicorn refuses to scrape without it). |
 
