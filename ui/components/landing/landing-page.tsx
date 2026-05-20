@@ -31,6 +31,15 @@ import {
 
 const DEFAULT_SOURCES = new Set(["lihkg", "reddit_old", "app_store_hk"]);
 
+// The LLM providers the FastAPI backend + CLI accept. Default matches
+// the launcher's default (deepseek) so the landing and /launch agree
+// on the cheaper-by-default choice.
+type Provider = "anthropic" | "deepseek";
+const PROVIDERS: { id: Provider; label: string; hint: string }[] = [
+  { id: "deepseek",  label: "DeepSeek", hint: "deepseek-chat · cheaper, ~$0.14/run" },
+  { id: "anthropic", label: "Claude",   hint: "claude-sonnet-4 · higher quality, ~$0.60/run" },
+];
+
 export function LandingPage() {
   return (
     <div className="landing-root">
@@ -142,6 +151,7 @@ function Hero() {
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(DEFAULT_SOURCES),
   );
+  const [provider, setProvider] = useState<Provider>("deepseek");
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -159,15 +169,16 @@ function Hero() {
 
   // Launch the actual /launch page with the selected topic preserved in
   // the URL query so the user lands on the launcher with their choices
-  // already filled in (the launcher reads ?topic= on mount).
+  // already filled in (the launcher reads these on mount).
   const launchHref = useMemo(() => {
     const params = new URLSearchParams();
     if (topic.trim()) params.set("topic", topic.trim());
     params.set("region", region);
     if (selected.size > 0) params.set("sources", [...selected].join(","));
+    params.set("provider", provider);
     const q = params.toString();
     return q ? `/launch?${q}` : "/launch";
-  }, [topic, region, selected]);
+  }, [topic, region, selected, provider]);
 
   return (
     <section className="hero page" id="launcher">
@@ -253,6 +264,20 @@ function Hero() {
                 </button>
               );
             })}
+          </div>
+
+          <div className="launcher-row" style={{ marginTop: 14 }}>
+            <span className="label">llm</span>
+            {PROVIDERS.map((p) => (
+              <button
+                key={p.id}
+                className={`chip ${provider === p.id ? "on" : ""}`}
+                onClick={() => setProvider(p.id)}
+                title={p.hint}
+              >
+                {provider === p.id ? "✓" : "○"} {p.label}
+              </button>
+            ))}
           </div>
 
           <div
