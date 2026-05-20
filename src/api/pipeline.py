@@ -35,10 +35,24 @@ _log = structlog.get_logger(__name__)
 _executor_lock = asyncio.Lock()
 
 
+_WINDOWS_RESERVED = {
+    "con", "prn", "aux", "nul",
+    *(f"com{i}" for i in range(1, 10)),
+    *(f"lpt{i}" for i in range(1, 10)),
+}
+
+
 def _slugify(s: str) -> str:
     s = s.lower().strip()
     s = re.sub(r"[^a-z0-9]+", "_", s)
-    return s.strip("_") or "untitled"
+    s = s.strip("_") or "untitled"
+    # Windows refuses to create files/directories whose stem is a reserved
+    # device name (CON, PRN, AUX, NUL, COM1-9, LPT1-9). Suffix any such
+    # slug so `mkt scrape --topic "CON"` doesn't crash with WinError on
+    # the data/raw/con/ mkdir.
+    if s in _WINDOWS_RESERVED:
+        s = f"{s}_topic"
+    return s
 
 
 async def execute_run(state: RunState, data_dir: Path) -> None:

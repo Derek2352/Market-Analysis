@@ -23,6 +23,7 @@ import structlog
 from tqdm import tqdm
 
 from src.schemas.raw import RawPost
+from src.util_atomic import atomic_write_json
 
 MODEL_NAME = "BAAI/bge-m3"
 MODEL_VERSION = "1.0"
@@ -282,10 +283,9 @@ class EmbeddingStore:
     def _save_cache(self, cache: dict[str, str]) -> None:
         """Persist SHA256 → post_id cache to disk atomically."""
         path = self._cache_path
-        tmp = path.with_suffix(".tmp")
         try:
-            tmp.write_text(json.dumps(cache, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-            tmp.replace(path)
+            # Compact (no indent) — the cache can grow into tens of MB.
+            atomic_write_json(path, cache, indent=None, separators=(",", ":"))
         except OSError as e:
             _log.warning("embed.cache_save_failed", path=str(path), error=str(e))
 

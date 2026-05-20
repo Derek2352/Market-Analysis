@@ -21,6 +21,7 @@ from src.api.models import (
     RunSummary,
     StageProgress,
 )
+from src.util_atomic import atomic_write_json
 
 
 def new_run_id(now: datetime | None = None) -> str:
@@ -74,10 +75,9 @@ class RunState:
             "summary": self.summary.model_dump(mode="json"),
             "params": self.params,
         }
-        path = self.dir / "run.json"
-        tmp = path.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
-        tmp.replace(path)
+        # atomic_write_json retries the final rename on Windows PermissionError,
+        # which fires when a concurrent FastAPI handler is reading run.json.
+        atomic_write_json(self.dir / "run.json", payload)
 
     # ---- factories ------------------------------------------------------
 

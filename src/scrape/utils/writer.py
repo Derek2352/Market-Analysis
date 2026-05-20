@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from src.schemas.raw import RawPost
+from src.util_atomic import atomic_write_json
 
 
 class RunWriter:
@@ -52,6 +52,4 @@ class RunWriter:
 
     @staticmethod
     def _atomic_write(path: Path, payload: Any) -> None:
-        tmp = path.with_suffix(path.suffix + ".tmp")
-        tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        tmp.replace(path)
+        atomic_write_json(path, payload)

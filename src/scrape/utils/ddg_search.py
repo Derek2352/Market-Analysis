@@ -23,6 +23,7 @@ from urllib.parse import unquote, urlparse, parse_qs
 import httpx
 
 from src.scrape.base.protocol import SourceError
+from src.util_atomic import atomic_write_json
 
 DDG_URL = "https://html.duckduckgo.com/html/"
 _USER_AGENT = (
@@ -66,9 +67,7 @@ def _save_cache(path: Path, query: str, results: list[DDGResult]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {"query": query, "fetched_at": time.time(),
                "results": [asdict(r) for r in results]}
-    tmp = path.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.replace(path)
+    atomic_write_json(path, payload)
 
 
 def _resolve_redirect(href: str) -> str:

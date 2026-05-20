@@ -63,10 +63,22 @@ _DATA_DIR = _ROOT / "data"
 _LOG_DIR = _ROOT / "logs"
 
 
+_WINDOWS_RESERVED = {
+    "con", "prn", "aux", "nul",
+    *(f"com{i}" for i in range(1, 10)),
+    *(f"lpt{i}" for i in range(1, 10)),
+}
+
+
 def _slugify(s: str) -> str:
     s = s.lower().strip()
     s = re.sub(r"[^a-z0-9]+", "_", s)
-    return s.strip("_") or "untitled"
+    s = s.strip("_") or "untitled"
+    # Avoid Windows reserved device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
+    # which can't be used as file/directory names.
+    if s in _WINDOWS_RESERVED:
+        s = f"{s}_topic"
+    return s
 
 
 @app.command()

@@ -35,6 +35,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from src.util_atomic import atomic_write_json
+
 CACHE_FILENAME = "_cache.json"
 DEFAULT_TTL_SECONDS = 24 * 60 * 60  # 24 hours
 
@@ -203,9 +205,4 @@ class RunCache:
             }
             for raw, entry in self._entries.items()
         }
-        tmp = self._path.with_suffix(".json.tmp")
-        tmp.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        tmp.replace(self._path)
+        atomic_write_json(self._path, payload)

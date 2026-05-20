@@ -4,11 +4,13 @@
 Runs as cron no_agent script: stdout is delivered to Derek.
 Empty stdout = silent (no results to report).
 """
+import os
 import subprocess, sys
 from pathlib import Path
 
-PROJECT = Path(r"C:\Users\Derek Yung\Market-Analysis")
-MKT = PROJECT / ".venv" / "Scripts" / "mkt.exe"
+PROJECT = Path(__file__).resolve().parent.parent
+_VENV_BIN = PROJECT / ".venv" / ("Scripts" if os.name == "nt" else "bin")
+MKT = _VENV_BIN / ("mkt.exe" if os.name == "nt" else "mkt")
 
 TOPICS = ["AlipayHK", "alipay hk", "支付寶 香港", "Alipay 香港", "支付寶HK"]
 SOURCES = "app_store_hk,google_play_hk,reddit_old,youtube_html,lihkg"
