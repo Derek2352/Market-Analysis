@@ -17,9 +17,12 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-PROJECT = Path(r"C:\Users\Derek Yung\Market-Analysis")
-VENV_PYTHON = PROJECT / ".venv" / "Scripts" / "python.exe"
-MKT = PROJECT / ".venv" / "Scripts" / "mkt.exe"
+import os as _os
+
+PROJECT = Path(__file__).resolve().parent.parent
+_VENV_BIN = PROJECT / ".venv" / ("Scripts" if _os.name == "nt" else "bin")
+VENV_PYTHON = _VENV_BIN / ("python.exe" if _os.name == "nt" else "python")
+MKT = _VENV_BIN / ("mkt.exe" if _os.name == "nt" else "mkt")
 LOG_FILE = PROJECT / "logs" / f"overnight_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.log"
 
 # ── Topics to process ──

@@ -42,7 +42,7 @@ def load_config(path: Path | None = None) -> dict[str, Any]:
     if path and path.exists():
         try:
             import yaml
-            with open(path) as f:
+            with open(path, encoding="utf-8") as f:
                 user = yaml.safe_load(f) or {}
             # Deep merge
             merged = DEFAULT_CONFIG.copy()

@@ -28,7 +28,7 @@ def load_config() -> dict:
         return _DEFAULTS.copy()
 
     try:
-        with open(_CONFIG_FILE) as f:
+        with open(_CONFIG_FILE, encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
     except Exception:
         data = {}
@@ -41,8 +41,8 @@ def load_config() -> dict:
 
 def _save(data: dict) -> None:
     _ensure_dir()
-    with open(_CONFIG_FILE, "w") as f:
-        yaml.dump(data, f, default_flow_style=False)
+    with open(_CONFIG_FILE, "w", encoding="utf-8") as f:
+        yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
 
 
 def get_default_region() -> str:

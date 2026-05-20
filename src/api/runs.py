@@ -76,7 +76,7 @@ class RunState:
         }
         path = self.dir / "run.json"
         tmp = path.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+        tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
         tmp.replace(path)
 
     # ---- factories ------------------------------------------------------

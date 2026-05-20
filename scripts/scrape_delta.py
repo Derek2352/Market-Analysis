@@ -3,11 +3,15 @@
 
 Runs every 2h. Silent when nothing new (stdout empty).
 """
+import os
 import subprocess, sys, time
 from pathlib import Path
 
-PROJECT = Path(r"C:\Users\Derek Yung\Market-Analysis")
-MKT = PROJECT / ".venv" / "Scripts" / "mkt.exe"
+# Resolve project root from this script's location so the same file works
+# on any machine + any OS.
+PROJECT = Path(__file__).resolve().parent.parent
+VENV_BIN = PROJECT / ".venv" / ("Scripts" if os.name == "nt" else "bin")
+MKT = VENV_BIN / ("mkt.exe" if os.name == "nt" else "mkt")
 
 # Quick hits — top sources, no expansion, fresh data
 JOBS = [

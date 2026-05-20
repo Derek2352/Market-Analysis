@@ -393,7 +393,7 @@ def embed(
     import json
     total = 0
     for rf in run_files:
-        with open(rf) as f:
+        with open(rf, encoding="utf-8") as f:
             posts_data = json.load(f)
         posts = [RawPost(**p) for p in posts_data]
         n = store.embed_posts(posts, topic=topic, region=region, progress=not no_progress)
@@ -464,7 +464,7 @@ def cluster(
     for rf in sorted(raw_dir.glob("*.json")):
         if rf.name.endswith("._run.json"):
             continue
-        with open(rf) as f:
+        with open(rf, encoding="utf-8") as f:
             raw_posts = json.load(f)
         for p in raw_posts:
             pid = p.get("id", "")
@@ -486,7 +486,7 @@ def cluster(
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     out_path = out_dir / f"clusters_{ts}.json"
 
-    with open(out_path, "w") as f:
+    with open(out_path, "w", encoding="utf-8") as f:
         json.dump(result.model_dump(mode="json"), f, indent=2, default=str)
 
     typer.echo(f"Clusters: {len(result.clusters)}, Noise: {result.noise_count}")
@@ -524,7 +524,7 @@ def diag(
     import json
 
     latest = cluster_files[-1]
-    with open(latest) as f:
+    with open(latest, encoding="utf-8") as f:
         data = json.load(f)
 
     result = ClusteringResult(**data)
@@ -534,7 +534,7 @@ def diag(
     for rf in sorted(raw_dir.glob("*.json")):
         if rf.name.endswith("._run.json"):
             continue
-        with open(rf) as f:
+        with open(rf, encoding="utf-8") as f:
             posts = json.load(f)
         for p in posts:
             pid = p.get("id", "")
@@ -626,7 +626,7 @@ def synthesize(
             raise typer.Exit(code=1)
         cluster_file = files[-1]
 
-    with open(cluster_file) as f:
+    with open(cluster_file, encoding="utf-8") as f:
         result = ClusteringResult(**json.load(f))
 
     # Run id used in output filenames: take it from the cluster file name.
@@ -638,7 +638,7 @@ def synthesize(
     for rf in sorted(raw_dir.glob("*.json")):
         if rf.name.endswith("._run.json"):
             continue
-        with open(rf) as f:
+        with open(rf, encoding="utf-8") as f:
             posts = json.load(f)
         for p in posts:
             pid = p.get("id", "")
@@ -752,7 +752,7 @@ def synthesize(
 
     for p in report.personas:
         out = personas_dir / f"{p.id}.json"
-        with open(out, "w") as f:
+        with open(out, "w", encoding="utf-8") as f:
             json.dump(p.model_dump(mode="json"), f, indent=2, default=str, ensure_ascii=False)
         unverified = [
             name for name in (
@@ -765,7 +765,7 @@ def synthesize(
 
     for j in report.journeys:
         out = journeys_dir / f"{j.id}.json"
-        with open(out, "w") as f:
+        with open(out, "w", encoding="utf-8") as f:
             json.dump(j.model_dump(mode="json"), f, indent=2, default=str, ensure_ascii=False)
         thin = [s.stage for s in j.stages if s.coverage in {"thin", "none"}]
         tag = f" [thin: {', '.join(thin)}]" if thin else ""
@@ -812,7 +812,7 @@ def _load_synthesize_data(
             raise typer.Exit(code=1)
         cluster_file = files[-1]
 
-    with open(cluster_file) as f:
+    with open(cluster_file, encoding="utf-8") as f:
         result = ClusteringResult(**_json.load(f))
 
     run_id = cluster_file.stem.removeprefix("clusters_")
@@ -823,7 +823,7 @@ def _load_synthesize_data(
     for rf in sorted(raw_dir.glob("*.json")):
         if rf.name.endswith("._run.json"):
             continue
-        with open(rf) as f:
+        with open(rf, encoding="utf-8") as f:
             posts = _json.load(f)
         for p in posts:
             pid = p.get("id", "")
@@ -965,7 +965,7 @@ def synthesize_temporal_cmd(
     comparison_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     out_path = comparison_dir / f"temporal_{ts}.json"
-    with open(out_path, "w") as f:
+    with open(out_path, "w", encoding="utf-8") as f:
         import json as _json
         _json.dump(
             comparison.model_dump(mode="json"), f,
@@ -1091,7 +1091,7 @@ def synthesize_compare_cmd(
     comparison_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     out_path = comparison_dir / f"comparative_{ts}.json"
-    with open(out_path, "w") as f:
+    with open(out_path, "w", encoding="utf-8") as f:
         import json as _json
         _json.dump(
             comparison.model_dump(mode="json"), f,
@@ -1158,7 +1158,7 @@ def export(
 
     personas: list[Persona] = []
     for pf in persona_files:
-        with open(pf) as f:
+        with open(pf, encoding="utf-8") as f:
             data = _json.load(f)
         p = Persona(**data)
         if run_id_opt and p.run_id != run_id_opt:
@@ -1186,7 +1186,7 @@ def export(
     journey: JourneyMap | None = None
     if journeys_dir.exists():
         for jf in sorted(journeys_dir.glob("*.json")):
-            with open(jf) as f:
+            with open(jf, encoding="utf-8") as f:
                 jdata = _json.load(f)
             j = JourneyMap(**jdata)
             if j.persona_id == persona.id:
@@ -1343,7 +1343,7 @@ def analyze(
     for rf in sorted(raw_dir.glob("*.json")):
         if rf.name.endswith("._run.json"):
             continue
-        with open(rf) as f:
+        with open(rf, encoding="utf-8") as f:
             posts_data = _json.load(f)
         posts = [RawPost(**p) for p in posts_data]
         n = store.embed_posts(posts, topic=topic, region=region)
@@ -1378,7 +1378,7 @@ def analyze(
     for rf in sorted(raw_dir.glob("*.json")):
         if rf.name.endswith("._run.json"):
             continue
-        with open(rf) as f:
+        with open(rf, encoding="utf-8") as f:
             raw_posts = _json.load(f)
         for p in raw_posts:
             pid = p.get("id", "")
@@ -1399,7 +1399,7 @@ def analyze(
     out_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     out_path = out_dir / f"clusters_{ts}.json"
-    with open(out_path, "w") as f:
+    with open(out_path, "w", encoding="utf-8") as f:
         _json.dump(result.model_dump(mode="json"), f, indent=2, default=str)
 
     npct = result.noise_count / len(post_ids_vec) * 100 if post_ids_vec else 0
@@ -1439,16 +1439,16 @@ def analyze(
                     personas_out = _DATA_DIR / "personas" / topic_slug / region
                     personas_out.mkdir(parents=True, exist_ok=True)
                     p_path = personas_out / f"{p.id}.json"
-                    with open(p_path, "w") as pf:
-                        _json.dump(p.model_dump(mode="json"), pf, indent=2, default=str)
+                    with open(p_path, "w", encoding="utf-8") as pf:
+                        _json.dump(p.model_dump(mode="json"), pf, indent=2, default=str, ensure_ascii=False)
                     typer.echo(f"    {p.name}: {p.one_liner}")
 
                     jm = generate_journey(p, c, post_texts, {})
                     journeys_out = _DATA_DIR / "journeys" / topic_slug / region
                     journeys_out.mkdir(parents=True, exist_ok=True)
                     j_path = journeys_out / f"{jm.id}.json"
-                    with open(j_path, "w") as jf:
-                        _json.dump(jm.model_dump(mode="json"), jf, indent=2, default=str)
+                    with open(j_path, "w", encoding="utf-8") as jf:
+                        _json.dump(jm.model_dump(mode="json"), jf, indent=2, default=str, ensure_ascii=False)
                     typer.echo(f"      Journey: {len(jm.stages)} stages")
                 except Exception as e:
                     typer.echo(f"    Failed: {e}")
