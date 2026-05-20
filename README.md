@@ -83,7 +83,7 @@ mkt render run      # render a whole run + index.html bundle (optional --zip)
 
 ## Web UI
 
-> **First time?** Make sure you've run **`cd ui && npm ci`** at least once (covered in [Setup](#setup) below). Without it `npm run dev` will fail with `'next' is not recognized` — the UI dependencies aren't installed yet.
+> **First time?** Make sure you've run **`cd ui` then `npm ci`** at least once (covered in [Setup](#setup) below). Without it `npm run dev` will fail with `'next' is not recognized` — the UI dependencies aren't installed yet. On Windows, run the two commands on separate lines — PowerShell 5.1 (Windows 10's default) doesn't accept `&&`.
 
 The dev setup is **two long-running processes**, so you need **two terminals** (or a multiplexer like `tmux`).
 
@@ -316,7 +316,8 @@ Go to **<http://localhost:3000/>** in your browser. You should see the landing p
 | Symptom | Cause | Fix |
 |---|---|---|
 | `'make' is not recognized` | Windows doesn't ship Make. | Use the raw PowerShell commands shown under each step. |
-| `'next' is not recognized` | UI deps not installed. | `cd ui && npm ci`, then retry `npm run dev`. |
+| `'next' is not recognized` | UI deps not installed. | macOS/Linux: `cd ui && npm ci`. Windows PowerShell 5.1: run `cd ui` and `npm ci` on separate lines (PS 5.1 doesn't parse `&&`). Then retry `npm run dev`. |
+| `The token '&&' is not a valid statement separator` (PowerShell) | Windows 10 ships PowerShell 5.1, which doesn't support `&&`. | Run each command on its own line, or install [PowerShell 7](https://aka.ms/powershell) and use `pwsh` instead of the default `powershell`. |
 | `AUTHOR_HASH_SALT is required` | `.env` missing or empty. | Step 6 — create `.env` and set the salt. |
 | `Cannot run scripts on this system` (Activate.ps1) | PowerShell execution policy. | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once. |
 | `Address already in use` on :8000 or :3000 | Another process is using the port. | Kill it, or run uvicorn with `--port 8001` / Next.js with `npm run dev -- -p 3001`. |
