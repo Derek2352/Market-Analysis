@@ -155,7 +155,17 @@ On Windows, if you'd rather not juggle terminals at all, build the `.exe` launch
   - Alpine: `sudo apk add font-noto-cjk`
   - macOS: PingFang + Hiragino are preinstalled — nothing to do.
   - Windows: Yu Gothic + Microsoft JhengHei are preinstalled.
-- **Chromium binary for Playwright.** `playwright install chromium` downloads ~150 MB. On Linux you also need the OS libraries Chromium links against: `playwright install-deps` (Debian/Ubuntu only — handles `libnss3`, `libatk1.0`, etc.). On Fedora/Arch you may need to install equivalents manually if Chromium reports "missing library" at runtime. If `cdn.playwright.dev` is blocked by your network, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/path/to/chrome` to point at a system Chrome/Chromium instead.
+- **Chromium binary for Playwright.** `playwright install chromium` downloads ~150 MB to a per-user cache:
+  - Linux: `~/.cache/ms-playwright/chromium-*/chrome-linux/chrome`
+  - macOS: `~/Library/Caches/ms-playwright/chromium-*/chrome-mac/Chromium.app/Contents/MacOS/Chromium`
+  - Windows: `%LOCALAPPDATA%\ms-playwright\chromium-*\chrome-win\chrome.exe`
+
+  On Linux you also need the OS libraries Chromium links against: `playwright install-deps` (Debian/Ubuntu only — handles `libnss3`, `libatk1.0`, etc.). On Fedora/Arch you may need to install equivalents manually if Chromium reports "missing library" at runtime.
+
+  If `cdn.playwright.dev` is blocked by your network, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to a system browser instead:
+  - Linux: `export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium` (or `/usr/bin/google-chrome`)
+  - macOS: `export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"`
+  - Windows PowerShell: `$env:PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH = "C:\Program Files\Google\Chrome\Application\chrome.exe"` (or the Edge equivalent at `C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`)
 
 **Python dependencies** (declared in `pyproject.toml`, installed by `make install`)
 

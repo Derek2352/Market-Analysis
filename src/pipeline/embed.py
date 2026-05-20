@@ -325,11 +325,37 @@ class EmbeddingStore:
             )
 
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._con = duckdb.connect(str(self.db_path))
+        try:
+            self._con = duckdb.connect(str(self.db_path))
+        except duckdb.IOException as e:
+            # On Windows the .duckdb file holds an OS-level lock. A prior
+            # process that died mid-write may leave it claimed; the next
+            # connect raises with a vague "could not set lock" message.
+            # Surface a concrete recovery path instead.
+            raise RuntimeError(
+                f"Could not open {self.db_path}. It may be locked by another "
+                f"running mkt process, or left in a bad state by a previous "
+                f"crash. On Windows, close any other Python processes; if "
+                f"that doesn't help, delete {self.db_path} (you'll re-embed "
+                f"the affected posts on next run). Underlying error: {e}"
+            ) from e
 
-        # Enable VSS
-        self._con.execute("INSTALL vss;")
-        self._con.execute("LOAD vss;")
+        # VSS extension powers the HNSW vector index. The extension binary
+        # is auto-downloaded from extensions.duckdb.org on first INSTALL —
+        # if that endpoint is blocked by the user's network the call fails.
+        # We give a concrete remediation rather than the raw DuckDB error.
+        try:
+            self._con.execute("INSTALL vss;")
+            self._con.execute("LOAD vss;")
+        except duckdb.Error as e:
+            self._con.close()
+            raise RuntimeError(
+                "Failed to install/load the DuckDB VSS extension. Most "
+                "common cause: outbound HTTPS to extensions.duckdb.org is "
+                "blocked. If the .duckdb file was left half-initialised by "
+                f"a previous crash, delete {self.db_path} and retry. "
+                f"Underlying error: {e}"
+            ) from e
 
         # Create embeddings table
         self._con.execute("""
