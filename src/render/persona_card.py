@@ -77,12 +77,12 @@ def _chips(persona: Persona) -> list[dict]:
             "label": "Occupation",
             "value": " · ".join(str(o) for o in occ[:3]),
         })
-    out.append({"label": "Region", "value": persona.cluster_id and (
-        # Fallback to extracting region from any RawPost we have — but the
-        # cluster doesn't ride along here, so we display the persona's own
-        # language instead. The header eyebrow already shows the region tag.
-        persona.language.upper()
-    ) or persona.language.upper()})
+    # Region comes from demographics — the persona's *language* (the language
+    # they post in) is a separate attribute and shouldn't masquerade as region.
+    region = (demo.get("region") or "").upper()
+    if not region:
+        region = persona.language.upper()
+    out.append({"label": "Region", "value": region})
     if persona.cluster_size:
         out.append({"label": "Cluster size",
                     "value": f"{persona.cluster_size} posts"})

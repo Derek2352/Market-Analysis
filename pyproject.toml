@@ -22,6 +22,11 @@ dependencies = [
     "uvicorn[standard]>=0.30",
     "fpdf2>=2.8",
     "jieba>=0.42",
+    # Phase 2 scrapers + Phase 8 renderer share the Playwright base.
+    "playwright>=1.40",
+    # Phase 8 render templates (FastAPI already pulls Jinja2 transitively,
+    # but the render layer should declare its own dependency).
+    "jinja2>=3.1",
 ]
 
 [project.optional-dependencies]
