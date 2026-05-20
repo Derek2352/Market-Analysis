@@ -83,7 +83,9 @@ mkt render run      # render a whole run + index.html bundle (optional --zip)
 
 ## Web UI
 
-The dev setup is **two long-running processes**, so you need **two terminals** (or a multiplexer like `tmux`):
+The dev setup is **two long-running processes**, so you need **two terminals** (or a multiplexer like `tmux`).
+
+**macOS / Linux** (Make is preinstalled):
 
 ```bash
 # Terminal 1 — FastAPI on http://127.0.0.1:8000
@@ -93,9 +95,25 @@ make dev-api
 make dev-ui
 ```
 
-(`make dev-ui` is shorthand for `cd ui && npm run dev`.) Then open `http://localhost:3000/`.
+(`make dev-ui` is shorthand for `cd ui && npm run dev`.)
 
-If you really want both in one shell, run the API in the background:
+**Windows** (PowerShell — Make isn't available by default, run the raw commands):
+
+```powershell
+# Terminal 1 — FastAPI on http://127.0.0.1:8000
+.\.venv\Scripts\Activate.ps1
+uvicorn src.api.app:app --reload --host 127.0.0.1 --port 8000
+
+# Terminal 2 — Next.js on http://localhost:3000
+cd ui
+npm run dev
+```
+
+If PowerShell blocks `Activate.ps1`, run once: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. Alternative without activating: `.\.venv\Scripts\python.exe -m uvicorn src.api.app:app --reload --host 127.0.0.1 --port 8000`.
+
+Then open `http://localhost:3000/` in your browser.
+
+If you really want both in one shell (bash only), run the API in the background:
 
 ```bash
 make dev-api &       # backgrounded; logs interleave into this terminal
@@ -104,7 +122,7 @@ make dev-ui          # foreground; Ctrl+C stops only the UI
 kill %1              # stop the backgrounded API
 ```
 
-On Windows, the same two processes are managed for you by `MarketAnalytics.exe` (see [Windows packaging](#windows-packaging) below).
+On Windows, if you'd rather not juggle terminals at all, build the `.exe` launcher — it manages both processes for you (see [Windows packaging](#windows-packaging) below).
 
 **Landing page** (`/`) — editorial overview with animated scrape-stream demo, interactive region + source grid (34 sources across 4 regions), persona and journey-map previews, and a hero launcher. Configure topic, region, sources, look-back window, and LLM provider, then click **Start run →** to jump straight to `/launch` with everything pre-filled.
 
