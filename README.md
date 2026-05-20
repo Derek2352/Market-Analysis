@@ -165,6 +165,26 @@ Some tests are environment-gated and skip cleanly without their dependency:
 - **Embedding tests** require the BGE-M3 model — auto-downloaded on first run, ~2 GB.
 - **Render tests** (`tests/render/`) skip when no Chromium binary is reachable. Run `playwright install chromium` (or set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`) to enable them — they verify deterministic PNG bytes, file-size budgets, render-time ceiling, CJK glyph coverage, and bundle layout.
 
+## Windows packaging
+
+`scripts/build_windows.bat` produces a single-launcher distribution suitable for double-clicking on a fresh Windows box: `dist\MarketAnalytics\MarketAnalytics.exe` plus a sibling `_internal\` folder holding the frozen Python runtime, the Next.js standalone server bundle, and a portable Node distribution.
+
+```
+build_windows.bat
+# → dist\MarketAnalytics\MarketAnalytics.exe       (~10 MB launcher)
+# → dist\MarketAnalytics\_internal\                (~400–600 MB)
+```
+
+At runtime the launcher:
+
+1. Picks a free port for FastAPI (defaults to `8000`) and one for Next.js (`3000`).
+2. Spawns `uvicorn src.api.app:app` against the bundled Python.
+3. Spawns the Next.js standalone server (`server.js`) under the bundled `node\node.exe`.
+4. Polls both `/health` and `/`, then opens the user's default browser to `http://127.0.0.1:3000/`.
+5. Stays in the console; Ctrl+C in that window stops both processes cleanly.
+
+The BGE-M3 embedding model (~2 GB) is **not** bundled — it downloads to the user's `~/.cache/huggingface/` on first use. Everything else (DuckDB+VSS, scrapers, the FastAPI app, the Next.js UI) ships in the folder. Build prerequisites: Python 3.11+ and Node.js 18+ on `PATH`. See `scripts/build_windows.bat` for the full step list.
+
 ## Privacy / PII
 
 - Author display names are hashed with sha256 + a private per-install salt (`AUTHOR_HASH_SALT`) before being written to any record.

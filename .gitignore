@@ -11,3 +11,9 @@ __pycache__/
 # project data — added in later phases
 /data/
 /logs/
+
+# Windows packaging artefacts
+bundle/
+dist/
+build/
+*.spec.bak
