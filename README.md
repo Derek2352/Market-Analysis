@@ -100,6 +100,36 @@ Then open `http://localhost:3000/`.
 
 **Provider selection.** Both the hero and `/launch` offer a **DeepSeek** / **Claude** toggle. DeepSeek (`deepseek-chat`) is the default — roughly 10× cheaper. Claude (`claude-sonnet-4-6`) gives higher-quality synthesis with stronger citation grounding. The choice carries through as a `?provider=` URL param from the landing to the API call.
 
+## Requirements
+
+| Component | Version | Notes |
+|---|---|---|
+| Python | **3.11+** | Backend, CLI, FastAPI app, render layer |
+| Node.js | **18+** (20 LTS recommended) | Next.js 16.2 UI build/dev |
+| npm | bundled with Node | `npm ci` to install UI deps |
+| OS | Linux / macOS / Windows | Windows `.exe` launcher available, see below |
+| Disk | ~3 GB free | Includes BGE-M3 (~2 GB) + Chromium (~150 MB) |
+| RAM | 4 GB minimum, 8 GB recommended | Embedding + UMAP/HDBSCAN are memory-hungry |
+| Network | required at install, optional at runtime | Scrapers need outbound HTTPS; synthesis hits Anthropic/DeepSeek |
+
+**System packages**
+
+- `fonts-noto-cjk` — CJK glyph fallback for the PNG render layer (Cantonese-colloquial, JP, KR, TC). On Debian/Ubuntu: `apt install fonts-noto-cjk`. macOS ships CJK fonts; Windows ships Yu Gothic + Microsoft JhengHei.
+- A Chromium binary reachable by Playwright. `playwright install chromium` downloads ~150 MB; if `cdn.playwright.dev` is blocked, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/path/to/chrome` to point at a system binary instead.
+
+**Python dependencies** (declared in `pyproject.toml`, installed by `make install`)
+
+`pydantic`, `httpx`, `typer`, `structlog`, `tenacity`, `py3langid`, `beautifulsoup4`, `sentence-transformers`, `duckdb`, `umap-learn`, `hdbscan`, `scikit-learn`, `google-play-scraper`, `python-dotenv`, `fastapi`, `uvicorn[standard]`, `fpdf2`, `jieba`, `playwright`, `jinja2`. Dev extras: `pytest`, `pytest-httpx`, `ruff`.
+
+**Required environment variables**
+
+| Variable | Required for | Notes |
+|---|---|---|
+| `AUTHOR_HASH_SALT` | every scrape | Long random string; rotates author hashes per install |
+| `ANTHROPIC_API_KEY` | `mkt synthesize` with Claude | Format `sk-ant-...` |
+| `DEEPSEEK_API_KEY` | `mkt synthesize` with DeepSeek (default) | Format `sk-...` |
+| `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` | optional | Override the Playwright Chromium location |
+
 ## Setup
 
 ```
