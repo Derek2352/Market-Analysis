@@ -442,17 +442,21 @@ def cluster(
 
     cfg = load_config(Path(config_path) if config_path else None)
 
+    # Read everything we need and close before doing CPU-bound work —
+    # avoids holding the DuckDB file lock across clustering + I/O,
+    # which on Windows blocks subsequent runs if this process crashes.
     con = duckdb.connect(str(db_path))
-    con.execute("LOAD vss;")
-
-    rows = con.execute(
-        "SELECT post_id, source, vector, topic FROM embeddings WHERE topic = ? AND region = ?",
-        [topic, region],
-    ).fetchall()
+    try:
+        con.execute("LOAD vss;")
+        rows = con.execute(
+            "SELECT post_id, source, vector, topic FROM embeddings WHERE topic = ? AND region = ?",
+            [topic, region],
+        ).fetchall()
+    finally:
+        con.close()
 
     if not rows:
         typer.echo(f"No embeddings for topic={topic}, region={region}")
-        con.close()
         raise typer.Exit(code=1)
 
     vectors = np.array([np.array(r[2]) for r in rows])
@@ -508,7 +512,6 @@ def cluster(
             f"  ⚠ 0 clusters produced — try lowering min_cluster_size in {config_path} or scrape more diverse sources.",
             err=True,
         )
-    con.close()
 
 
 @app.command()
@@ -1373,13 +1376,20 @@ def analyze(
 
     typer.echo(f"  [cluster] UMAP + HDBSCAN...", nl=False)
     cfg = load_config(None)
+    # Always close on exception. DuckDB on Windows holds an OS-level lock
+    # on the .duckdb file; leaking it can prevent the next run from
+    # re-opening even after the process exits in degenerate cases
+    # (antivirus scan during cleanup, etc.).
     con = _duckdb.connect(str(db_path))
-    con.execute("LOAD vss;")
-    con.execute("SET hnsw_enable_experimental_persistence = true")
-    rows = con.execute(
-        "SELECT post_id, source, vector FROM embeddings WHERE topic = ? AND region = ?",
-        [topic, region],
-    ).fetchall()
+    try:
+        con.execute("LOAD vss;")
+        con.execute("SET hnsw_enable_experimental_persistence = true")
+        rows = con.execute(
+            "SELECT post_id, source, vector FROM embeddings WHERE topic = ? AND region = ?",
+            [topic, region],
+        ).fetchall()
+    finally:
+        con.close()
 
     vectors = _np.array([_np.array(r[2]) for r in rows])
     post_ids_vec = [r[0] for r in rows]
@@ -1416,7 +1426,6 @@ def analyze(
 
     npct = result.noise_count / len(post_ids_vec) * 100 if post_ids_vec else 0
     typer.echo(f" {len(result.clusters)} clusters, {result.noise_count} noise ({npct:.0f}%)")
-    con.close()
 
     # ── Phase 4: Results ─────────────────────────────────────────────────
     typer.echo(f"\n{'='*60}")

@@ -141,13 +141,19 @@ def analyze(
     # ── Phase 3: Cluster ─────────────────────────────────────────────────
     typer.echo(f"  [cluster] UMAP + HDBSCAN...", nl=False)
     cfg = load_config(None)  # type: ignore[name-defined]  # noqa: F821
+    # try/finally — release the DuckDB file lock before doing CPU-bound
+    # clustering. Required on Windows so a Ctrl+C mid-cluster doesn't
+    # leave the .duckdb locked for the next run.
     con = _duckdb.connect(str(db_path))
-    con.execute("LOAD vss;")
-    con.execute("SET hnsw_enable_experimental_persistence = true")
-    rows = con.execute(
-        "SELECT post_id, source, vector FROM embeddings WHERE topic = ? AND region = ?",
-        [topic, region],
-    ).fetchall()
+    try:
+        con.execute("LOAD vss;")
+        con.execute("SET hnsw_enable_experimental_persistence = true")
+        rows = con.execute(
+            "SELECT post_id, source, vector FROM embeddings WHERE topic = ? AND region = ?",
+            [topic, region],
+        ).fetchall()
+    finally:
+        con.close()
 
     vectors = _np.array([_np.array(r[2]) for r in rows])
     post_ids_vec = [r[0] for r in rows]
@@ -184,7 +190,6 @@ def analyze(
 
     npct = result.noise_count / len(post_ids_vec) * 100 if post_ids_vec else 0
     typer.echo(f" {len(result.clusters)} clusters, {result.noise_count} noise ({npct:.0f}%)")
-    con.close()
 
     if len(result.clusters) == 0 and len(post_ids_vec) < 50:
         typer.echo(

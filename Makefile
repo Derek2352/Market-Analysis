@@ -1,3 +1,9 @@
+# ─ Market Analytics — convenience targets ─────────────────────────────
+#
+# These targets assume a POSIX shell (macOS / Linux / Git Bash / WSL on
+# Windows). Native Windows PowerShell users: see README "Step-by-step
+# setup" for the raw commands each target expands to.
+#
 .PHONY: install scrape test test-live test-render lint fmt clean dev-api dev-ui eval eval-mock render render-zip
 
 PY ?= python
