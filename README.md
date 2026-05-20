@@ -83,14 +83,28 @@ mkt render run      # render a whole run + index.html bundle (optional --zip)
 
 ## Web UI
 
-Start the development servers:
+The dev setup is **two long-running processes**, so you need **two terminals** (or a multiplexer like `tmux`):
 
 ```bash
-make dev-api      # FastAPI on :8000  (needs .env with AUTHOR_HASH_SALT)
-cd ui && npm run dev   # Next.js on :3000
+# Terminal 1 — FastAPI on http://127.0.0.1:8000
+make dev-api
+
+# Terminal 2 — Next.js on http://localhost:3000
+make dev-ui
 ```
 
-Then open `http://localhost:3000/`.
+(`make dev-ui` is shorthand for `cd ui && npm run dev`.) Then open `http://localhost:3000/`.
+
+If you really want both in one shell, run the API in the background:
+
+```bash
+make dev-api &       # backgrounded; logs interleave into this terminal
+make dev-ui          # foreground; Ctrl+C stops only the UI
+# when done:
+kill %1              # stop the backgrounded API
+```
+
+On Windows, the same two processes are managed for you by `MarketAnalytics.exe` (see [Windows packaging](#windows-packaging) below).
 
 **Landing page** (`/`) — editorial overview with animated scrape-stream demo, interactive region + source grid (34 sources across 4 regions), persona and journey-map previews, and a hero launcher. Configure topic, region, sources, look-back window, and LLM provider, then click **Start run →** to jump straight to `/launch` with everything pre-filled.
 
