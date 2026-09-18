@@ -149,6 +149,7 @@ def _scrape_step(state: RunState, data_dir: Path) -> int:
     run_id = state.summary.run_id
     since_dt = datetime.now(timezone.utc) - timedelta(days=since_days)
     total = 0
+    failures: list[tuple[str, str]] = []
     with DedupIndex(data_dir / "dedup.sqlite") as index:
         for s_idx, source_id in enumerate(sources):
             state.set_progress(
@@ -164,9 +165,10 @@ def _scrape_step(state: RunState, data_dir: Path) -> int:
                 data_dir=data_dir, topic_slug=topic_slug,
                 region=region, source=source_id, run_id=run_id,
             )
-            scraper = get_scraper(source_id)
+            scraper = None
             emitted = 0
             try:
+                scraper = get_scraper(source_id)
                 for post in scraper.search(topic, since=since_dt, limit=limit):
                     is_new = index.mark_seen(
                         source=source_id, source_post_id=post.id,
@@ -181,22 +183,48 @@ def _scrape_step(state: RunState, data_dir: Path) -> int:
                                 "pct": (s_idx + emitted / max(limit, 1)) / len(sources),
                                 "message": f"Scraping {source_id}: {emitted} new posts",
                             })
+            except Exception as exc:  # noqa: BLE001 — isolate per source, keep the run alive
+                failures.append((source_id, str(exc)))
+                events.emit("progress", {
+                    "stage": "scrape",
+                    "pct": (s_idx + 1) / len(sources),
+                    "message": f"{source_id} FAILED: {exc}",
+                })
             finally:
-                close = getattr(scraper, "close", None)
-                if callable(close):
-                    close()
+                if scraper is not None:
+                    close = getattr(scraper, "close", None)
+                    if callable(close):
+                        close()
                 writer.finalize()
             total += emitted
-            events.emit("progress", {
-                "stage": "scrape",
-                "pct": (s_idx + 1) / len(sources),
-                "message": f"{source_id}: {emitted} new posts",
-            })
+            if not any(f[0] == source_id for f in failures):
+                events.emit("progress", {
+                    "stage": "scrape",
+                    "pct": (s_idx + 1) / len(sources),
+                    "message": f"{source_id}: {emitted} new posts",
+                })
 
-    events.emit("stage_done", {
-        "stage": "scrape",
-        "message": f"Scraped {total} new posts across {len(sources)} source(s)",
-    })
+    # If every source failed and nothing was scraped, name the likely cause
+    # (network egress) in one line instead of leaving N opaque per-source errors.
+    if total == 0 and failures and len(failures) == len(sources):
+        from src.scrape.utils.egress import check_egress
+        verdict, detail = check_egress()
+        if verdict != "ok":
+            events.emit("stage_done", {
+                "stage": "scrape",
+                "message": (
+                    f"0 posts — all {len(sources)} source(s) failed. "
+                    f"Outbound network to sources is unavailable ({verdict}: {detail}). "
+                    f"Scraping needs an environment whose network policy allows the "
+                    f"target hosts."
+                ),
+            })
+            return 0
+
+    msg = f"Scraped {total} new posts across {len(sources)} source(s)"
+    if failures:
+        msg += f" ({len(failures)} failed: {', '.join(s for s, _ in failures)})"
+    events.emit("stage_done", {"stage": "scrape", "message": msg})
     return total
 
 

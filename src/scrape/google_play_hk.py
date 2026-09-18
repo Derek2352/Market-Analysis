@@ -107,6 +107,10 @@ class GooglePlayHKScraper:
                 while emitted < limit:
                     batch, continuation_token = gps.reviews(
                         app_id,
+                        # Explicit NEWEST — the default is MOST_RELEVANT, which
+                        # is not chronological, so the since-cutoff below would
+                        # abort on an early old-but-relevant review (0 posts).
+                        sort=gps.Sort.NEWEST,
                         lang=self._lang,
                         country=self._country,
                         count=min(100, limit - emitted),
@@ -121,7 +125,9 @@ class GooglePlayHKScraper:
                         if post is None:
                             continue
                         if post.posted_at < since:
-                            return  # Reviews are newest-first
+                            # Skip, don't abort — guards against any ordering
+                            # surprise so one old review can't zero the source.
+                            continue
                         yield post
                         emitted += 1
                         if emitted >= limit:

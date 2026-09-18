@@ -301,7 +301,10 @@ def parse_reddit_json_item(
                 "nsfw": item.get("over_18", False),
             },
         )
-    except Exception:
+    except (KeyError, ValueError, TypeError):
+        # Tolerate malformed individual items, but let config/programming
+        # errors (e.g. a missing AUTHOR_HASH_SALT -> RuntimeError in
+        # hash_author) propagate loudly instead of silently dropping posts.
         return None
 
 

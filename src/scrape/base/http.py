@@ -26,7 +26,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from src.scrape.base.robots import RobotsCache
+from src.scrape.base.robots import RobotsCache, _ca_bundle
 
 USER_AGENT = (
     "MarketAnalyticsBot/0.1 (research; contact: see README.md)"
@@ -64,7 +64,11 @@ def _is_retryable(exc: BaseException) -> bool:
         return True
     if isinstance(exc, httpx.HTTPStatusError):
         return exc.response.status_code in {429} or 500 <= exc.response.status_code < 600
-    if isinstance(exc, (httpx.ConnectError, httpx.ReadError, httpx.RemoteProtocolError)):
+    # Retry transient transport failures — connect/read/write/pool timeouts and
+    # proxy errors included — but NOT client-side protocol misuse.
+    if isinstance(exc, httpx.TransportError) and not isinstance(
+        exc, (httpx.UnsupportedProtocol, httpx.LocalProtocolError)
+    ):
         return True
     return False
 
@@ -110,6 +114,8 @@ class PoliteClient:
             headers=merged,
             timeout=httpx.Timeout(30.0, connect=10.0),
             follow_redirects=True,
+            trust_env=True,
+            verify=_ca_bundle(),
         )
         self._last_request = {}
         self._log = structlog.get_logger().bind(client="PoliteClient")
@@ -177,7 +183,6 @@ class PoliteClient:
                 min=DEFAULT_RETRY_MIN_WAIT,
                 max=DEFAULT_RETRY_MAX_WAIT,
             ),
-            reraise=True,
         )
         def _inner() -> httpx.Response:
             assert self._client is not None
@@ -188,11 +193,15 @@ class PoliteClient:
             resp.raise_for_status()
             return resp
 
+        # Non-retryable exceptions (ForbiddenError/403, 404, …) propagate as-is
+        # so callers see the real cause. Only an exhausted *retryable* chain
+        # becomes RetryError, which we wrap in SourceError with the true cause.
         try:
             return _inner()
         except RetryError as e:
-            cause = e.__cause__ or e
-            raise SourceError(f"Request failed after retries: {url}") from cause
+            cause = e.last_attempt.exception() if e.last_attempt else None
+            detail = f" ({type(cause).__name__}: {cause})" if cause else ""
+            raise SourceError(f"Request failed after retries: {url}{detail}") from cause
 
 
 # Re-import at bottom to avoid circular dependency with protocol.py.

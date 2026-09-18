@@ -12,6 +12,7 @@ Stealth defaults:
 
 from __future__ import annotations
 
+import os
 import random
 import time
 from contextlib import contextmanager
@@ -22,6 +23,11 @@ import structlog
 from src.scrape.base.robots import RobotsCache
 
 USER_AGENT = "MarketAnalyticsBot/0.1 (research; contact: see README.md)"
+
+# Same env override the render layer honours (src/render/core.py). Lets a
+# container point at an extracted / system Chromium when the Playwright-pinned
+# browser build isn't installed, instead of hard-failing at launch.
+_CHROME_ENV = "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH"
 
 VIEWPORTS: list[dict[str, int]] = [
     {"width": 1440, "height": 900},
@@ -203,10 +209,32 @@ class PlaywrightManager:
             ) from None
 
         self._playwright = sync_playwright().start()
-        self._browser = self._playwright.chromium.launch(
-            headless=self._headless,
-        )
+        try:
+            self._browser = self._playwright.chromium.launch(**self._launch_kwargs())
+        except Exception as e:  # noqa: BLE001 — surface a clear, actionable message
+            raise SourceError(
+                f"Chromium failed to launch: {e}. Run "
+                f"'playwright install chromium', or set {_CHROME_ENV} to an "
+                f"existing Chromium binary."
+            ) from e
         self._log.info("playwright.browser_started")
+
+    def _launch_kwargs(self) -> dict:
+        """Launch kwargs mirroring the render layer.
+
+        ``--no-sandbox`` is required when running as root in a container;
+        ``--disable-dev-shm-usage`` avoids tab crashes on a small ``/dev/shm``.
+        ``executable_path`` is set only when the env override is present, so
+        default Playwright browser resolution is unchanged otherwise.
+        """
+        kwargs: dict = {
+            "headless": self._headless,
+            "args": ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
+        }
+        env_path = os.environ.get(_CHROME_ENV)
+        if env_path:
+            kwargs["executable_path"] = env_path
+        return kwargs
 
     def _check_robots(self, url: str) -> None:
         if not self._respect_robots:

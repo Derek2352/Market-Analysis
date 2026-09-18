@@ -103,7 +103,10 @@ def test_search_via_monkeypatched_library(monkeypatch: pytest.MonkeyPatch) -> No
             {"appId": "com.example.other"},
         ]
 
-    def fake_reviews(app_id, lang, country, count, continuation_token):
+    def fake_reviews(app_id, lang, country, count, continuation_token, sort=None):
+        # sort=NEWEST is now passed explicitly by the scraper; accept + assert it.
+        import google_play_scraper as _g
+        assert sort == _g.Sort.NEWEST
         if app_id == "hk.com.mtr.mtrmobile" and continuation_token is None:
             return [_FIXTURE_REVIEW, _FIXTURE_REVIEW_EN], None  # no more pages
         return [], None
@@ -112,7 +115,10 @@ def test_search_via_monkeypatched_library(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setattr(gps, "reviews", fake_reviews)
 
     scraper = GooglePlayHKScraper(max_apps_per_search=1)
-    since = datetime.now(timezone.utc) - timedelta(days=365)
+    # Fixed far-past cutoff so the test doesn't rot as the wall clock advances
+    # past the fixtures' 2025 timestamps (was now-365d, which silently filtered
+    # both fixtures out once a year elapsed).
+    since = datetime(2020, 1, 1, tzinfo=timezone.utc)
     posts = list(scraper.search("MTR Mobile", since=since, limit=10))
 
     assert len(posts) == 2

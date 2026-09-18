@@ -168,7 +168,10 @@ class LIHKGScraper:
 
         for a in soup.find_all("a", href=True):
             href = a.get("href", "")
-            m = re.search(r"/thread/(\d+)/page/1", href)
+            # Match /thread/<id> with or without the /page/1 suffix — LIHKG
+            # links to a thread's first page both ways, so the old
+            # /page/1-only pattern missed most thread links.
+            m = re.search(r"/thread/(\d+)(?:/page/1)?", href)
             if not m:
                 continue
             tid = m.group(1)
@@ -215,7 +218,10 @@ class LIHKGScraper:
             like_count = 0
             like_match = re.search(r"(\d+)\s*lik", container_text, re.IGNORECASE)
             if like_match:
-                like_count = int(reply_match.group(1))
+                # Was int(reply_match.group(1)) — a copy-paste bug that raised
+                # AttributeError (reply_match is None when there's no reply
+                # count), discarding every thread on the page.
+                like_count = int(like_match.group(1))
 
             # Body = title (no excerpt available in listing)
             body = title
