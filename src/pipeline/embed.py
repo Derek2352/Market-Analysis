@@ -38,6 +38,52 @@ EMBEDDING_CACHE_DIR = Path("data") / "embedding_cache"
 
 _log = structlog.get_logger(__name__)
 
+_EXT_REPO = "https://extensions.duckdb.org"
+
+
+def install_vss(con: Any) -> None:
+    """``INSTALL vss``, falling back to an HTTPS fetch when HTTP is blocked.
+
+    DuckDB's built-in extension downloader uses plain ``http://`` (fetching
+    over HTTPS needs the ``httpfs`` extension, which is itself downloaded over
+    HTTP). HTTPS-only egress proxies refuse that, so ``INSTALL vss`` fails with
+    an HTTP 403. In that case fetch the signed extension over HTTPS ourselves —
+    honouring ``HTTPS_PROXY`` and the proxy CA bundle — and install it from
+    the local file. DuckDB still verifies the extension signature on load.
+    """
+    import duckdb
+
+    try:
+        con.execute("INSTALL vss;")
+        return
+    except duckdb.Error as first_err:
+        _log.warning("embed.vss_http_install_failed", error=str(first_err))
+
+    import gzip
+    import tempfile
+
+    import httpx
+
+    version = "v" + duckdb.__version__
+    platform = con.execute("PRAGMA platform").fetchone()[0]
+    url = f"{_EXT_REPO}/{version}/{platform}/vss.duckdb_extension.gz"
+    verify = os.environ.get("SSL_CERT_FILE") or os.environ.get("REQUESTS_CA_BUNDLE") or True
+    try:
+        resp = httpx.get(url, timeout=120, trust_env=True, verify=verify,
+                         follow_redirects=True)
+        resp.raise_for_status()
+    except httpx.HTTPError as e:
+        raise RuntimeError(
+            f"Could not install the DuckDB VSS extension: plain-HTTP install "
+            f"was refused and the HTTPS fetch of {url} failed ({e}). Allow "
+            f"outbound HTTPS to extensions.duckdb.org."
+        ) from e
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "vss.duckdb_extension"
+        path.write_bytes(gzip.decompress(resp.content))
+        con.execute(f"INSTALL '{path}';")
+    _log.info("embed.vss_installed_via_https", url=url)
+
 
 class EmbeddingStore:
     """DuckDB-backed embedding store with VSS (Vector Similarity Search).
@@ -328,7 +374,7 @@ class EmbeddingStore:
         self._con = duckdb.connect(str(self.db_path))
 
         # Enable VSS
-        self._con.execute("INSTALL vss;")
+        install_vss(self._con)
         self._con.execute("LOAD vss;")
 
         # Create embeddings table
