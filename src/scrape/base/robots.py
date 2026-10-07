@@ -9,8 +9,10 @@ process).
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass, field
-from urllib.parse import urljoin, urlparse
+from functools import lru_cache
+from urllib.parse import quote, urljoin, urlparse
 
 import httpx
 import structlog
@@ -65,6 +67,11 @@ class RobotsCache:
         parsed = urlparse(url)
         host = f"{parsed.scheme}://{parsed.hostname}"
         path = parsed.path or "/"
+        if path == "/robots.txt":
+            return True  # RFC 9309: robots.txt itself is always fetchable
+        # Rules match the path *including* the query string, so rules like
+        # "/forum.php?mod=post*" can apply.
+        target = f"{path}?{parsed.query}" if parsed.query else path
 
         if host not in self._cache:
             self._cache[host] = self._fetch_disallowed(host, user_agent)
@@ -75,8 +82,8 @@ class RobotsCache:
             return True
 
         # Longest-match precedence; on a tie the Allow wins (Google spec).
-        dis = _longest_match(path, rules.disallow)
-        alw = _longest_match(path, rules.allow)
+        dis = _longest_match(target, rules.disallow)
+        alw = _longest_match(target, rules.allow)
         if dis < 0:
             return True  # no disallow rule matches this path
         if alw >= dis:
@@ -172,10 +179,30 @@ class RobotsCache:
         return _Rules()
 
 
-def _longest_match(path: str, prefixes: list[str]) -> int:
-    """Length of the longest prefix in *prefixes* that *path* starts with, or -1."""
+@lru_cache(maxsize=4096)
+def _compile_rule(rule: str) -> re.Pattern[str]:
+    """Compile a robots.txt path rule (RFC 9309 / Google syntax) to a regex.
+
+    ``*`` matches any sequence of characters and a trailing ``$`` anchors the
+    end; everything else is literal and matched from the start of the
+    path+query. Non-ASCII characters are percent-encoded so a rule written in
+    UTF-8 matches the encoded request URL.
+    """
+    anchored = rule.endswith("$")
+    body = rule[:-1] if anchored else rule
+    body = "".join(ch if ord(ch) < 128 else quote(ch) for ch in body)
+    pattern = "".join(".*" if ch == "*" else re.escape(ch) for ch in body)
+    return re.compile(pattern + ("$" if anchored else ""))
+
+
+def _longest_match(target: str, rules: list[str]) -> int:
+    """Length of the longest rule in *rules* matching *target*, or -1.
+
+    Rule length is the specificity measure RFC 9309 uses: the longest
+    matching rule decides, and the caller lets Allow win ties.
+    """
     best = -1
-    for p in prefixes:
-        if path.startswith(p) and len(p) > best:
-            best = len(p)
+    for rule in rules:
+        if len(rule) > best and _compile_rule(rule).match(target):
+            best = len(rule)
     return best
