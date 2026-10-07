@@ -1,5 +1,5 @@
 "use client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -20,31 +20,63 @@ const SINCE_PRESETS = [30, 90, 180, 365];
 
 export function RunLauncher() {
   const router = useRouter();
+  // Pre-fill from URL when the landing's "Start run →" link passes
+  // ?topic=&region=&sources=&provider=. Each param is optional.
+  const searchParams = useSearchParams();
+  const urlTopic    = searchParams.get("topic")    ?? "";
+  const urlRegion   = searchParams.get("region");
+  const urlSources  = searchParams.get("sources"); // comma-separated
+  const urlProvider = searchParams.get("provider"); // "anthropic" | "deepseek"
+
   const [regions, setRegions] = useState<RegionInfo[] | null>(null);
   const [regionsError, setRegionsError] = useState<string | null>(null);
-  const [topic, setTopic] = useState("");
-  const [regionId, setRegionId] = useState<string>("HK");
+  const [topic, setTopic] = useState(urlTopic);
+  const [regionId, setRegionId] = useState<string>(urlRegion ?? "HK");
   const [selectedSources, setSelectedSources] = useState<Set<string>>(new Set());
   const [sinceDays, setSinceDays] = useState<number>(90);
-  const [provider, setProvider] = useState<Provider>("deepseek");
+  const [provider, setProvider] = useState<Provider>(
+    urlProvider === "anthropic" || urlProvider === "deepseek"
+      ? urlProvider
+      : "deepseek",
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [acceptTosRisk, setAcceptTosRisk] = useState(false);
 
-  // Fetch regions on mount; default to HK if present, else first available.
+  // Fetch regions on mount. URL params win over the auto-select when
+  // present — that's what the landing's "Start run →" CTA expects.
   useEffect(() => {
     listRegions()
       .then((rs) => {
         setRegions(rs);
-        const hk = rs.find((r) => r.region_id === "HK") ?? rs[0];
-        if (hk) {
-          setRegionId(hk.region_id);
+        const target =
+          (urlRegion && rs.find((r) => r.region_id === urlRegion)) ||
+          rs.find((r) => r.region_id === "HK") ||
+          rs[0];
+        if (!target) return;
+        setRegionId(target.region_id);
+
+        if (urlSources) {
+          // Trust the URL list — keep only ids that exist in this region.
+          const valid = new Set([
+            ...target.default_sources.map((s) => s.source_id),
+            ...target.opt_in_sources.map((s) => s.source_id),
+          ]);
+          const picked = urlSources
+            .split(",")
+            .map((s) => s.trim())
+            .filter((s) => valid.has(s));
+          setSelectedSources(new Set(picked.length ? picked : target.default_sources.slice(0, 5).map((s) => s.source_id)));
+        } else {
           setSelectedSources(
-            new Set(hk.default_sources.slice(0, 5).map((s) => s.source_id)),
+            new Set(target.default_sources.slice(0, 5).map((s) => s.source_id)),
           );
         }
       })
       .catch((e: Error) => setRegionsError(e.message));
+    // Only run once on mount; URL params are read once. Re-running on
+    // URL change would clobber the user's in-page edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const currentRegion = regions?.find((r) => r.region_id === regionId);

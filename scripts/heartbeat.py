@@ -7,7 +7,7 @@ Empty stdout when nothing notable → silent.
 import json, time
 from pathlib import Path
 
-DATA = Path(r"C:\Users\Derek Yung\Market-Analysis\data")
+DATA = Path(__file__).resolve().parent.parent / "data"
 RAW = DATA / "raw" / "alipayhk"
 PERSONAS = DATA / "personas" / "alipayhk"
 CLUSTERS = DATA / "clusters" / "alipayhk"
@@ -24,7 +24,7 @@ for region_dir in sorted(RAW.glob("*")):
         if f.name.endswith("._run.json"):
             continue
         try:
-            with open(f) as fh:
+            with open(f, encoding="utf-8") as fh:
                 data = json.load(fh)
             if isinstance(data, list):
                 count += len(data)
@@ -51,7 +51,7 @@ for region_dir in sorted(CLUSTERS.glob("*")):
     region = region_dir.name
     latest = sorted(region_dir.glob("clusters_*.json"))
     if latest:
-        with open(latest[-1]) as f:
+        with open(latest[-1], encoding="utf-8") as f:
             cdata = json.load(f)
         if region in status:
             status[region]["clusters"] = len(cdata.get("clusters", []))

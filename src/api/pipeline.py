@@ -35,10 +35,24 @@ _log = structlog.get_logger(__name__)
 _executor_lock = asyncio.Lock()
 
 
+_WINDOWS_RESERVED = {
+    "con", "prn", "aux", "nul",
+    *(f"com{i}" for i in range(1, 10)),
+    *(f"lpt{i}" for i in range(1, 10)),
+}
+
+
 def _slugify(s: str) -> str:
     s = s.lower().strip()
     s = re.sub(r"[^a-z0-9]+", "_", s)
-    return s.strip("_") or "untitled"
+    s = s.strip("_") or "untitled"
+    # Windows refuses to create files/directories whose stem is a reserved
+    # device name (CON, PRN, AUX, NUL, COM1-9, LPT1-9). Suffix any such
+    # slug so `mkt scrape --topic "CON"` doesn't crash with WinError on
+    # the data/raw/con/ mkdir.
+    if s in _WINDOWS_RESERVED:
+        s = f"{s}_topic"
+    return s
 
 
 async def execute_run(state: RunState, data_dir: Path) -> None:
@@ -149,7 +163,7 @@ def _scrape_step(state: RunState, data_dir: Path) -> int:
     run_id = state.summary.run_id
     since_dt = datetime.now(timezone.utc) - timedelta(days=since_days)
     total = 0
-    failures: list[tuple[str, str]] = []
+    failed: list[dict[str, str]] = []  # [{source, error}] — per-source failures
     with DedupIndex(data_dir / "dedup.sqlite") as index:
         for s_idx, source_id in enumerate(sources):
             state.set_progress(
@@ -165,10 +179,26 @@ def _scrape_step(state: RunState, data_dir: Path) -> int:
                 data_dir=data_dir, topic_slug=topic_slug,
                 region=region, source=source_id, run_id=run_id,
             )
-            scraper = None
-            emitted = 0
             try:
                 scraper = get_scraper(source_id)
+            except Exception as exc:  # noqa: BLE001
+                # Couldn't even construct the scraper — log and skip.
+                _log.warning(
+                    "scrape.source.error", source=source_id,
+                    error=str(exc), emitted=0,
+                )
+                events.emit("scrape.source.error", {
+                    "stage": "scrape",
+                    "source": source_id,
+                    "error": str(exc),
+                    "emitted": 0,
+                    "message": f"⚠ {source_id}: {exc}",
+                })
+                failed.append({"source": source_id, "error": str(exc)})
+                writer.finalize()
+                continue
+            emitted = 0
+            try:
                 for post in scraper.search(topic, since=since_dt, limit=limit):
                     is_new = index.mark_seen(
                         source=source_id, source_post_id=post.id,
@@ -183,48 +213,55 @@ def _scrape_step(state: RunState, data_dir: Path) -> int:
                                 "pct": (s_idx + emitted / max(limit, 1)) / len(sources),
                                 "message": f"Scraping {source_id}: {emitted} new posts",
                             })
-            except Exception as exc:  # noqa: BLE001 — isolate per source, keep the run alive
-                failures.append((source_id, str(exc)))
-                events.emit("progress", {
+            except Exception as exc:  # noqa: BLE001 — mirror CLI: one source dying must not kill the run
+                _log.warning(
+                    "scrape.source.error", source=source_id,
+                    error=str(exc), emitted=emitted,
+                )
+                events.emit("scrape.source.error", {
                     "stage": "scrape",
-                    "pct": (s_idx + 1) / len(sources),
-                    "message": f"{source_id} FAILED: {exc}",
+                    "source": source_id,
+                    "error": str(exc),
+                    "emitted": emitted,
+                    "message": f"⚠ {source_id}: {exc}",
                 })
+                failed.append({"source": source_id, "error": str(exc)})
             finally:
-                if scraper is not None:
-                    close = getattr(scraper, "close", None)
-                    if callable(close):
-                        close()
+                close = getattr(scraper, "close", None)
+                if callable(close):
+                    close()
                 writer.finalize()
             total += emitted
-            if not any(f[0] == source_id for f in failures):
+            if not any(f["source"] == source_id for f in failed):
                 events.emit("progress", {
                     "stage": "scrape",
                     "pct": (s_idx + 1) / len(sources),
                     "message": f"{source_id}: {emitted} new posts",
                 })
 
-    # If every source failed and nothing was scraped, name the likely cause
-    # (network egress) in one line instead of leaving N opaque per-source errors.
-    if total == 0 and failures and len(failures) == len(sources):
+    msg = f"Scraped {total} new posts across {len(sources)} source(s)"
+    if failed:
+        ok = len(sources) - len(failed)
+        msg += f" — {len(failed)} source(s) failed, {ok} ok"
+    events.emit("stage_done", {"stage": "scrape", "message": msg, "failed_sources": failed})
+
+    # Only hard-fail if *every* source failed AND none produced posts.
+    # Otherwise the run continues with whatever did succeed.
+    if total == 0 and failed and len(failed) == len(sources):
+        # Name the likely cause in one line: when every source fails, it is
+        # usually the environment's network, not N independent scraper bugs.
         from src.scrape.utils.egress import check_egress
         verdict, detail = check_egress()
-        if verdict != "ok":
-            events.emit("stage_done", {
-                "stage": "scrape",
-                "message": (
-                    f"0 posts — all {len(sources)} source(s) failed. "
-                    f"Outbound network to sources is unavailable ({verdict}: {detail}). "
-                    f"Scraping needs an environment whose network policy allows the "
-                    f"target hosts."
-                ),
-            })
-            return 0
-
-    msg = f"Scraped {total} new posts across {len(sources)} source(s)"
-    if failures:
-        msg += f" ({len(failures)} failed: {', '.join(s for s, _ in failures)})"
-    events.emit("stage_done", {"stage": "scrape", "message": msg})
+        cause = (
+            "" if verdict == "ok"
+            else f" Outbound network to sources is unavailable ({verdict}: {detail});"
+                 f" scraping needs a network policy that allows the target hosts."
+        )
+        raise RuntimeError(
+            f"All {len(sources)} source(s) failed: "
+            + "; ".join(f"{f['source']}: {f['error']}" for f in failed)
+            + cause
+        )
     return total
 
 

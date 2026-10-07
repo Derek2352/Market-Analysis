@@ -35,6 +35,7 @@ export function ProgressStream({ runId, onDone, onError }: ProgressStreamProps) 
   );
   const [stages, setStages] = useState(initial);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [sourceErrors, setSourceErrors] = useState<{ source: string; error: string }[]>([]);
   const [terminal, setTerminal] = useState<"done" | "error" | "cancelled" | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
 
@@ -73,6 +74,14 @@ export function ProgressStream({ runId, onDone, onError }: ProgressStreamProps) 
           ...s,
           [stage]: { status: "done", pct: 1, message: String(data.message ?? "") },
         }));
+      } else if (kind === "scrape.source.error") {
+        // One source failed — the run continues with whatever else succeeded.
+        // Surface it inline rather than as a terminal failure.
+        const src = String(data.source ?? "?");
+        const err = String(data.error ?? "unknown error");
+        setSourceErrors((xs) =>
+          xs.some((x) => x.source === src) ? xs : [...xs, { source: src, error: err }],
+        );
       } else if (kind === "done") {
         setTerminal("done");
         es.close();
@@ -93,6 +102,7 @@ export function ProgressStream({ runId, onDone, onError }: ProgressStreamProps) 
     es.addEventListener("stage_start", handler("stage_start"));
     es.addEventListener("progress", handler("progress"));
     es.addEventListener("stage_done", handler("stage_done"));
+    es.addEventListener("scrape.source.error", handler("scrape.source.error"));
     es.addEventListener("done", handler("done"));
     es.addEventListener("error", handler("error"));
     es.addEventListener("cancelled", handler("cancelled"));
@@ -141,6 +151,23 @@ export function ProgressStream({ runId, onDone, onError }: ProgressStreamProps) 
             </div>
           );
         })}
+
+        {sourceErrors.length > 0 && (
+          <div className="mt-3 space-y-1">
+            <div className="text-xs font-medium text-warning-foreground">
+              {sourceErrors.length} source{sourceErrors.length === 1 ? "" : "s"} failed — run continued with the rest
+            </div>
+            {sourceErrors.map((s, i) => (
+              <div
+                key={i}
+                className="text-xs border border-warning/30 bg-warning/10 rounded p-2 leading-snug"
+              >
+                <span className="font-mono font-medium">{s.source}</span>
+                <span className="text-muted-foreground"> — {s.error}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {warnings.length > 0 && (
           <div className="mt-3 space-y-1">

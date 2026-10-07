@@ -1,6 +1,6 @@
 # Market Analytics Tool
 
-Generate **Personas** and **User Journey Maps** for a product, brand, or category, grounded in publicly scrapeable online discussion. Region-aware — **HK, JP, TW, and US** are wired today. See [`PROJECT_PLAN.md`](./PROJECT_PLAN.md) for the full plan.
+Generate **Personas** and **User Journey Maps** for a product, brand, or category, grounded in publicly scrapeable online discussion. Region-aware — **HK, JP, TW, and US** are wired today. Ships with a full web UI (landing page → run launcher → live results) and a Windows `.exe` launcher. See [`PROJECT_PLAN.md`](./PROJECT_PLAN.md) for the full plan.
 
 ## What's shipped
 
@@ -44,7 +44,7 @@ Openrice introduced the Playwright path. HTML fixtures live in `tests/fixtures/h
 ### Phase 5 — FastAPI + Next.js UI
 
 - `src/api/` — FastAPI app exposing `POST /runs`, `GET /runs/{id}`, `GET /regions`, persona/journey/doc readers. Pipeline runs serialise behind one asyncio.Lock; SSE-streamed `GET /runs/{id}/stream` replays event history then tails live events.
-- `ui/` — Next.js 16 + Tailwind v4 + shadcn/ui launcher, persona cards, journey grid, citation drawer.
+- `ui/` — Next.js 16 + Tailwind v4 + shadcn/ui. **Landing page** at `/` with animated demo scrape stream, regional source grid, persona previews, journey-map previews, and a hero launcher (topic + region + sources + LLM provider toggle). `/launch` is the full run-configuration form; `/runs/{id}` streams live pipeline events then shows persona cards, journey maps, citation drawer, and PNG download links.
 
 ### Phases 6–7 — Multi-region expansion
 
@@ -81,23 +81,268 @@ mkt render journey  # render one journey map to a PNG
 mkt render run      # render a whole run + index.html bundle (optional --zip)
 ```
 
+## Web UI
+
+> **First time?** Make sure you've run **`cd ui` then `npm ci`** at least once (covered in [Setup](#setup) below). Without it `npm run dev` will fail with `'next' is not recognized` — the UI dependencies aren't installed yet. On Windows, run the two commands on separate lines — PowerShell 5.1 (Windows 10's default) doesn't accept `&&`.
+
+The dev setup is **two long-running processes**, so you need **two terminals** (or a multiplexer like `tmux`).
+
+**macOS / Linux** (Make is preinstalled):
+
+```bash
+# Terminal 1 — FastAPI on http://127.0.0.1:8000
+make dev-api
+
+# Terminal 2 — Next.js on http://localhost:3000
+make dev-ui
+```
+
+(`make dev-ui` is shorthand for `cd ui && npm run dev`.)
+
+**Windows** (PowerShell — Make isn't available by default, run the raw commands):
+
+```powershell
+# Terminal 1 — FastAPI on http://127.0.0.1:8000
+.\.venv\Scripts\Activate.ps1
+uvicorn src.api.app:app --reload --host 127.0.0.1 --port 8000
+
+# Terminal 2 — Next.js on http://localhost:3000
+cd ui
+npm run dev
+```
+
+If PowerShell blocks `Activate.ps1`, run once: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. Alternative without activating: `.\.venv\Scripts\python.exe -m uvicorn src.api.app:app --reload --host 127.0.0.1 --port 8000`.
+
+Then open `http://localhost:3000/` in your browser.
+
+If you really want both in one shell (any POSIX shell with job control — bash, zsh, fish via `&`), run the API in the background:
+
+```bash
+make dev-api &       # backgrounded; logs interleave into this terminal
+make dev-ui          # foreground; Ctrl+C stops only the UI
+# when done:
+kill %1              # stop the backgrounded API
+```
+
+On Windows, if you'd rather not juggle terminals at all, build the `.exe` launcher — it manages both processes for you (see [Windows packaging](#windows-packaging) below).
+
+**Landing page** (`/`) — editorial overview with animated scrape-stream demo, interactive region + source grid (34 sources across 4 regions), persona and journey-map previews, and a hero launcher. Configure topic, region, sources, look-back window, and LLM provider, then click **Start run →** to jump straight to `/launch` with everything pre-filled.
+
+**Launch page** (`/launch`) — full run-configuration form, pre-populated from the landing hero but fully editable. Opt-in (ToS-prohibited) sources show a warning banner with an explicit acceptance checkbox that must be ticked before the run can start.
+
+**Run page** (`/runs/{id}`) — live SSE stream of pipeline progress (scrape → embed → cluster → synthesise), followed by persona cards with journey maps, citation drawer, and PNG download links.
+
+**Provider selection.** Both the hero and `/launch` offer a **DeepSeek** / **Claude** toggle. DeepSeek (`deepseek-chat`) is the default — roughly 10× cheaper. Claude (`claude-sonnet-4-6`) gives higher-quality synthesis with stronger citation grounding. The choice carries through as a `?provider=` URL param from the landing to the API call.
+
+## Requirements
+
+| Component | Version | Notes |
+|---|---|---|
+| Python | **3.11+** | Backend, CLI, FastAPI app, render layer |
+| Node.js | **18+** (20 LTS recommended) | Next.js 16.2 UI build/dev |
+| npm | bundled with Node | `npm ci` to install UI deps |
+| OS | Linux / macOS / Windows | Windows `.exe` launcher available, see below |
+| Disk | ~3 GB free | Includes BGE-M3 (~2 GB) + Chromium (~150 MB) |
+| RAM | 4 GB minimum, 8 GB recommended | Embedding + UMAP/HDBSCAN are memory-hungry |
+| Network | required at install, optional at runtime | Scrapers need outbound HTTPS; synthesis hits Anthropic/DeepSeek |
+
+**System packages**
+
+- **CJK glyph fallback for the PNG render layer** (Cantonese-colloquial, JP, KR, TC):
+  - Debian / Ubuntu: `sudo apt install fonts-noto-cjk`
+  - Fedora: `sudo dnf install google-noto-sans-cjk-fonts`
+  - Arch: `sudo pacman -S noto-fonts-cjk`
+  - Alpine: `sudo apk add font-noto-cjk`
+  - macOS: PingFang + Hiragino are preinstalled — nothing to do.
+  - Windows: Yu Gothic + Microsoft JhengHei are preinstalled.
+- **Chromium binary for Playwright.** `playwright install chromium` downloads ~150 MB to a per-user cache:
+  - Linux: `~/.cache/ms-playwright/chromium-*/chrome-linux/chrome`
+  - macOS: `~/Library/Caches/ms-playwright/chromium-*/chrome-mac/Chromium.app/Contents/MacOS/Chromium`
+  - Windows: `%LOCALAPPDATA%\ms-playwright\chromium-*\chrome-win\chrome.exe`
+
+  On Linux you also need the OS libraries Chromium links against: `playwright install-deps` (Debian/Ubuntu only — handles `libnss3`, `libatk1.0`, etc.). On Fedora/Arch you may need to install equivalents manually if Chromium reports "missing library" at runtime.
+
+  If `cdn.playwright.dev` is blocked by your network, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to a system browser instead:
+  - Linux: `export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium` (or `/usr/bin/google-chrome`)
+  - macOS: `export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"`
+  - Windows PowerShell: `$env:PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH = "C:\Program Files\Google\Chrome\Application\chrome.exe"` (or the Edge equivalent at `C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`)
+
+**Python dependencies** (declared in `pyproject.toml`, installed by `make install`)
+
+`pydantic`, `httpx`, `typer`, `structlog`, `tenacity`, `py3langid`, `beautifulsoup4`, `sentence-transformers`, `duckdb`, `umap-learn`, `hdbscan`, `scikit-learn`, `google-play-scraper`, `python-dotenv`, `fastapi`, `uvicorn[standard]`, `fpdf2`, `jieba`, `playwright`, `jinja2`. Dev extras: `pytest`, `pytest-httpx`, `ruff`.
+
+**Required environment variables**
+
+| Variable | Required for | Notes |
+|---|---|---|
+| `AUTHOR_HASH_SALT` | every scrape | Long random string; rotates author hashes per install |
+| `ANTHROPIC_API_KEY` | `mkt synthesize` with Claude | Format `sk-ant-...` |
+| `DEEPSEEK_API_KEY` | `mkt synthesize` with DeepSeek (default) | Format `sk-...` |
+| `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` | optional | Override the Playwright Chromium location |
+
 ## Setup
 
-```
-make install
-cp .env.example .env
-# edit .env: AUTHOR_HASH_SALT=<long random string>
-# for synthesis: ANTHROPIC_API_KEY=sk-ant-...
+> **TL;DR (macOS / Linux):** `make install && cp .env.example .env && (cd ui && npm ci)`. Edit `.env` to set `AUTHOR_HASH_SALT` and at least one of `DEEPSEEK_API_KEY` / `ANTHROPIC_API_KEY`. Then start two terminals: `make dev-api` in one, `make dev-ui` in the other. Open `http://localhost:3000/`.
+
+### Step-by-step (beginner-friendly, works on Windows, macOS, Linux)
+
+If you already have Python 3.11+ and Node 18+ on your `PATH`, skip to step 3.
+
+#### 1. Install Python 3.11 or newer
+
+- **Windows:** Download the installer from [python.org/downloads](https://www.python.org/downloads/). **Important:** tick *"Add Python to PATH"* on the first install screen.
+- **macOS:** `brew install python@3.11` (install Homebrew first from [brew.sh](https://brew.sh) if you don't have it). If you instead use the installer from python.org, **run `/Applications/Python\ 3.11/Install\ Certificates.command` once** — fresh python.org installs ship without the CA bundle and `httpx` will fail SSL handshakes during scraping until you do this.
+- **Linux (Debian/Ubuntu):** `sudo apt install python3.11 python3.11-venv` (on Ubuntu 22.04 or older you may need the `deadsnakes` PPA first).
+- **Linux (Fedora):** `sudo dnf install python3.11 python3.11-devel`
+- **Linux (Arch):** `sudo pacman -S python` (currently 3.13 — works).
+
+Verify: open a new terminal and run `python --version` (Windows) or `python3 --version` (macOS/Linux). It should print `Python 3.11.x` or higher.
+
+> **Apple Silicon (M-series Macs):** Most wheels (numpy, sentence-transformers, duckdb, playwright) are arm64-native on PyPI. If `pip install -e ".[dev]"` fails compiling `hdbscan` or `umap-learn` from source, install the Xcode Command Line Tools: `xcode-select --install`.
+
+#### 2. Install Node.js 18+ (20 LTS recommended)
+
+- **Windows / macOS:** Download the **LTS** installer from [nodejs.org](https://nodejs.org/). (macOS via Homebrew: `brew install node`.)
+- **Linux (Debian/Ubuntu):** `curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt install -y nodejs`
+- **Linux (Fedora):** `sudo dnf install nodejs npm`
+- **Linux (Arch):** `sudo pacman -S nodejs npm`
+- **Linux (Alpine):** `sudo apk add nodejs npm`
+
+Verify: `node --version` should print `v18.x` or higher. Note the package-manager versions on Debian/Ubuntu can be very old; if `node --version` shows `v12` or `v14`, install via NodeSource or [nvm](https://github.com/nvm-sh/nvm) instead.
+
+#### 3. Clone the repo
+
+```bash
+git clone https://github.com/Derek2352/Market-Analysis.git
+cd Market-Analysis
 ```
 
-The `AUTHOR_HASH_SALT` is the only required env var for scraping; `ANTHROPIC_API_KEY` is only needed for `mkt synthesize`. For the PNG render layer:
+#### 4. Set up the Python backend
+
+**Windows (PowerShell):**
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
+```
+
+If PowerShell rejects `Activate.ps1` with an *"execution of scripts is disabled"* error, run this **once** (as your normal user, not Administrator) and try again:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+**macOS / Linux:**
+
+```bash
+make install        # creates .venv and installs all Python deps
+source .venv/bin/activate   # so `mkt` and `uvicorn` are on PATH for this shell
+```
+
+The `mkt` CLI lives in `.venv/bin/mkt`. After activation, `mkt --help` works directly; without activation, prefix every command with `.venv/bin/` (e.g. `.venv/bin/mkt scrape ...`). The `make` targets handle this for you, so `make dev-api`, `make eval`, etc. work either way.
+
+#### 5. Install the UI dependencies
+
+```bash
+cd ui
+npm ci              # ~1–2 min the first time; downloads node_modules
+cd ..
+```
+
+> Skipping this is the #1 cause of `'next' is not recognized` later on.
+
+#### 6. Create and fill in your `.env` file
+
+```bash
+cp .env.example .env        # macOS / Linux
+copy .env.example .env      # Windows PowerShell / CMD
+```
+
+Open `.env` in any text editor and set **at minimum**:
 
 ```
-playwright install chromium    # ~150 MB download; one-off, fully offline thereafter
-apt install fonts-noto-cjk     # CJK fallback fonts (Cantonese-colloquial, JP, KR)
+AUTHOR_HASH_SALT=<paste a long random string here>
+# Pick at least one — DeepSeek is the default and ~10x cheaper.
+DEEPSEEK_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-If `cdn.playwright.dev` is blocked by your network, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/path/to/chrome` to point at a system binary instead.
+How to generate a salt:
+
+- **Windows PowerShell:** `[guid]::NewGuid().ToString() + [guid]::NewGuid().ToString()`
+- **macOS / Linux:** `openssl rand -hex 32`
+
+Where to get API keys (free tiers exist on both):
+
+- **DeepSeek** → [platform.deepseek.com](https://platform.deepseek.com)
+- **Anthropic / Claude** → [console.anthropic.com](https://console.anthropic.com)
+
+#### 7. (Optional) Install Chromium for PNG renders
+
+Only needed if you'll run `mkt render` or `make test-render`. **Skip this if you only want the web UI.**
+
+```bash
+playwright install chromium      # ~150 MB, fully offline thereafter
+# Linux only — CJK glyph fallback for the render layer:
+sudo apt install fonts-noto-cjk
+```
+
+If your network blocks `cdn.playwright.dev`, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/path/to/chrome` to a system Chrome/Chromium instead.
+
+#### 8. Start the two dev servers
+
+You need **two terminals** both pointed at the `Market-Analysis` directory.
+
+**Terminal 1 — backend (FastAPI on :8000):**
+
+```powershell
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
+uvicorn src.api.app:app --reload --host 127.0.0.1 --port 8000
+```
+
+```bash
+# macOS / Linux
+make dev-api
+```
+
+**Terminal 2 — frontend (Next.js on :3000):**
+
+```bash
+cd ui
+npm run dev
+```
+
+Wait until both servers say they're ready — uvicorn prints `Application startup complete`; Next.js prints `Ready in Xs`.
+
+#### 9. Open the app
+
+Go to **<http://localhost:3000/>** in your browser. You should see the landing page. Click **Start run →** to launch your first run.
+
+### Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `'make' is not recognized` | Windows doesn't ship Make. | Use the raw PowerShell commands shown under each step. |
+| `'next' is not recognized` | UI deps not installed. | macOS/Linux: `cd ui && npm ci`. Windows PowerShell 5.1: run `cd ui` and `npm ci` on separate lines (PS 5.1 doesn't parse `&&`). Then retry `npm run dev`. |
+| `The token '&&' is not a valid statement separator` (PowerShell) | Windows 10 ships PowerShell 5.1, which doesn't support `&&`. | Run each command on its own line, or install [PowerShell 7](https://aka.ms/powershell) and use `pwsh` instead of the default `powershell`. |
+| `AUTHOR_HASH_SALT is required` | `.env` missing or empty. | Step 6 — create `.env` and set the salt. |
+| `Cannot run scripts on this system` (Activate.ps1) | PowerShell execution policy. | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once. |
+| `Address already in use` on :8000 or :3000 | Another process is using the port. | Kill it, or run uvicorn with `--port 8001` / Next.js with `npm run dev -- -p 3001`. |
+| `Executable doesn't exist` from Playwright | Chromium not installed. | `playwright install chromium`, or set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. |
+| `'charmap' codec can't encode character '→'` (or similar) on Windows | PowerShell's default codec is cp1252; the API and CLI print Unicode arrows. | Already fixed in the app — but if you still see it, set `$env:PYTHONIOENCODING="utf-8"` before launching, or run `chcp 65001` once in the same PowerShell window. |
+| `mkt: command not found` on macOS/Linux | venv not activated. | `source .venv/bin/activate`, or use `.venv/bin/mkt` directly. |
+| `SSL: CERTIFICATE_VERIFY_FAILED` on macOS during scrape | Fresh python.org Python installs ship without the CA bundle. | Run `/Applications/Python\ 3.11/Install\ Certificates.command` once. (Homebrew Python doesn't have this issue.) |
+| `pip install` fails on `hdbscan` / `umap-learn` on Apple Silicon | No prebuilt arm64 wheel — pip tries to compile and the toolchain is missing. | `xcode-select --install`, then re-run `make install`. |
+| Chromium crashes on Linux with "missing library" | Playwright didn't install system deps. | Debian/Ubuntu: `playwright install-deps` (sudo). Fedora/Arch: install the equivalents (libnss3, libatk1.0, libxkbcommon, libdrm, libgbm) via your package manager. |
+| CJK glyphs render as boxes (☐☐☐) in PNG output on Linux | No Noto CJK fonts. | Install per the System packages section above (`fonts-noto-cjk` / `google-noto-sans-cjk-fonts` / `noto-fonts-cjk`). |
+| Next.js `ENOSPC: System limit for number of file watchers reached` on Linux | inotify default is low. | `echo fs.inotify.max_user_watches=524288 \| sudo tee -a /etc/sysctl.conf && sudo sysctl -p` |
+| `ModuleNotFoundError: No module named 'src'` | Ran `uvicorn` from outside the repo root or without activating `.venv`. | `cd` into the repo root and activate the venv first. |
+| Backend starts but UI can't reach it | UI is hard-wired to `http://127.0.0.1:8000`. | Make sure the backend is on `:8000` and `.env` has `AUTHOR_HASH_SALT` (uvicorn refuses to scrape without it). |
+
+Prefer not to juggle terminals at all? On Windows you can build the `.exe` launcher instead — see [Windows packaging](#windows-packaging) below.
 
 ## Run
 
@@ -164,6 +409,26 @@ Some tests are environment-gated and skip cleanly without their dependency:
 - **VSS smoke tests** (`tests/pipeline/test_vss_smoke.py`) skip when the DuckDB VSS extension can't be installed (no egress to `extensions.duckdb.org`). Locally with internet, they verify INSTALL + LOAD + HNSW + cosine-similarity queries end-to-end.
 - **Embedding tests** require the BGE-M3 model — auto-downloaded on first run, ~2 GB.
 - **Render tests** (`tests/render/`) skip when no Chromium binary is reachable. Run `playwright install chromium` (or set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`) to enable them — they verify deterministic PNG bytes, file-size budgets, render-time ceiling, CJK glyph coverage, and bundle layout.
+
+## Windows packaging
+
+`scripts/build_windows.bat` produces a single-launcher distribution suitable for double-clicking on a fresh Windows box: `dist\MarketAnalytics\MarketAnalytics.exe` plus a sibling `_internal\` folder holding the frozen Python runtime, the Next.js standalone server bundle, and a portable Node distribution.
+
+```
+build_windows.bat
+# → dist\MarketAnalytics\MarketAnalytics.exe       (~10 MB launcher)
+# → dist\MarketAnalytics\_internal\                (~400–600 MB)
+```
+
+At runtime the launcher:
+
+1. Picks a free port for FastAPI (defaults to `8000`) and one for Next.js (`3000`).
+2. Spawns `uvicorn src.api.app:app` against the bundled Python.
+3. Spawns the Next.js standalone server (`server.js`) under the bundled `node\node.exe`.
+4. Polls both `/health` and `/`, then opens the user's default browser to `http://127.0.0.1:3000/` — the landing page.
+5. Stays in the console; Ctrl+C in that window stops both processes cleanly.
+
+The BGE-M3 embedding model (~2 GB) is **not** bundled — it downloads to the user's `~/.cache/huggingface/` on first use. Everything else (DuckDB+VSS, scrapers, the FastAPI app, the Next.js UI) ships in the folder. Build prerequisites: Python 3.11+ and Node.js 18+ on `PATH`. See `scripts/build_windows.bat` for the full step list.
 
 ## Privacy / PII
 

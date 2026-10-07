@@ -1,0 +1,39 @@
+# Default: detect text vs binary, normalize text to LF in the repo,
+# check out with the platform's native line endings only where it
+# really matters (.bat / .ps1 below).
+* text=auto eol=lf
+
+# Parser tests load these by exact byte content. CRLF expansion on a
+# Windows checkout would shift offsets and break selector tests, so
+# pin to LF regardless of core.autocrlf.
+*.html       text eol=lf
+*.json       text eol=lf
+*.jsonl      text eol=lf
+*.yaml       text eol=lf
+*.yml        text eol=lf
+*.md         text eol=lf
+*.py         text eol=lf
+*.ts         text eol=lf
+*.tsx        text eol=lf
+*.js         text eol=lf
+*.css        text eol=lf
+*.toml       text eol=lf
+Makefile     text eol=lf
+
+# Windows native scripts — the cmd.exe / PowerShell hosts only accept
+# CRLF in some flavors of batch files, so check these out with CRLF.
+*.bat        text eol=crlf
+*.cmd        text eol=crlf
+*.ps1        text eol=crlf
+
+# Binary — never touch.
+*.png        binary
+*.jpg        binary
+*.jpeg       binary
+*.gif        binary
+*.pdf        binary
+*.zip        binary
+*.duckdb     binary
+*.sqlite     binary
+*.parquet    binary
+*.ico        binary

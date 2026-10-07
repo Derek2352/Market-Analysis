@@ -122,7 +122,7 @@ def analyze(
     for rf in sorted(raw_dir.glob("*.json")):
         if rf.name.endswith("._run.json"):
             continue
-        with open(rf) as f:
+        with open(rf, encoding="utf-8") as f:
             posts_data = _json.load(f)
         posts = [RawPost(**p) for p in posts_data]  # type: ignore[name-defined]  # noqa: F821
         n = store.embed_posts(posts, topic=topic, region=region)
@@ -141,13 +141,19 @@ def analyze(
     # ── Phase 3: Cluster ─────────────────────────────────────────────────
     typer.echo(f"  [cluster] UMAP + HDBSCAN...", nl=False)
     cfg = load_config(None)  # type: ignore[name-defined]  # noqa: F821
+    # try/finally — release the DuckDB file lock before doing CPU-bound
+    # clustering. Required on Windows so a Ctrl+C mid-cluster doesn't
+    # leave the .duckdb locked for the next run.
     con = _duckdb.connect(str(db_path))
-    con.execute("LOAD vss;")
-    con.execute("SET hnsw_enable_experimental_persistence = true")
-    rows = con.execute(
-        "SELECT post_id, source, vector FROM embeddings WHERE topic = ? AND region = ?",
-        [topic, region],
-    ).fetchall()
+    try:
+        con.execute("LOAD vss;")
+        con.execute("SET hnsw_enable_experimental_persistence = true")
+        rows = con.execute(
+            "SELECT post_id, source, vector FROM embeddings WHERE topic = ? AND region = ?",
+            [topic, region],
+        ).fetchall()
+    finally:
+        con.close()
 
     vectors = _np.array([_np.array(r[2]) for r in rows])
     post_ids_vec = [r[0] for r in rows]
@@ -158,7 +164,7 @@ def analyze(
     for rf in sorted(raw_dir.glob("*.json")):
         if rf.name.endswith("._run.json"):
             continue
-        with open(rf) as f:
+        with open(rf, encoding="utf-8") as f:
             raw_posts = _json.load(f)
         for p in raw_posts:
             pid = p.get("id", "")
@@ -179,12 +185,11 @@ def analyze(
     out_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     out_path = out_dir / f"clusters_{ts}.json"
-    with open(out_path, "w") as f:
-        _json.dump(result.model_dump(mode="json"), f, indent=2, default=str)
+    with open(out_path, "w", encoding="utf-8") as f:
+        _json.dump(result.model_dump(mode="json"), f, indent=2, default=str, ensure_ascii=False)
 
     npct = result.noise_count / len(post_ids_vec) * 100 if post_ids_vec else 0
     typer.echo(f" {len(result.clusters)} clusters, {result.noise_count} noise ({npct:.0f}%)")
-    con.close()
 
     if len(result.clusters) == 0 and len(post_ids_vec) < 50:
         typer.echo(
@@ -228,16 +233,16 @@ def analyze(
                     personas_out = _DATA_DIR / "personas" / topic_slug / region  # type: ignore[name-defined]  # noqa: F821
                     personas_out.mkdir(parents=True, exist_ok=True)
                     p_path = personas_out / f"{p.id}.json"
-                    with open(p_path, "w") as pf:
-                        _json.dump(p.model_dump(mode="json"), pf, indent=2, default=str)
+                    with open(p_path, "w", encoding="utf-8") as pf:
+                        _json.dump(p.model_dump(mode="json"), pf, indent=2, default=str, ensure_ascii=False)
                     typer.echo(f"    {p.name}: {p.one_liner}")
 
                     jm = generate_journey(p, c, post_texts, {})  # type: ignore[name-defined]  # noqa: F821
                     journeys_out = _DATA_DIR / "journeys" / topic_slug / region  # type: ignore[name-defined]  # noqa: F821
                     journeys_out.mkdir(parents=True, exist_ok=True)
                     j_path = journeys_out / f"{jm.id}.json"
-                    with open(j_path, "w") as jf:
-                        _json.dump(jm.model_dump(mode="json"), jf, indent=2, default=str)
+                    with open(j_path, "w", encoding="utf-8") as jf:
+                        _json.dump(jm.model_dump(mode="json"), jf, indent=2, default=str, ensure_ascii=False)
                     typer.echo(f"      Journey: {len(jm.stages)} stages")
                 except Exception as e:
                     typer.echo(f"    Failed: {e}")

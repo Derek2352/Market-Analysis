@@ -30,6 +30,9 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
+from src.util_stdio import force_utf8_stdio
+
+force_utf8_stdio()  # Windows: structlog → uvicorn stdout would crash on cp1252.
 load_dotenv()
 
 from src.api.models import (

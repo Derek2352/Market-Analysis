@@ -202,7 +202,8 @@ export type SSEEvent =
   | { type: "queued"; data: { run_id: string; topic: string; region: string; sources: string[] } }
   | { type: "stage_start"; data: { stage: PipelineStage; message: string } }
   | { type: "progress"; data: { stage: PipelineStage; pct: number; message: string } }
-  | { type: "stage_done"; data: { stage: PipelineStage; message: string } }
+  | { type: "stage_done"; data: { stage: PipelineStage; message: string; failed_sources?: { source: string; error: string }[] } }
+  | { type: "scrape.source.error"; data: { stage: "scrape"; source: string; error: string; emitted: number; message: string } }
   | { type: "done"; data: { run_id: string; personas: number; journeys: number; cost_usd: number; counts: RunCounts } }
   | { type: "error"; data: { run_id: string; stage: PipelineStage | null; error: string } }
   | { type: "cancelled"; data: { run_id: string } };
