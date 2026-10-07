@@ -75,6 +75,13 @@ def _is_retryable(exc: BaseException) -> bool:
 
 def _raise_forbidden(response: httpx.Response) -> None:
     if response.status_code == 403:
+        # Tell a site-side bot block apart from an egress-proxy policy denial
+        # (which never reaches the site): Cloudflare stamps cf-ray / server.
+        if "cf-ray" in response.headers or "cloudflare" in response.headers.get("server", "").lower():
+            raise ForbiddenError(
+                f"HTTP 403 from {response.url} — blocked by the site's Cloudflare "
+                f"bot protection (site-side, not the network)"
+            )
         raise ForbiddenError(
             f"HTTP 403 from {response.url} — server is refusing access"
         )

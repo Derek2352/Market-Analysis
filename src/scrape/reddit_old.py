@@ -21,7 +21,7 @@ from urllib.parse import quote
 
 import structlog
 
-from src.scrape.base import PoliteClient, RobotsCache
+from src.scrape.base import PoliteClient, RobotsCache, SourceError
 from src.scrape.utils.hashing import hash_author
 from src.scrape.utils.lang import detect_language
 from src.schemas.enums import SignalType, SourceCategory
@@ -136,7 +136,7 @@ class RedditOldScraper:
     def fetch_thread(self, thread_id: str) -> Any:
         """Fetch a Reddit thread with comments via JSON API."""
         url = f"{BASE_URL}/comments/{thread_id}.json"
-        return self._client.get_json(url)
+        return self._get_json(url)
 
     def close(self) -> None:
         self._client.close()
@@ -145,6 +145,35 @@ class RedditOldScraper:
     # ------------------------------------------------------------------
     # Internal — JSON API
     # ------------------------------------------------------------------
+
+    def _get_json(self, url: str) -> Any:
+        """GET a Reddit JSON endpoint, recognising the logged-out login wall.
+
+        Reddit redirects some logged-out clients from ``*.json`` to
+        ``/login/?reason=...``; following that yields an HTML page that fails
+        JSON parsing with an unhelpful "Expecting value". Detect it and say
+        what happened instead. No login is attempted (no-registration rule).
+        """
+        resp = self._client.get(url)
+        resp.raise_for_status()
+        hit_login = resp.url.path.startswith("/login") or any(
+            r.headers.get("location", "").split("?")[0].rstrip("/").endswith("/login")
+            for r in resp.history
+        )
+        if hit_login:
+            raise SourceError(
+                "Reddit requires login for this request (logged-out "
+                "restriction); reddit_old does not log in, so it cannot "
+                "fetch from this network."
+            )
+        try:
+            return resp.json()
+        except ValueError as e:
+            ctype = resp.headers.get("content-type", "?")
+            raise SourceError(
+                f"Reddit returned {ctype} instead of JSON for {url} "
+                f"(likely a block or interstitial page): {e}"
+            ) from e
 
     def _fetch_search_page(
         self, subreddit: str, topic: str, after: str | None = None
@@ -161,7 +190,7 @@ class RedditOldScraper:
         if after:
             url += f"&after={after}"
 
-        resp = self._client.get_json(url)
+        resp = self._get_json(url)
         data = resp.get("data", {})
         next_after = data.get("after")
         return data, next_after

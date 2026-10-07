@@ -73,6 +73,7 @@ mkt diag            # c-TF-IDF keyword report per cluster
 mkt synthesize      # Claude-synthesized personas + journeys (needs ANTHROPIC_API_KEY)
 mkt synthesize-temporal  # time-bucketed trend analysis
 mkt synthesize-compare   # cross-region comparative analysis
+mkt synthesize-offline   # keyless synthesis: export prompts, write answers, validate, import
 mkt analyze         # combined scrape → embed → cluster → synthesize
 mkt export          # CSV export of raw posts and personas
 mkt eval            # run eval suite against product fixtures (mock or live LLM)
@@ -366,6 +367,23 @@ mkt render run 20260519T080000Z --zip
 ```
 
 Sources marked ToS-prohibited or de-prioritized (Openrice, Google Play HK, App Store HK, etc.) must be listed explicitly on `--sources` — they don't appear in the default source list.
+
+### Synthesis without an API key
+
+`mkt synthesize` calls Anthropic or DeepSeek. Without a key, `mkt synthesize-offline` runs the same synthesis by hand: it exports the exact rules, evidence pack and task the API call would receive, you (or an assistant) write the JSON answers, the synthesizer's own grounding validators check them, and `import` builds and saves the persona and journey exactly as an API run would.
+
+```
+mkt synthesize-offline export --topic "Cafe de Coral" --region HK --out bundle \
+    --clusters cluster_000 --merge cluster_001+cluster_002   # one persona per target
+# answer bundle/<target>/persona_task.txt in persona_response.json
+mkt synthesize-offline validate bundle   # checks citations + verbatim quotes; writes journey_task.txt
+# answer journey_task.txt in journey_response.json
+mkt synthesize-offline validate bundle
+mkt synthesize-offline import bundle     # writes data/personas/... and data/journeys/...
+mkt render run <run_id>
+```
+
+Every claim must cite a doc_id shown in that target's evidence pack and every quote must be a verbatim substring of the cited post; `import` refuses until all targets validate. `--merge` combines clusters that describe the same user type into one persona.
 
 ### Demo scripts
 

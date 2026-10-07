@@ -290,7 +290,8 @@ def _compute_ctfidf_for_cluster(
 
     def _prepare(text: str) -> str:
         if tokenizer is not None:
-            return " ".join(tokenizer.tokenize(text))
+            from src.lang import keyword_tokens
+            return " ".join(keyword_tokens(tokenizer, text))
         return text
 
     cluster_doc = _prepare(" ".join(post_texts.get(pid, "") for pid in cluster_ids))

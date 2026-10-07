@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import csv
 import json
-import re
 from pathlib import Path
 from typing import Annotated
 
@@ -19,15 +18,11 @@ import typer
 
 from src.schemas.raw import RawPost
 from src.schemas.synthesis import Persona
+from src.util_slug import slugify as _slugify
 
 _ROOT = Path(__file__).resolve().parent.parent
 _DATA_DIR = _ROOT / "data"
 
-
-def _slugify(s: str) -> str:
-    s = s.lower().strip()
-    s = re.sub(r"[^a-z0-9]+", "_", s)
-    return s.strip("_") or "untitled"
 
 
 _export_app = typer.Typer(help="Export data to CSV", no_args_is_help=True)

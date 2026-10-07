@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -35,24 +34,7 @@ _log = structlog.get_logger(__name__)
 _executor_lock = asyncio.Lock()
 
 
-_WINDOWS_RESERVED = {
-    "con", "prn", "aux", "nul",
-    *(f"com{i}" for i in range(1, 10)),
-    *(f"lpt{i}" for i in range(1, 10)),
-}
-
-
-def _slugify(s: str) -> str:
-    s = s.lower().strip()
-    s = re.sub(r"[^a-z0-9]+", "_", s)
-    s = s.strip("_") or "untitled"
-    # Windows refuses to create files/directories whose stem is a reserved
-    # device name (CON, PRN, AUX, NUL, COM1-9, LPT1-9). Suffix any such
-    # slug so `mkt scrape --topic "CON"` doesn't crash with WinError on
-    # the data/raw/con/ mkdir.
-    if s in _WINDOWS_RESERVED:
-        s = f"{s}_topic"
-    return s
+from src.util_slug import slugify as _slugify
 
 
 async def execute_run(state: RunState, data_dir: Path) -> None:
@@ -385,11 +367,13 @@ def _cluster_step(state: RunState, data_dir: Path) -> list[Cluster]:
 
     state.set_progress("cluster", 0.5, "Running clustering algorithm…")
     from src.lang import get_tokenizer as _get_tokenizer
+    from src.pipeline.post_maps import load_post_maps
     result: ClusteringResult = cluster_embeddings(
         vectors, post_ids, topic, region,
         config=cfg, source_map=source_map,
         post_texts=post_texts if post_texts else None,
         tokenizer=_get_tokenizer(region),
+        **load_post_maps(raw_dir).as_kwargs(),
     )
 
     out_dir = data_dir / "clusters" / topic_slug / region

@@ -8,7 +8,8 @@ from pathlib import Path
 import pytest
 
 PROJECT = Path(__file__).resolve().parent.parent
-PYTHON = PROJECT / ".venv" / "Scripts" / "python.exe"
+# The interpreter running the tests — works with or without a .venv, on any OS.
+PYTHON = Path(sys.executable)
 PIPELINE_SCRIPT = PROJECT / "scripts" / "overnight_pipeline.py"
 
 

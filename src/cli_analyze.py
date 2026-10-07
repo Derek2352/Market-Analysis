@@ -173,12 +173,14 @@ def analyze(
                 post_texts[pid] = text
 
     from src.lang import get_tokenizer as _get_tokenizer
+    from src.pipeline.post_maps import load_post_maps
     result = cluster_embeddings(  # type: ignore[name-defined]  # noqa: F821
         vectors, post_ids_vec, topic, region,
         config=cfg,
         source_map=source_map,
         post_texts=post_texts if post_texts else None,
         tokenizer=_get_tokenizer(region),
+        **load_post_maps(raw_dir).as_kwargs(),
     )
 
     out_dir = _DATA_DIR / "clusters" / topic_slug / region  # type: ignore[name-defined]  # noqa: F821

@@ -61,6 +61,27 @@ JOURNEY_STAGES = (
     "Loyalty/Churn",
 )
 
+# Emotion labels offered to the journey synthesizer. They must match the
+# label sets the journey-map renderer classifies (src/render/journey_map.py),
+# otherwise a label plots as neutral and the curve loses its shape.
+JOURNEY_NEGATIVE_EMOTIONS = (
+    "frustrated", "angry", "anxious", "annoyed", "confused", "stressed",
+    "disappointed", "resigned", "regretful", "skeptical",
+)
+JOURNEY_POSITIVE_EMOTIONS = (
+    "happy", "hopeful", "satisfied", "delighted", "excited",
+    "curious", "loyal", "trusting",
+)
+
+# Confidence ceiling per coverage tier: a persona built from one kind of source
+# can be internally consistent yet unrepresentative, so it must not read 1.00.
+_CONFIDENCE_CAP_BY_TIER = {
+    "single-perspective": 0.6,
+    "limited": 0.75,
+    "balanced": 0.9,
+    "high": 1.0,
+}
+
 # Persona claim fields the validator and parser iterate over.
 _PERSONA_CLAIM_FIELDS = (
     "goals",
@@ -162,8 +183,19 @@ def _build_evidence_pack(
         f"- top keywords (c-TF-IDF): {', '.join(cluster.keyword_summary[:10])}",
         f"- source distribution: {json.dumps(cluster.source_distribution, sort_keys=True)}",
         f"- language distribution: {json.dumps(cluster.language_distribution, sort_keys=True)}",
-        "",
     ]
+    if cluster.sentiment_distribution:
+        lines.append(
+            "- sentiment from star ratings (1-2 negative, 3 neutral, 4-5 positive): "
+            + json.dumps(cluster.sentiment_distribution, sort_keys=True)
+        )
+    if cluster.temporal_distribution:
+        months = sorted(cluster.temporal_distribution)
+        lines.append(
+            f"- posted between {months[0]} and {months[-1]} "
+            f"({len(months)} months with posts)"
+        )
+    lines.append("")
 
     coverage = _build_coverage(cluster, region)
     lines.append("DATA SOURCE COVERAGE (deterministic; informational)")
@@ -381,14 +413,25 @@ Return ONLY this JSON (no prose, no code fences):
       "stage": "Awareness",
       "touchpoints":   [{{"claim": "...", "evidence": ["doc_id"]}}],
       "user_actions":  [{{"claim": "...", "evidence": ["doc_id"]}}],
-      "emotions":      [{{"label": "curious|frustrated|excited|confused|satisfied",
-                          "intensity": 0.0, "evidence": ["doc_id"]}}],
+      "emotions":      [{{"label": "<one of the EMOTION LABELS below>",
+                          "intensity": 0.8, "evidence": ["doc_id"]}}],
       "frictions":     [{{"claim": "...", "evidence": ["doc_id"]}}],
       "opportunities": [{{"claim": "...", "evidence": ["doc_id"]}}]
     }}
     /* repeat for Consideration, Decision, Onboarding, Use, Loyalty/Churn */
   ]
 }}
+
+EMOTION LABELS (use exactly one of these per emotion):
+  negative: {", ".join(JOURNEY_NEGATIVE_EMOTIONS)}
+  positive: {", ".join(JOURNEY_POSITIVE_EMOTIONS)}
+  or: neutral
+
+INTENSITY is how strongly the named emotion is felt, from 0.0 (barely) to
+1.0 (overwhelmingly). It is NOT a positivity score: a stage where users are
+very frustrated is {{"label": "frustrated", "intensity": 0.9}}, and mild
+curiosity is {{"label": "curious", "intensity": 0.3}}. The journey chart turns
+label + intensity into a positivity curve itself.
 
 RULES:
 - Include all 6 stages (Awareness, Consideration, Decision, Onboarding, Use, Loyalty/Churn).
@@ -1104,7 +1147,9 @@ def _build_persona(
         ),
         representative_quotes=quotes,
         data_source_coverage=coverage_dict,
-        confidence=_compute_confidence(unverified_fields),
+        confidence=_compute_confidence(
+            unverified_fields, coverage_dict.get("coverage_tier")
+        ),
         cluster_size=cluster.size,
         generated_at=datetime.now(timezone.utc),
         model=model,
@@ -1202,9 +1247,19 @@ def _build_journey(
     )
 
 
-def _compute_confidence(unverified_fields: set[str]) -> float:
-    """Crude confidence: 1.0 minus 0.1 per unverified bucket."""
-    return max(0.0, 1.0 - 0.1 * len(unverified_fields))
+def _compute_confidence(
+    unverified_fields: set[str], coverage_tier: str | None = None
+) -> float:
+    """Grounding × breadth.
+
+    Starts at 1.0, loses 0.1 per claim bucket the validator had to mark
+    unverified, then is capped by the evidence's coverage tier
+    (``_CONFIDENCE_CAP_BY_TIER``): single-perspective 0.6, limited 0.75,
+    balanced 0.9, high 1.0. An unknown or missing tier applies no cap.
+    """
+    grounded = max(0.0, 1.0 - 0.1 * len(unverified_fields))
+    cap = _CONFIDENCE_CAP_BY_TIER.get(coverage_tier or "", 1.0)
+    return round(min(grounded, cap), 2)
 
 
 def _make_short_hash(s: str) -> str:

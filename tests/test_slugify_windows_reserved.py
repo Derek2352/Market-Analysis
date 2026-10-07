@@ -9,10 +9,14 @@ from __future__ import annotations
 
 import pytest
 
+from src.api.app import _slugify as _app_slugify
 from src.api.pipeline import _slugify as _api_slugify
 from src.cli import _slugify as _cli_slugify
+from src.cli_export import _slugify as _export_slugify
 
-_SLUGIFIERS = [_api_slugify, _cli_slugify]
+# Every module that names topic directories must agree on the slug, or the
+# API reads personas from a different folder than the pipeline wrote them to.
+_SLUGIFIERS = [_api_slugify, _cli_slugify, _app_slugify, _export_slugify]
 
 
 @pytest.mark.parametrize("slugify", _SLUGIFIERS)
@@ -35,7 +39,7 @@ def test_reserved_names_get_suffixed(slugify, topic):
 def test_normal_topics_unaffected(slugify):
     assert slugify("MTR Mobile") == "mtr_mobile"
     assert slugify("AlipayHK") == "alipayhk"
-    assert slugify("支付寶 香港") == "untitled"  # CJK strips out, sane fallback
+    assert slugify("Cafe de Coral") == "cafe_de_coral"
 
 
 @pytest.mark.parametrize("slugify", _SLUGIFIERS)

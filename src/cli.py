@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated, Any
@@ -27,6 +26,7 @@ from src.cli_export import _export_app
 from src.cli_doctor import doctor as _doctor_cmd
 from src.cli_eval import eval_cmd as _eval_cmd
 from src.cli_render import render_app as _render_app
+from src.cli_offline import offline_app as _offline_app
 
 # Pipeline typeshed
 _PIPELINE_AVAILABLE = True
@@ -51,6 +51,7 @@ app.add_typer(_export_app, name="export")
 app.command(name="doctor")(_doctor_cmd)
 app.command(name="eval")(_eval_cmd)
 app.add_typer(_render_app, name="render")
+app.add_typer(_offline_app, name="synthesize-offline")
 
 
 @app.callback()
@@ -63,22 +64,7 @@ _DATA_DIR = _ROOT / "data"
 _LOG_DIR = _ROOT / "logs"
 
 
-_WINDOWS_RESERVED = {
-    "con", "prn", "aux", "nul",
-    *(f"com{i}" for i in range(1, 10)),
-    *(f"lpt{i}" for i in range(1, 10)),
-}
-
-
-def _slugify(s: str) -> str:
-    s = s.lower().strip()
-    s = re.sub(r"[^a-z0-9]+", "_", s)
-    s = s.strip("_") or "untitled"
-    # Avoid Windows reserved device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
-    # which can't be used as file/directory names.
-    if s in _WINDOWS_RESERVED:
-        s = f"{s}_topic"
-    return s
+from src.util_slug import slugify as _slugify
 
 
 @app.command()
@@ -211,6 +197,8 @@ def scrape(
     from src.scrape.base.http import set_default_retries
     set_default_retries(retries)
 
+    run_emitted = 0
+    failed_sources: list[tuple[str, str]] = []
     with DedupIndex(_DATA_DIR / "dedup.sqlite") as index:
         source_iter = source_ids
         if not no_progress:
@@ -232,7 +220,14 @@ def scrape(
             if bypass_robots:
                 if source_id == "discuss_hk":
                     scraper_kwargs["respect_robots"] = False
-            scraper = get_scraper(source_id, **scraper_kwargs)
+            try:
+                scraper = get_scraper(source_id, **scraper_kwargs)
+            except Exception as exc:  # noqa: BLE001 — one bad source must not abort the run
+                log.warning("scrape.source.error", source=source_id, error=str(exc), emitted=0)
+                typer.echo(f"  ⚠ {source_id}: {exc}", err=True)
+                failed_sources.append((source_id, str(exc)))
+                writer.finalize()
+                continue
             emitted = 0
             duplicates = 0
             try:
@@ -274,6 +269,7 @@ def scrape(
                     emitted=emitted,
                 )
                 typer.echo(f"  ⚠ {source_id}: {exc}", err=True)
+                failed_sources.append((source_id, str(exc)))
             finally:
                 close = getattr(scraper, "close", None)
                 if callable(close):
@@ -294,8 +290,24 @@ def scrape(
                 output=str(out_path.relative_to(_ROOT)),
                 cap_hit=extra_meta["cap_hit"],
             )
+            run_emitted += emitted
 
-    log.info("scrape.done")
+    log.info("scrape.done", emitted=run_emitted, failed=len(failed_sources))
+
+    # Every requested source failed and nothing was written: say so once and
+    # exit non-zero, instead of a silent exit 0 that only surfaces two stages
+    # later as "no data". Partial success still exits 0.
+    if failed_sources and run_emitted == 0 and len(failed_sources) == len(source_ids):
+        from src.scrape.utils.egress import check_egress
+        verdict, detail = check_egress()
+        typer.echo(
+            f"✗ All {len(source_ids)} source(s) failed, 0 posts written: "
+            + ", ".join(s for s, _ in failed_sources),
+            err=True,
+        )
+        if verdict != "ok":
+            typer.echo(f"  Outbound network to sources is unavailable ({verdict}): {detail}", err=True)
+        raise typer.Exit(code=3)
 
 
 # ---------------------------------------------------------------------------
@@ -489,12 +501,14 @@ def cluster(
                 post_texts[pid] = text
 
     from src.lang import get_tokenizer as _get_tokenizer
+    from src.pipeline.post_maps import load_post_maps
     result = cluster_embeddings(
         vectors, post_ids, topic, region,
         config=cfg,
         source_map=source_map,
         post_texts=post_texts if post_texts else None,
         tokenizer=_get_tokenizer(region),
+        **load_post_maps(raw_dir).as_kwargs(),
     )
 
     out_dir = _DATA_DIR / "clusters" / topic_slug / region
@@ -1409,12 +1423,14 @@ def analyze(
                 post_texts[pid] = text
 
     from src.lang import get_tokenizer as _get_tokenizer
+    from src.pipeline.post_maps import load_post_maps
     result = cluster_embeddings(
         vectors, post_ids_vec, topic, region,
         config=cfg,
         source_map=source_map,
         post_texts=post_texts if post_texts else None,
         tokenizer=_get_tokenizer(region),
+        **load_post_maps(raw_dir).as_kwargs(),
     )
 
     out_dir = _DATA_DIR / "clusters" / topic_slug / region

@@ -14,6 +14,34 @@ from src.lang.en import EnglishTokenizer
 from src.lang.ja import JapaneseTokenizer
 from src.lang.zh import ChineseTokenizer
 
+# English function words that leak into keyword lists from mixed-language
+# posts (HK reviews switch between Cantonese and English mid-sentence).
+_EN_STOP: frozenset[str] = frozenset()
+try:
+    from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS as _SK_STOP
+    _EN_STOP = frozenset(_SK_STOP)
+except ImportError:  # sklearn is only needed for clustering
+    pass
+
+
+def keyword_tokens(tokenizer: Tokenizer, text: str) -> list[str]:
+    """Tokens fit for c-TF-IDF keywords: case-folded, no stopwords, no symbols.
+
+    Region tokenizers only know their own language's stopwords, so English
+    filler ("the", "to") in a Cantonese review would otherwise top a cluster's
+    keyword list. ASCII tokens are lowercased so "app" and "App" count as one
+    word, and tokens with no letter or digit (emoji, punctuation) are dropped.
+    """
+    out: list[str] = []
+    for tok in tokenizer.tokenize(text):
+        tok = tok.strip()
+        if tok.isascii():
+            tok = tok.lower()
+        if not tok or tok in _EN_STOP or not any(ch.isalnum() for ch in tok):
+            continue
+        out.append(tok)
+    return out
+
 
 def get_tokenizer(region: str) -> Tokenizer:
     """Return a Tokenizer for *region*.
@@ -29,4 +57,11 @@ def get_tokenizer(region: str) -> Tokenizer:
         return ChineseTokenizer()
     return EnglishTokenizer()
 
-__all__ = ["Tokenizer", "get_tokenizer", "EnglishTokenizer", "JapaneseTokenizer", "ChineseTokenizer"]
+__all__ = [
+    "ChineseTokenizer",
+    "EnglishTokenizer",
+    "JapaneseTokenizer",
+    "Tokenizer",
+    "get_tokenizer",
+    "keyword_tokens",
+]

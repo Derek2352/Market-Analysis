@@ -18,7 +18,7 @@ def test_detects_cantonese_english_mix() -> None:
     # HK-realistic code-switched review text.
     assert detect_language(
         "用咗呢個 app 好多年, 一直都好穩定, 強烈推薦比朋友使用."
-    ) == "zh"
+    ) in {"zh", "yue"}  # py3langid versions differ; both are right for Cantonese
 
 
 def test_short_text_returns_none() -> None:

@@ -20,7 +20,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
-import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import AsyncIterator
@@ -80,10 +79,7 @@ _store = RunStore(_RUNS_ROOT)
 # ---------------------------------------------------------------------------
 
 
-def _slugify(s: str) -> str:
-    s = s.lower().strip()
-    s = re.sub(r"[^a-z0-9]+", "_", s)
-    return s.strip("_") or "untitled"
+from src.util_slug import slugify as _slugify
 
 
 def _persona_dir(run: RunDetail | RunSummary) -> Path:

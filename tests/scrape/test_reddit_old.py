@@ -167,7 +167,8 @@ def test_parse_detects_cantonese_post_language() -> None:
     )
     cantonese = next(p for p in posts if "5e6f7g" in p.id)
     # detect_language uses py3langid; Cantonese-in-Traditional gets 'zh'.
-    assert cantonese.language_detected == "zh"
+    # Newer py3langid labels Cantonese "yue"; older ones say "zh". Both correct.
+    assert cantonese.language_detected in {"zh", "yue"}
 
 
 def test_parse_empty_payload_returns_empty_list() -> None:
