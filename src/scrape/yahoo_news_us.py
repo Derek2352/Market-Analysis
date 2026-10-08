@@ -54,7 +54,6 @@ class YahooNewsUSScraper:
             self._robots_cache = robots_cache or RobotsCache()
             self._client = PoliteClient(
                 robots_cache=self._robots_cache, rate=YAHOO_RATE,
-                headers={"User-Agent": "Mozilla/5.0"},
             )
         else:
             self._client = client

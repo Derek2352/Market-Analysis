@@ -17,6 +17,20 @@ from urllib.parse import quote, urljoin, urlparse
 import httpx
 import structlog
 
+# The one honest User-Agent every request in the project identifies itself
+# with. PoliteClient and PlaywrightManager force it; scrapers can't override.
+USER_AGENT = "MarketAnalyticsBot/0.1 (research; contact: see README.md)"
+
+
+def _product_token(value: str) -> str:
+    """RFC 9309 product token: leading letters/underscores/hyphens, lowercased.
+
+    "MarketAnalyticsBot/0.1 (research; ...)" -> "marketanalyticsbot", so a
+    site's "User-agent: MarketAnalyticsBot" group applies to us. "*" stays "*".
+    """
+    m = re.match(r"\s*([A-Za-z_-]+)", value)
+    return m.group(1).lower() if m else value.strip().lower()
+
 
 def _ca_bundle() -> str | bool:
     """Resolve an explicit CA bundle for the egress proxy, else httpx default.
@@ -35,6 +49,13 @@ class _Rules:
     allow: list[str] = field(default_factory=list)
 
 
+@dataclass
+class _Unreachable:
+    """robots.txt couldn't be fetched (5xx or network error): disallow all."""
+
+    detail: str
+
+
 class RobotsCache:
     """Fetch and cache robots.txt per host (scheme + hostname).
 
@@ -47,22 +68,23 @@ class RobotsCache:
 
     def __init__(self, client: httpx.Client | None = None) -> None:
         self._client = client or httpx.Client(
-            headers={"User-Agent": "MarketAnalyticsBot/0.1"},
+            headers={"User-Agent": USER_AGENT},
             timeout=httpx.Timeout(15.0),
+            follow_redirects=True,  # RFC 9309: follow at least five redirects
             trust_env=True,
             verify=_ca_bundle(),
         )
         self._own_client = client is None
-        self._cache: dict[str, _Rules | None] = {}  # host → rules | None=unknown
+        self._cache: dict[str, _Rules | _Unreachable] = {}
         self._log = structlog.get_logger().bind(component="RobotsCache")
 
     def allowed(self, url: str, user_agent: str = "*") -> bool:
         """Return ``True`` if *url* is allowed by the host's robots.txt.
 
-        The first call for a host fetches and parses robots.txt.  Subsequent
-        calls are cached.  If the fetch fails (timeout, 5xx), we treat it as
-        **allowed** with a warning — we don't want a transient robots.txt
-        failure to kill a whole run.
+        The first call for a host fetches and parses robots.txt; later calls
+        are cached. Per RFC 9309, a 4xx (no robots.txt) allows everything,
+        while a 5xx or network failure means the rules are unknown and the
+        whole site is treated as disallowed. ``denial_reason`` says why.
         """
         parsed = urlparse(url)
         host = f"{parsed.scheme}://{parsed.hostname}"
@@ -77,9 +99,9 @@ class RobotsCache:
             self._cache[host] = self._fetch_disallowed(host, user_agent)
 
         rules = self._cache[host]
-        if rules is None:
-            # Fetch failed — allow
-            return True
+        if isinstance(rules, _Unreachable):
+            self._log.warning("robots.unreachable_assume_disallow", url=url, detail=rules.detail)
+            return False
 
         # Longest-match precedence; on a tie the Allow wins (Google spec).
         dis = _longest_match(target, rules.disallow)
@@ -91,6 +113,18 @@ class RobotsCache:
         self._log.warning("robots.disallowed", url=url, prefix_len=dis)
         return False
 
+    def denial_reason(self, url: str) -> str:
+        """Human-readable reason a URL was refused (call after ``allowed``)."""
+        parsed = urlparse(url)
+        entry = self._cache.get(f"{parsed.scheme}://{parsed.hostname}")
+        if isinstance(entry, _Unreachable):
+            return (
+                f"robots.txt for {parsed.hostname} could not be fetched "
+                f"({entry.detail}); RFC 9309 says to treat the site as fully "
+                f"disallowed, so {url} was skipped"
+            )
+        return f"robots.txt disallows {url} — skipping"
+
     def close(self) -> None:
         if self._own_client:
             self._client.close()
@@ -99,22 +133,24 @@ class RobotsCache:
     # Internals
     # ------------------------------------------------------------------
 
-    def _fetch_disallowed(self, host: str, user_agent: str) -> _Rules | None:
+    def _fetch_disallowed(self, host: str, user_agent: str) -> _Rules | _Unreachable:
         robots_url = urljoin(host, "/robots.txt")
         try:
             resp = self._client.get(robots_url)
-            if resp.status_code == 404:
-                return _Rules()  # no robots.txt → allow all
-            resp.raise_for_status()
-        except Exception:
-            self._log.warning("robots.fetch_failed", url=robots_url, exc_info=True)
-            return None  # Treat as allowed
-
+        except Exception as e:  # noqa: BLE001 — network failure of any kind
+            self._log.warning("robots.fetch_failed", url=robots_url, error=str(e))
+            return _Unreachable(f"{type(e).__name__}: {e}")
+        if resp.status_code >= 500:
+            self._log.warning("robots.server_error", url=robots_url, status=resp.status_code)
+            return _Unreachable(f"HTTP {resp.status_code}")
+        if resp.status_code >= 300:
+            # 4xx (and unresolved redirects): RFC 9309 "unavailable" -> allow all.
+            return _Rules()
         try:
             return self._parse(resp.text, user_agent)
-        except Exception:
-            self._log.warning("robots.parse_failed", url=robots_url, exc_info=True)
-            return None
+        except Exception as e:  # noqa: BLE001 — parser is lenient; be safe anyway
+            self._log.warning("robots.parse_failed", url=robots_url, error=str(e))
+            return _Unreachable(f"unparseable robots.txt: {e}")
 
     @staticmethod
     def _parse(text: str, user_agent: str) -> _Rules:
@@ -126,7 +162,7 @@ class RobotsCache:
         *user_agent* — an exact-name group wins over the ``*`` group — so a
         ``Disallow: /`` written for another bot is never attributed to us.
         """
-        ua = user_agent.lower()
+        ua = _product_token(user_agent)
         groups: list[tuple[set[str], _Rules]] = []
         cur_agents: set[str] = set()
         cur_rules = _Rules()
@@ -148,7 +184,7 @@ class RobotsCache:
             if key == "user-agent":
                 if seen_rule:  # a new agent line after rules → new group
                     flush()
-                cur_agents.add(value.lower())
+                cur_agents.add(_product_token(value))
             elif key == "disallow":
                 seen_rule = True
                 if value:  # empty Disallow = "allow all", carries no prefix

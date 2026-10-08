@@ -54,7 +54,6 @@ class Mobile01Scraper:
             self._robots_cache = robots_cache or RobotsCache()
             self._client = PoliteClient(
                 robots_cache=self._robots_cache, rate=MOBILE01_RATE,
-                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
             )
         else:
             self._client = client

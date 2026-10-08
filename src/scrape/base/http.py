@@ -26,11 +26,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from src.scrape.base.robots import RobotsCache, _ca_bundle
-
-USER_AGENT = (
-    "MarketAnalyticsBot/0.1 (research; contact: see README.md)"
-)
+from src.scrape.base.robots import USER_AGENT, RobotsCache, _ca_bundle
 
 # Per-domain minimum interval between requests, in seconds.
 DEFAULT_RATE = 0.5  # 2 req/s per domain
@@ -114,9 +110,12 @@ class PoliteClient:
     _last_request: dict[str, float] | None = None  # domain → epoch float
 
     def __post_init__(self) -> None:
-        merged = {"User-Agent": USER_AGENT}
-        if self.headers:
-            merged.update(self.headers)
+        # The honest User-Agent is not negotiable: drop any caller-supplied
+        # User-Agent (in any letter case) so a scraper can't pose as a browser.
+        merged = {
+            k: v for k, v in (self.headers or {}).items() if k.lower() != "user-agent"
+        }
+        merged["User-Agent"] = USER_AGENT
         self._client = httpx.Client(
             headers=merged,
             timeout=httpx.Timeout(30.0, connect=10.0),
@@ -166,9 +165,7 @@ class PoliteClient:
         if not self.respect_robots:
             return
         if not self.robots_allowed(url):
-            raise ForbiddenError(
-                f"robots.txt disallows {url} — skipping"
-            )
+            raise ForbiddenError(self.robots_cache.denial_reason(url))
 
     def _wait_rate_limit(self, url: str) -> None:
         import urllib.parse

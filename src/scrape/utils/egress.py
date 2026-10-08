@@ -16,9 +16,7 @@ from __future__ import annotations
 
 import httpx
 
-from src.scrape.base.robots import _ca_bundle
-
-USER_AGENT = "MarketAnalyticsBot/0.1 (research; contact: see README.md)"
+from src.scrape.base.robots import USER_AGENT, _ca_bundle
 
 # Neutral, widely-available probe hosts. robots.txt is tiny and safe to fetch.
 _DEFAULT_HOSTS = (

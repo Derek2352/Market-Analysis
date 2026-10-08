@@ -66,7 +66,6 @@ class OpenriceScraper:
             robots_cache=self._robots,
             rate=OPENRICE_RATE,
             headless=True,
-            respect_robots=False,
         )
         self._fixtures = FixtureStore("openrice")
         self._max_restaurants = max_restaurants

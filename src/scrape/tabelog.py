@@ -52,7 +52,6 @@ class TabelogScraper:
             self._robots_cache = robots_cache or RobotsCache()
             self._playwright = PlaywrightManager(
                 robots_cache=self._robots_cache, rate=TABELOG_RATE,
-                respect_robots=False,
             )
         else:
             self._playwright = playwright

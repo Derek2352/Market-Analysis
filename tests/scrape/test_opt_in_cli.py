@@ -3,9 +3,27 @@ from __future__ import annotations
 
 import re
 
+import pytest
 from typer.testing import CliRunner
 
+from src import cli
 from src.cli import app
+
+
+class _NoopScraper:
+    def search(self, topic, *, since, limit):
+        return iter(())
+
+
+@pytest.fixture(autouse=True)
+def _hermetic(tmp_path, monkeypatch):
+    """These tests are about warnings, not scraping: never touch the network
+    (openrice's ToS prohibits scraping) and never write into the real data/."""
+    monkeypatch.setenv("AUTHOR_HASH_SALT", "t")
+    monkeypatch.setattr(cli, "get_scraper", lambda source_id, **kw: _NoopScraper())
+    monkeypatch.setattr(cli, "_DATA_DIR", tmp_path / "data")
+    monkeypatch.setattr(cli, "_ROOT", tmp_path)
+    monkeypatch.setattr("src.scrape.utils.egress.check_egress", lambda *a, **k: ("ok", "stub"))
 
 
 def _runner() -> CliRunner:
@@ -25,8 +43,7 @@ def test_warning_emitted_when_prohibited_source_enabled() -> None:
     """openrice is opt-in (prohibited). Listing it should produce a warning
     on stderr unless --accept-tos-risk is passed.
 
-    The scraper itself will fail (network blocked) — we only assert the
-    warning text appears before the scrape attempt.
+    The scraper is stubbed — we only assert the warning text appears.
     """
     r = _runner().invoke(
         app,

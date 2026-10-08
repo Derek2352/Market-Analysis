@@ -16,6 +16,8 @@ from tenacity import (
 from src.schemas.enums import SignalType, SourceCategory
 from src.schemas.raw import RawPost
 from src.scrape.base import SourceError
+from src.scrape.base.http import ForbiddenError
+from src.scrape.base.robots import USER_AGENT, RobotsCache
 from src.scrape.utils.hashing import hash_author
 from src.scrape.utils.lang import detect_language
 
@@ -54,6 +56,7 @@ class AppStoreHKScraper:
         country: str = "hk",
         lang: str = "zh-Hant",
         client: httpx.Client | None = None,
+        robots_cache: RobotsCache | None = None,
         max_apps_per_search: int = 3,
         request_timeout: float = 20.0,
     ):
@@ -67,14 +70,20 @@ class AppStoreHKScraper:
         self._owns_client = client is None
         self._client = client or httpx.Client(
             timeout=request_timeout,
-            headers={"User-Agent": "MarketAnalyticsTool/0.1 (phase1)"},
+            headers={"User-Agent": USER_AGENT},
         )
+        # This scraper uses a bare httpx client rather than PoliteClient, so it
+        # checks robots.txt itself before every request (see _get_json).
+        self._owns_robots = robots_cache is None
+        self._robots = robots_cache or RobotsCache()
         # Surfaced to the CLI so it can record cap-hit in the run sidecar.
         self.cap_hit_apps: list[str] = []
 
     def close(self) -> None:
         if self._owns_client:
             self._client.close()
+        if self._owns_robots:
+            self._robots.close()
 
     def __enter__(self) -> "AppStoreHKScraper":
         return self
@@ -277,6 +286,11 @@ class AppStoreHKScraper:
         *,
         params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        target = str(httpx.URL(url, params=params)) if params else url
+        if not self._robots.allowed(target, USER_AGENT):
+            # Apple's robots.txt disallows /search* and /*/rss/* for all
+            # crawlers, so on the live site this refuses every request.
+            raise ForbiddenError(self._robots.denial_reason(target))
         r = self._client.get(url, params=params)
         # 429 and 5xx → let tenacity retry via HTTPStatusError.
         if r.status_code == 429 or r.status_code >= 500:

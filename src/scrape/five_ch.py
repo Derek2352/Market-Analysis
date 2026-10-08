@@ -59,7 +59,6 @@ class FiveChScraper:
             self._robots_cache = robots_cache or RobotsCache()
             self._client = PoliteClient(
                 robots_cache=self._robots_cache, rate=FIVECH_RATE,
-                respect_robots=False,
             )
         else:
             self._client = client

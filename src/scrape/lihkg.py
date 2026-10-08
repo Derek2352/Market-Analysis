@@ -50,7 +50,6 @@ class LIHKGScraper:
             robots_cache=self._robots,
             rate=LIHKG_RATE,
             headless=True,
-            respect_robots=False,
         )
 
     # ------------------------------------------------------------------

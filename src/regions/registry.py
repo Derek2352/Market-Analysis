@@ -58,6 +58,17 @@ _PHASE6_DATE = date(2026, 5, 18)
 # against synthetic fixtures; last_verified_working stays None until live capture.
 _PHASE11_DATE = date(2026, 5, 19)
 
+# robots_txt_allows below was verified against the live robots.txt files on
+# 2026-10-08 with the RFC 9309 matcher, for the paths each scraper fetches:
+#   itunes.apple.com      Disallow: /search*, /*/rss/*   -> app_store_* refused
+#   play.google.com       Disallow: /_, /store/search    -> google_play_* refused
+#   old.reddit.com        Disallow: /                    -> reddit_old refused
+#   www.discuss.com.hk    search.php disallowed          -> discuss_hk refused
+#   lihkg.com             /category/, /thread/ allowed (API search disallowed);
+#                         the site answers our honest UA with a Cloudflare 403
+#   www.openrice.com      search + review pages allowed for "*" (ToS: prohibited)
+#   www.hk01.com          /search and article pages allowed; /api/ disallowed
+
 
 class SourceConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -196,7 +207,7 @@ REGIONS: dict[str, RegionConfig] = {
                 persona_value=5,
                 journey_value=3,
                 tos_scraping_stance=ToSStance.SILENT,
-                robots_txt_allows=None,
+                robots_txt_allows=True,
                 last_checked=_AUDIT_DATE,
                 notes="Mobile-app JSON endpoints. Cantonese-heavy. Keep <1 req/2s. Phase 1 source.",
             ),
@@ -212,7 +223,7 @@ REGIONS: dict[str, RegionConfig] = {
                 journey_value=3,
                 default_enabled=True,
                 tos_scraping_stance=ToSStance.SILENT,
-                robots_txt_allows=None,
+                robots_txt_allows=False,
                 last_checked=_PHASE6_DATE,
                 last_verified_working=_PHASE6_DATE,
                 notes=(
@@ -222,7 +233,7 @@ REGIONS: dict[str, RegionConfig] = {
                 ),
             ),
             SourceConfig(
-                source_id="reddit_old",
+                source_id="reddit_old", robots_txt_allows=False,
                 category=SourceCategory.FORUMS,
                 priority=3,
                 access_method=AccessMethod.HTML,
@@ -257,7 +268,7 @@ REGIONS: dict[str, RegionConfig] = {
             ),
             # ---- reviews -------------------------------------------------
             SourceConfig(
-                source_id="openrice",
+                source_id="openrice", robots_txt_allows=True,
                 category=SourceCategory.REVIEWS,
                 priority=1,
                 access_method=AccessMethod.HTML_JS,
@@ -291,7 +302,7 @@ REGIONS: dict[str, RegionConfig] = {
                 notes="Thin HK coverage. ToS forbids scraping.",
             ),
             SourceConfig(
-                source_id="app_store_hk",
+                source_id="app_store_hk", robots_txt_allows=False,
                 category=SourceCategory.REVIEWS,
                 priority=3,
                 access_method=AccessMethod.API,
@@ -308,7 +319,7 @@ REGIONS: dict[str, RegionConfig] = {
                 ),
             ),
             SourceConfig(
-                source_id="google_play_hk",
+                source_id="google_play_hk", robots_txt_allows=False,
                 category=SourceCategory.REVIEWS,
                 priority=4,
                 access_method=AccessMethod.PUBLIC_JSON,
@@ -343,7 +354,7 @@ REGIONS: dict[str, RegionConfig] = {
                 journey_value=2,
                 default_enabled=False,
                 tos_scraping_stance=ToSStance.PROHIBITED,
-                robots_txt_allows=None,
+                robots_txt_allows=True,
                 last_checked=_PHASE6_DATE,
                 last_verified_working=None,
                 notes=(
@@ -594,7 +605,7 @@ REGIONS: dict[str, RegionConfig] = {
         primary_languages=["en"],
         sources=[
             # ---- forums --------------------------------------------------
-            SourceConfig(source_id="reddit_old", category=SourceCategory.FORUMS, priority=1,
+            SourceConfig(source_id="reddit_old", robots_txt_allows=False, category=SourceCategory.FORUMS, priority=1,
                          access_method=AccessMethod.HTML, tos_risk=TosRisk.LOW, auth_required=False,
                          signal_type=SignalType.RECOMMENDATION, persona_value=4, journey_value=4,
                          default_enabled=True,
@@ -619,13 +630,13 @@ REGIONS: dict[str, RegionConfig] = {
                          default_enabled=False,
                          tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
                          notes="Yelp business review pages via Playwright. Aggressive anti-bot. Built May 2026."),
-            SourceConfig(source_id="app_store_us", category=SourceCategory.REVIEWS, priority=3,
+            SourceConfig(source_id="app_store_us", robots_txt_allows=False, category=SourceCategory.REVIEWS, priority=3,
                          access_method=AccessMethod.API, tos_risk=TosRisk.LOW, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=3, journey_value=4,
                          default_enabled=True,
                          tos_scraping_stance=ToSStance.SILENT, last_checked=_AUDIT_DATE,
                          notes="App Store US via iTunes RSS (public, no key required)."),
-            SourceConfig(source_id="google_play_us", category=SourceCategory.REVIEWS, priority=4,
+            SourceConfig(source_id="google_play_us", robots_txt_allows=False, category=SourceCategory.REVIEWS, priority=4,
                          access_method=AccessMethod.PUBLIC_JSON, tos_risk=TosRisk.HIGH, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=3, journey_value=4,
                          default_enabled=False,
@@ -798,13 +809,13 @@ REGIONS: dict[str, RegionConfig] = {
                          last_verified_working=None,
                          notes="Mobile01 — Taiwan's largest tech/consumer forum. Built May 2026."),
             # ---- reviews -------------------------------------------------
-            SourceConfig(source_id="google_play_tw", category=SourceCategory.REVIEWS, priority=1,
+            SourceConfig(source_id="google_play_tw", robots_txt_allows=False, category=SourceCategory.REVIEWS, priority=1,
                          access_method=AccessMethod.PUBLIC_JSON, tos_risk=TosRisk.HIGH, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=3, journey_value=4,
                          default_enabled=False,
                          tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
                          notes="Google Play TW reviews. Thin wrapper over google-play-scraper (zh-TW locale)."),
-            SourceConfig(source_id="app_store_tw", category=SourceCategory.REVIEWS, priority=2,
+            SourceConfig(source_id="app_store_tw", robots_txt_allows=False, category=SourceCategory.REVIEWS, priority=2,
                          access_method=AccessMethod.API, tos_risk=TosRisk.LOW, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=3, journey_value=4,
                          default_enabled=True,
@@ -891,13 +902,13 @@ REGIONS: dict[str, RegionConfig] = {
                          default_enabled=False,
                          tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
                          notes="Tabelog restaurant reviews — Playwright required. Aggressive anti-bot. Built May 2026."),
-            SourceConfig(source_id="google_play_jp", category=SourceCategory.REVIEWS, priority=4,
+            SourceConfig(source_id="google_play_jp", robots_txt_allows=False, category=SourceCategory.REVIEWS, priority=4,
                          access_method=AccessMethod.PUBLIC_JSON, tos_risk=TosRisk.HIGH, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=3, journey_value=4,
                          default_enabled=False,
                          tos_scraping_stance=ToSStance.PROHIBITED, last_checked=_AUDIT_DATE,
                          notes="Google Play JP reviews. Thin wrapper over google-play-scraper (ja locale)."),
-            SourceConfig(source_id="app_store_jp", category=SourceCategory.REVIEWS, priority=5,
+            SourceConfig(source_id="app_store_jp", robots_txt_allows=False, category=SourceCategory.REVIEWS, priority=5,
                          access_method=AccessMethod.API, tos_risk=TosRisk.LOW, auth_required=False,
                          signal_type=SignalType.EXPERIENCE, persona_value=3, journey_value=4,
                          default_enabled=True,

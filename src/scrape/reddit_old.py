@@ -72,7 +72,7 @@ class RedditOldScraper:
         self._log = structlog.get_logger().bind(scraper="reddit_old")
         self._robots = RobotsCache()
         self._client = PoliteClient(
-            robots_cache=self._robots, rate=rate, respect_robots=False
+            robots_cache=self._robots, rate=rate,
         )
         self._subreddits = subreddits or _REGION_DEFAULT_SUBREDDITS.get(
             region, ["HongKong"]

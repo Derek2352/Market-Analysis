@@ -18,6 +18,8 @@ import structlog
 
 from src.schemas.enums import SignalType, SourceCategory
 from src.schemas.raw import RawPost
+from src.scrape.base.http import ForbiddenError
+from src.scrape.base.robots import USER_AGENT, RobotsCache
 from src.scrape.utils.hashing import hash_author
 from src.scrape.utils.lang import detect_language
 
@@ -39,6 +41,7 @@ class GooglePlayHKScraper:
         country: str = "hk",
         lang: str = "zh",
         max_apps_per_search: int = 3,
+        robots_cache: RobotsCache | None = None,
     ):
         self.region = region
         self.language = {"HK": "zh-HK", "TW": "zh-TW", "US": "en", "JP": "ja"}.get(region, "en")
@@ -47,9 +50,30 @@ class GooglePlayHKScraper:
         self._country = country
         self._lang = lang
         self._max_apps = max_apps_per_search
+        self._owns_robots = robots_cache is None
+        self._robots = robots_cache or RobotsCache()
 
     def close(self) -> None:
-        pass  # No persistent connection
+        if self._owns_robots:
+            self._robots.close()
+
+    # The google-play-scraper library makes its own urllib requests (no
+    # honest User-Agent, no rate limit, and it disables urllib TLS
+    # verification process-wide on import). It is only acceptable if robots.txt
+    # allows the endpoints it hits, so check those first — before importing it.
+    _LIBRARY_ENDPOINTS = (
+        "https://play.google.com/_/PlayStoreUi/data/batchexecute",  # reviews()
+        "https://play.google.com/store/search?q=x&c=apps",          # search()
+    )
+
+    def _check_robots(self, uses_search: bool) -> None:
+        endpoints = self._LIBRARY_ENDPOINTS if uses_search else self._LIBRARY_ENDPOINTS[:1]
+        for url in endpoints:
+            if not self._robots.allowed(url, USER_AGENT):
+                raise ForbiddenError(
+                    self._robots.denial_reason(url)
+                    + " (google_play_hk fetches reviews through this endpoint)"
+                )
 
     # -- SourceScraper protocol --------------------------------------------
 
@@ -60,6 +84,8 @@ class GooglePlayHKScraper:
         limit: int,
     ) -> Iterator[RawPost]:
         """Search Google Play for apps matching *topic*, then scrape reviews."""
+        is_app_id = "." in topic and "/" not in topic
+        self._check_robots(uses_search=not is_app_id)
         import google_play_scraper as gps
 
         # If topic looks like an app ID (package name), use it directly

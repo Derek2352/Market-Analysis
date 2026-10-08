@@ -65,7 +65,6 @@ class HK01Scraper:
             self._playwright = PlaywrightManager(
                 robots_cache=self._robots_cache,
                 rate=HK01_RATE,
-                respect_robots=False,
             )
         else:
             self._playwright = playwright

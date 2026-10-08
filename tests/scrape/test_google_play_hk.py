@@ -114,7 +114,12 @@ def test_search_via_monkeypatched_library(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setattr(gps, "search", fake_search)
     monkeypatch.setattr(gps, "reviews", fake_reviews)
 
-    scraper = GooglePlayHKScraper(max_apps_per_search=1)
+    class _AllowAll:  # this test exercises parsing; live robots.txt disallows the endpoint
+        def allowed(self, url, user_agent="*"): return True
+        def denial_reason(self, url): return ""
+        def close(self): pass
+
+    scraper = GooglePlayHKScraper(max_apps_per_search=1, robots_cache=_AllowAll())
     # Fixed far-past cutoff so the test doesn't rot as the wall clock advances
     # past the fixtures' 2025 timestamps (was now-365d, which silently filtered
     # both fixtures out once a year elapsed).

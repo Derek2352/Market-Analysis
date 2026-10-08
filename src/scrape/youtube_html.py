@@ -77,7 +77,6 @@ class YoutubeHTMLScraper:
             self._playwright = PlaywrightManager(
                 robots_cache=self._robots_cache,
                 rate=YOUTUBE_RATE,
-                respect_robots=False,  # YouTube blocks bots.txt for search
             )
         else:
             self._playwright = playwright

@@ -20,9 +20,7 @@ from typing import Any
 
 import structlog
 
-from src.scrape.base.robots import RobotsCache
-
-USER_AGENT = "MarketAnalyticsBot/0.1 (research; contact: see README.md)"
+from src.scrape.base.robots import USER_AGENT, RobotsCache
 
 # Same env override the render layer honours (src/render/core.py). Lets a
 # container point at an extracted / system Chromium when the Playwright-pinned
@@ -240,9 +238,7 @@ class PlaywrightManager:
         if not self._respect_robots:
             return
         if not self._robots_cache.allowed(url, USER_AGENT):
-            raise ForbiddenError(
-                f"robots.txt disallows {url} — skipping"
-            )
+            raise ForbiddenError(self._robots_cache.denial_reason(url))
 
     def _wait_rate_limit(self, url: str) -> None:
         import urllib.parse

@@ -72,13 +72,6 @@ class DiscussHKScraper:
             self._client = PoliteClient(
                 robots_cache=self._robots_cache, rate=DISCUSS_RATE,
                 respect_robots=respect_robots,
-                headers={
-                    "User-Agent": (
-                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                        "AppleWebKit/537.36 (KHTML, like Gecko) "
-                        "Chrome/125.0.0.0 Safari/537.36"
-                    ),
-                },
             )
         else:
             self._client = client

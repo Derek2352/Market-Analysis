@@ -13,6 +13,23 @@ from src.scrape.app_store_hk import AppStoreHKScraper
 from src.scrape.base import SourceError
 
 
+class _AllowAllRobots:
+    """These tests exercise parsing against mocked iTunes responses. The live
+    robots.txt disallows /search* and /*/rss/*; see test_app_store_robots."""
+
+    def allowed(self, url, user_agent="*"):
+        return True
+
+    def denial_reason(self, url):
+        return ""
+
+    def close(self):
+        pass
+
+
+_ROBOTS = _AllowAllRobots()
+
+
 def _load(fixtures_dir: str, name: str) -> dict:
     return json.loads(Path(fixtures_dir, name).read_text())
 
@@ -48,7 +65,7 @@ def test_search_parses_reviews_from_page1(
         json=_load(fixtures_dir, "itunes_reviews_empty.json"),
     )
 
-    with AppStoreHKScraper(max_apps_per_search=2) as s:
+    with AppStoreHKScraper(max_apps_per_search=2, robots_cache=_ROBOTS) as s:
         posts = list(
             s.search(
                 "WhatsApp",
@@ -87,7 +104,7 @@ def test_numeric_topic_used_as_app_id(
         json=_load(fixtures_dir, "itunes_reviews_empty.json"),
     )
 
-    with AppStoreHKScraper() as s:
+    with AppStoreHKScraper(robots_cache=_ROBOTS) as s:
         posts = list(
             s.search(
                 "310633997",
@@ -107,7 +124,7 @@ def test_since_cutoff_stops_iteration(
     )
     # Fixture posts dated 2025-03-15, 2025-03-10, 2025-02-20.
     # since=2025-03-12 → only the first qualifies.
-    with AppStoreHKScraper() as s:
+    with AppStoreHKScraper(robots_cache=_ROBOTS) as s:
         posts = list(
             s.search(
                 "310633997",
@@ -124,7 +141,7 @@ def test_limit_caps_emissions(httpx_mock: HTTPXMock, fixtures_dir: str) -> None:
         url=_reviews_pat("310633997", 1),
         json=_load(fixtures_dir, "itunes_reviews_page1.json"),
     )
-    with AppStoreHKScraper() as s:
+    with AppStoreHKScraper(robots_cache=_ROBOTS) as s:
         posts = list(
             s.search(
                 "310633997",
@@ -140,7 +157,7 @@ def test_no_apps_found_returns_empty(httpx_mock: HTTPXMock) -> None:
         url=_search_pat(),
         json={"resultCount": 0, "results": []},
     )
-    with AppStoreHKScraper() as s:
+    with AppStoreHKScraper(robots_cache=_ROBOTS) as s:
         posts = list(
             s.search(
                 "asdkjfhasdkjf-unmatched",
@@ -156,7 +173,7 @@ def test_500_error_retries_then_raises(httpx_mock: HTTPXMock) -> None:
     httpx_mock.add_response(
         url=_search_pat(), status_code=500, is_reusable=True
     )
-    with AppStoreHKScraper() as s, pytest.raises(httpx.HTTPStatusError):
+    with AppStoreHKScraper(robots_cache=_ROBOTS) as s, pytest.raises(httpx.HTTPStatusError):
         list(
             s.search(
                 "WhatsApp",
@@ -182,7 +199,7 @@ def test_404_is_source_error_no_retry(
         url=_reviews_pat("454638411", 1),
         json=_load(fixtures_dir, "itunes_reviews_empty.json"),
     )
-    with AppStoreHKScraper(max_apps_per_search=2) as s:
+    with AppStoreHKScraper(max_apps_per_search=2, robots_cache=_ROBOTS) as s:
         posts = list(
             s.search(
                 "WhatsApp",
@@ -194,5 +211,5 @@ def test_404_is_source_error_no_retry(
 
 
 def test_fetch_thread_requires_compound_id() -> None:
-    with AppStoreHKScraper() as s, pytest.raises(SourceError):
+    with AppStoreHKScraper(robots_cache=_ROBOTS) as s, pytest.raises(SourceError):
         s.fetch_thread("just-a-review-id")

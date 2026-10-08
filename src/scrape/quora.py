@@ -87,7 +87,6 @@ class QuoraScraper:
             self._playwright = PlaywrightManager(
                 robots_cache=self._robots_cache,
                 rate=QUORA_RATE,
-                respect_robots=False,
             )
         else:
             self._playwright = playwright
