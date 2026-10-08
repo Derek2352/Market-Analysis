@@ -279,8 +279,12 @@ def _build_coverage(cluster: Cluster, region: str) -> dict[str, Any]:
     try:
         region_cfg = get_region(region)
         source_to_cat = {s.source_id: s.category.value for s in region_cfg.sources}
+        robots_refused = {
+            s.source_id for s in region_cfg.sources if s.robots_txt_allows is False
+        }
     except KeyError:
         source_to_cat = {}
+        robots_refused = set()
 
     sources_used = list(cluster.source_distribution.keys())
     present: set[str] = set()
@@ -295,15 +299,31 @@ def _build_coverage(cluster: Cluster, region: str) -> dict[str, Any]:
     category_count = len(present)
     coverage_tier = _coverage_tier(category_count)
 
-    return {
+    bias_warning = _bias_warning(present, set(missing), cluster)
+    coverage: dict[str, Any] = {
         "categories_present": sorted(present),
         "categories_missing": missing,
         "sources_used": sources_used,
         "doc_counts": dict(cluster.source_distribution),
         "category_count": category_count,
         "coverage_tier": coverage_tier,
-        "bias_warning": _bias_warning(present, set(missing), cluster),
+        "bias_warning": bias_warning,
     }
+    # Scrapers now refuse robots.txt-disallowed endpoints, so evidence from
+    # such a source can only be data collected before that was enforced.
+    # Flag it wherever the coverage note is shown instead of hiding it.
+    flagged = sorted(s for s in sources_used if s in robots_refused)
+    if flagged:
+        warning = _provenance_warning(flagged)
+        coverage["provenance_warning"] = warning
+        coverage["bias_warning"] = f"{warning}; {bias_warning}"
+    return coverage
+
+
+def _provenance_warning(sources: list[str]) -> str:
+    return (
+        f"{', '.join(sources)} data collected from a robots.txt-disallowed feed"
+    )
 
 
 def _coverage_tier(category_count: int) -> str:

@@ -89,3 +89,23 @@ def test_reddit_old_now_contributes_to_forums_not_qa() -> None:
     cov = _build_coverage(_cluster({"reddit_old": 10}), region="HK")
     assert cov["categories_present"] == ["forums"]
     assert "qa" in cov["categories_missing"]
+
+
+def test_robots_disallowed_source_is_flagged_in_the_coverage_note() -> None:
+    """Evidence from a source whose robots.txt disallows the endpoint it was
+    collected from (registry robots_txt_allows=False) carries a provenance
+    warning, and it leads the bias_warning that the card footer shows."""
+    cov = _build_coverage(
+        _cluster({"app_store_hk": 8, "lihkg": 2}), region="HK",
+    )
+    expected = "app_store_hk data collected from a robots.txt-disallowed feed"
+    assert cov["provenance_warning"] == expected
+    assert cov["bias_warning"].startswith(expected + "; ")
+    # The ordinary coverage note is kept after it.
+    assert "80% of evidence from a single source (app_store_hk)" in cov["bias_warning"]
+
+
+def test_robots_allowed_sources_carry_no_provenance_warning() -> None:
+    cov = _build_coverage(_cluster({"lihkg": 5, "openrice": 5}), region="HK")
+    assert "provenance_warning" not in cov
+    assert "robots.txt" not in cov["bias_warning"]

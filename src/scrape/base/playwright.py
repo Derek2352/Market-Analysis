@@ -15,6 +15,7 @@ from __future__ import annotations
 import os
 import random
 import time
+import urllib.parse
 from contextlib import contextmanager
 from typing import Any
 
@@ -65,11 +66,18 @@ class PlaywrightManager:
         rate: float = 1.0,
         headless: bool = True,
         respect_robots: bool = True,
+        block_resource_types: tuple[str, ...] = (),
+        allowed_hosts: tuple[str, ...] = (),
     ) -> None:
         self._robots_cache = robots_cache
         self._rate = rate
         self._headless = headless
         self._respect_robots = respect_robots
+        # Lighter, politer page loads: skip resource types the scraper never
+        # reads (e.g. images) and, when allowed_hosts is set, every request to
+        # other hosts (ads, analytics beacons). Matched by host suffix.
+        self._block_types = frozenset(block_resource_types)
+        self._allowed_hosts = tuple(h.lower() for h in allowed_hosts)
         self._log = structlog.get_logger().bind(component="PlaywrightManager")
 
         # Lazily initialised
@@ -108,6 +116,8 @@ class PlaywrightManager:
                 "Accept-Language": _LANG_HEADER,
                 "Accept": _ACCEPT_HEADER,
             })
+            if self._block_types or self._allowed_hosts:
+                context.route("**/*", self._route)
             page = context.new_page()
             yield page
         finally:
@@ -121,6 +131,36 @@ class PlaywrightManager:
                     context.close()
                 except Exception:
                     pass
+
+    def navigate(self, page: Any, url: str, **goto_kwargs: Any) -> Any:
+        """``page.goto(url)`` with the same rules as ``PoliteClient.get``.
+
+        Use this for every navigation after the first, so robots.txt and the
+        per-host rate limit apply to each URL a reused page visits, not just
+        the URL ``get_page`` was opened with. A 403 hard-fails as
+        ``ForbiddenError``; a 429 stops the source instead of retrying.
+        """
+        self._check_robots(url)
+        self._wait_rate_limit(url)
+        try:
+            response = page.goto(url, **goto_kwargs)
+        except Exception as e:  # noqa: BLE001 — re-raised with a clearer message
+            if "ERR_CERT_AUTHORITY_INVALID" in str(e):
+                raise SourceError(
+                    f"Chromium does not trust the TLS certificate for {url}. "
+                    "Behind a TLS-inspecting proxy, add the proxy's CA to "
+                    "Chromium's trust store (Linux: certutil -d "
+                    "sql:$HOME/.pki/nssdb -A -t C,, -n proxy-ca -i <ca.crt>; "
+                    "Windows/macOS: the system certificate store). TLS "
+                    "verification is never disabled."
+                ) from e
+            raise
+        status = getattr(response, "status", None)
+        if status == 403:
+            raise ForbiddenError(f"HTTP 403 from {url} — server is refusing access")
+        if status == 429:
+            raise SourceError(f"HTTP 429 from {url} — rate-limited; stopping this source")
+        return response
 
     def close(self) -> None:
         if self._browser:
@@ -234,6 +274,18 @@ class PlaywrightManager:
             kwargs["executable_path"] = env_path
         return kwargs
 
+    def _route(self, route: Any) -> None:
+        request = route.request
+        if request.resource_type in self._block_types:
+            route.abort()
+            return
+        if self._allowed_hosts:
+            host = (urllib.parse.urlparse(request.url).hostname or "").lower()
+            if not any(host == h or host.endswith("." + h) for h in self._allowed_hosts):
+                route.abort()
+                return
+        route.continue_()
+
     def _check_robots(self, url: str) -> None:
         if not self._respect_robots:
             return
@@ -241,7 +293,6 @@ class PlaywrightManager:
             raise ForbiddenError(self._robots_cache.denial_reason(url))
 
     def _wait_rate_limit(self, url: str) -> None:
-        import urllib.parse
         host = urllib.parse.urlparse(url).hostname or url
         now = time.monotonic()
         last = self._last_nav.get(host, 0.0)

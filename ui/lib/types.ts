@@ -129,6 +129,9 @@ export interface DataSourceCoverage {
   // Phase 6 additions; older personas omit these.
   category_count?: number;
   coverage_tier?: CoverageTier;
+  // Set when evidence came from a source whose robots.txt disallows the
+  // endpoint it was collected from; also prefixed onto bias_warning.
+  provenance_warning?: string;
 }
 
 export interface Persona {
