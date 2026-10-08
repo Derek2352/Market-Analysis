@@ -355,7 +355,7 @@ def parse_review_list_html(
 def parse_review_page_html(html: str) -> str | None:
     """Full review text from a review's own page (photos left out)."""
     soup = BeautifulSoup(html, "lxml")
-    body = soup.select_one("article.review-post-desktop .review-post-body") or soup.select_one(
+    body = soup.select_one("section.review-post-main .review-post-body") or soup.select_one(
         ".review-post-body"
     )
     if body is None:
@@ -368,15 +368,20 @@ def parse_review_page_html(html: str) -> str | None:
 def _review_to_post(
     art: Tag, ld: dict[str, Any] | None, *, rest_url: str, rest_id: str
 ) -> RawPost | None:
+    # Read the review's own section only: an article can also embed a
+    # "Related Review" (another review by the same author, with its own stars
+    # and text) in .review-post-other-info.
+    main = art.select_one("section.review-post-main") or art
+
     # The name sits in a <span> (older layout) or a profile <a> (current).
-    author_el = art.select_one(
+    author_el = main.select_one(
         ".review-post-writer-info .info-top a, .review-post-writer-info .info-top span"
-    ) or art.select_one(".review-post-writer-info .info-top")
+    ) or main.select_one(".review-post-writer-info .info-top")
     author = author_el.get_text(strip=True) if author_el else ""
     if ld is not None and author and ld.get("author") != author:
         ld = None  # positions disagree — don't borrow another review's fields
 
-    info = [d.get_text(" ", strip=True) for d in art.select(".info-bottom .with-dot")]
+    info = [d.get_text(" ", strip=True) for d in main.select(".info-bottom .with-dot")]
     reviewer_level = next((_to_int(m.group(1)) for t in info if (m := re.match(r"Level\s*(\d+)", t))), None)
     views = next((_to_int(m.group(1)) for t in info if (m := re.match(r"([\d,]+)\s*views?", t))), None)
     date_text = next((m.group(1) for t in info if (m := re.search(r"(\d{4}-\d{2}-\d{2})", t))), None)
@@ -385,25 +390,25 @@ def _review_to_post(
     if posted_at is None:
         return None
 
-    title_el = art.select_one("a.review-post-title")
+    title_el = main.select_one("a.review-post-title")
     title = _clean_text(title_el.get_text(" ", strip=True)) if title_el else ""
     review_href = next(
-        (h for a in ([title_el] if title_el else []) + art.select('a[href*="/review/"]')
+        (h for a in ([title_el] if title_el else []) + main.select('a[href*="/review/"]')
          if (h := a.get("href")) and _REVIEW_HREF.search(h)),
         None,
     )
     review_id = _REVIEW_HREF.search(review_href).group(1) if review_href else None
 
-    extract_el = art.select_one(".review-post-extract")
+    extract_el = main.select_one(".review-post-extract")
     extract = _clean_text(_extract_text(extract_el)) if extract_el else ""
     if not extract and not title:
         return None
 
-    rating = _star_rating(art)
+    rating = _star_rating(main)
     if rating is None and ld is not None:
         rating = ld.get("rating")
 
-    likes_el = art.select_one(".review-like-btn-text")
+    likes_el = main.select_one(".review-like-btn-text")
     likes = _to_int(likes_el.get_text()) if likes_el else None
 
     if review_id:
@@ -444,6 +449,8 @@ def _review_to_post(
             "review_id": review_id,
             "rating_value": rating,
             "rating_scale": 5,
+            # Per-aspect 1-5 scores (taste, decor, service, hygiene, value).
+            "sub_ratings": _sub_ratings(art),
             # The reviewer's OpenRice level badge — about the author, not
             # the restaurant; never use it as a rating.
             "reviewer_level": reviewer_level,
@@ -475,18 +482,31 @@ def _jsonld_reviews(soup: BeautifulSoup) -> list[dict[str, Any]]:
     return []
 
 
-def _star_rating(art: Tag) -> float | None:
-    stars = art.select(".poi-detail-rating-star")
-    if not stars:
+def _star_rating(main: Tag) -> float | None:
+    """The review's overall 0.5-5 star rating (one star row), else None."""
+    row = main.select_one(".poi-detail-rating-stars")
+    if row is None:
         return None
     full = half = 0
-    for star in stars:
+    for star in row.select(".poi-detail-rating-star"):
         classes = " ".join(star.get("class", []))
         if "poi-detail-rating-star-full" in classes:
             full += 1
         elif "poi-detail-rating-star-half" in classes:
             half += 1
-    return full + 0.5 * half
+    rating = full + 0.5 * half
+    return rating if 0 < rating <= 5 else None
+
+
+def _sub_ratings(art: Tag) -> dict[str, int]:
+    scores: dict[str, int] = {}
+    for item in art.select(".review-post-rating-scores .pdsd-item"):
+        label = item.select_one(".pdsd-item-label")
+        value = item.select_one(".pdsd-item-value")
+        score = _to_int(value.get_text()) if value is not None else None
+        if label is not None and score is not None:
+            scores[label.get_text(strip=True).lower()] = score
+    return scores
 
 
 def _extract_text(el: Tag) -> str:

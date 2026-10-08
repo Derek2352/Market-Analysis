@@ -1,0 +1,8 @@
+{
+  "source_id": "openrice",
+  "fixture_name": "reviews_537014_p1_anon",
+  "saved_at": "2026-10-08T15:20:00+00:00",
+  "url": "https://www.openrice.com/en/hongkong/r-cafe-de-coral-yuen-long-hong-kong-style-meatless-menu-r537014/reviews?page=1",
+  "rest_id": "537014",
+  "note": "Live page (current layout) trimmed to the review articles; two reviews embed a 'Related Review' block with its own star row. Reviewer names, profile links, avatars and tracking attributes replaced."
+}

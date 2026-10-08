@@ -28,7 +28,10 @@
     font-family:
       -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
       "Noto Sans CJK TC", "Noto Sans CJK SC", "Noto Sans CJK JP",
-      "Noto Sans CJK KR", "Noto Sans", sans-serif;
+      "Noto Sans CJK KR", "Noto Sans",
+      /* CJK Extension B only (e.g. Cantonese 𨋢 𣲷) on Windows, which has no
+         Noto CJK; these fonts hold no other glyphs, so nothing else changes. */
+      "MingLiU_HKSCS-ExtB", "MingLiU-ExtB", "SimSun-ExtB", sans-serif;
     font-size: 17px; line-height: 1.4;
     -webkit-font-smoothing: antialiased;
     text-rendering: geometricPrecision;
@@ -243,8 +246,7 @@
           <path d="{{ emo.line_path }}" fill="none" stroke="#3b556e"
                 stroke-width="3" stroke-linecap="round"/>
 
-          <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-             font-size="14" fill="#1c2533" text-anchor="middle">
+          <g font-size="14" fill="#1c2533" text-anchor="middle">
             {% for pt in emo.points %}
             <circle cx="{{ pt.x }}" cy="{{ pt.y }}" r="9"
                     fill="{{ pt.color }}" stroke="#fff" stroke-width="3"/>

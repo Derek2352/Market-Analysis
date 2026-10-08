@@ -125,6 +125,24 @@ def test_current_layout_without_structured_data() -> None:
     assert [p.raw_metadata["extract_truncated"] for p in posts].count(True) == 4
 
 
+def test_related_review_block_does_not_leak_into_the_review() -> None:
+    """Some reviews embed a "Related Review" (another review by the same
+    author, with its own star row); its stars used to be added to the
+    review's own, giving 4 + 4 = 8.0 on a 5-star scale."""
+    posts = parse_review_list_html(
+        _html("reviews_537014_p1_anon"), rest_url=TG_PLACE, rest_id="537014"
+    )
+    assert len(posts) == 15
+    assert all(0 < p.raw_metadata["rating_value"] <= 5 for p in posts)
+    by_id = {p.id: p for p in posts}
+    a = by_id["openrice_6498552"]
+    assert a.raw_metadata["rating_value"] == 4.0
+    assert "煎蛋香茅雞扒魚餅飯" not in a.body  # the related review's text
+    assert a.raw_metadata["sub_ratings"] == {
+        "taste": 4, "decor": 4, "service": 4, "hygiene": 4, "value": 4,
+    }
+
+
 def test_review_page_gives_the_full_text_without_photos() -> None:
     text = parse_review_page_html(_html("review_e6442858_anon"))
     assert text.startswith("午市時間觀塘周圍都係人")
