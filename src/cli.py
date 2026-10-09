@@ -1340,7 +1340,12 @@ def analyze(
                 scraper_kwargs["subreddits"] = [
                     s.strip() for s in subreddits.split(",") if s.strip()
                 ]
-            scraper = get_scraper(source_id, **scraper_kwargs)
+            try:
+                scraper = get_scraper(source_id, **scraper_kwargs)
+            except Exception as exc:  # noqa: BLE001 — one bad source must not abort the run
+                typer.echo(f"  ⚠ {source_id}: {exc}", err=True)
+                writer.finalize()
+                continue
             emitted = 0
             try:
                 typer.echo(f"  [{source_id}] scraping...", nl=False)
@@ -1354,6 +1359,10 @@ def analyze(
                     writer.add(post)
                     emitted += 1
                 typer.echo(f" {emitted} posts")
+            except Exception as exc:  # noqa: BLE001 — keep what was scraped, go on to the next source
+                # Posts yielded before the error are already marked seen, so
+                # they must still be written below or a later run skips them.
+                typer.echo(f" {emitted} posts, then failed: {exc}", err=True)
             finally:
                 close = getattr(scraper, "close", None)
                 if callable(close):

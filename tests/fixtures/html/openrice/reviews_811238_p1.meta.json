@@ -3,5 +3,7 @@
   "fixture_name": "reviews_811238_p1",
   "saved_at": "2026-05-19T01:34:53.182961+00:00",
   "url": "https://www.openrice.com/en/hongkong/r-sha-xian-snacks-hung-hom-fujian-wonton-dumpling-r811238/reviews?page=1",
-  "rest_id": "811238"
+  "rest_id": "811238",
+  "anonymised": true,
+  "note": "Reviewer names, profile links, avatars, tracking attributes, comments and scripts removed (anonymise_page_html)."
 }

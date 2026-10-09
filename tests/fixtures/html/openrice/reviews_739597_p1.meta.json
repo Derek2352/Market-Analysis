@@ -3,5 +3,7 @@
   "fixture_name": "reviews_739597_p1",
   "saved_at": "2026-05-19T07:51:48.433889+00:00",
   "url": "https://www.openrice.com/en/hongkong/r-duan-chun-zhen-x-chatime-mong-kok-taiwan-noodles-rice-noodles-r739597/reviews?page=1",
-  "rest_id": "739597"
+  "rest_id": "739597",
+  "anonymised": true,
+  "note": "Reviewer names, profile links, avatars, tracking attributes, comments and scripts removed (anonymise_page_html)."
 }

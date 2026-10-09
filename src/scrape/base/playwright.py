@@ -78,6 +78,10 @@ class PlaywrightManager:
         # other hosts (ads, analytics beacons). Matched by host suffix.
         self._block_types = frozenset(block_resource_types)
         self._allowed_hosts = tuple(h.lower() for h in allowed_hosts)
+        # Each page's latest main-frame document response. A page's JavaScript
+        # (e.g. a bot-check interstitial) can reload it after goto() returns,
+        # so goto()'s own response isn't the whole story.
+        self._nav_response: dict[int, Any] = {}
         self._log = structlog.get_logger().bind(component="PlaywrightManager")
 
         # Lazily initialised
@@ -119,9 +123,11 @@ class PlaywrightManager:
             if self._block_types or self._allowed_hosts:
                 context.route("**/*", self._route)
             page = context.new_page()
+            page.on("response", lambda response, p=page: self._record_navigation(p, response))
             yield page
         finally:
             if page:
+                self._nav_response.pop(id(page), None)
                 try:
                     page.close()
                 except Exception:
@@ -142,9 +148,14 @@ class PlaywrightManager:
         """
         self._check_robots(url)
         self._wait_rate_limit(url)
+        self._nav_response.pop(id(page), None)
         try:
             response = page.goto(url, **goto_kwargs)
         except Exception as e:  # noqa: BLE001 — re-raised with a clearer message
+            # An error status with an empty body makes Chromium abort with
+            # net::ERR_HTTP_RESPONSE_CODE_FAILURE; the recorded status still
+            # says whether that was a 403/429 the source must stop on.
+            self._raise_for_status(self._last_status(page), url)
             if "ERR_CERT_AUTHORITY_INVALID" in str(e):
                 raise SourceError(
                     f"Chromium does not trust the TLS certificate for {url}. "
@@ -155,12 +166,32 @@ class PlaywrightManager:
                     "verification is never disabled."
                 ) from e
             raise
-        status = getattr(response, "status", None)
-        if status == 403:
-            raise ForbiddenError(f"HTTP 403 from {url} — server is refusing access")
-        if status == 429:
-            raise SourceError(f"HTTP 429 from {url} — rate-limited; stopping this source")
+        self._raise_for_status(getattr(response, "status", None), url)
         return response
+
+    def ensure_ok(self, page: Any, url: str) -> None:
+        """Re-check the status once the page has settled.
+
+        Call after waiting for content: a JavaScript interstitial can reload
+        the page after ``navigate`` returned, and a 403/429 served on that
+        reload must stop the source rather than parse as an empty page.
+        """
+        self._raise_for_status(self._last_status(page), url)
+
+    def document_html(self, page: Any) -> str | None:
+        """The HTML the server sent for the page's latest document load.
+
+        Unlike ``page.content()`` (the live DOM), this doesn't change as the
+        page's own scripts run — e.g. a client-side component that shortens
+        text after hydration. None if no body is available.
+        """
+        response = self._nav_response.get(id(page))
+        if response is None:
+            return None
+        try:
+            return response.text()
+        except Exception:  # noqa: BLE001 — body gone (redirect, navigated away)
+            return None
 
     def close(self) -> None:
         if self._browser:
@@ -273,6 +304,25 @@ class PlaywrightManager:
         if env_path:
             kwargs["executable_path"] = env_path
         return kwargs
+
+    def _record_navigation(self, page: Any, response: Any) -> None:
+        try:
+            request = response.request
+            if request.is_navigation_request() and request.frame.parent_frame is None:
+                self._nav_response[id(page)] = response
+        except Exception:  # noqa: BLE001 — e.g. a detached frame; nothing to record
+            pass
+
+    def _last_status(self, page: Any) -> int | None:
+        response = self._nav_response.get(id(page))
+        return getattr(response, "status", None) if response is not None else None
+
+    @staticmethod
+    def _raise_for_status(status: int | None, url: str) -> None:
+        if status == 403:
+            raise ForbiddenError(f"HTTP 403 from {url} — server is refusing access")
+        if status == 429:
+            raise SourceError(f"HTTP 429 from {url} — rate-limited; stopping this source")
 
     def _route(self, route: Any) -> None:
         request = route.request

@@ -151,3 +151,65 @@ class TestAnalyzeFlags:
                 "--sources", "app_store_hk",
             ])
         assert result.exit_code == 1
+
+
+# ---------------------------------------------------------------------------
+# A source failing mid-run
+# ---------------------------------------------------------------------------
+
+class TestAnalyzeSourceFailure:
+    def test_posts_yielded_before_an_error_are_written(self, tmp_path, monkeypatch) -> None:
+        """A source that raises mid-iteration (e.g. OpenRice's bot check) must
+        not lose the posts it already yielded: they are marked seen in the
+        dedup index, so a later run would skip them as duplicates."""
+        import json
+        from datetime import datetime, timezone
+
+        from src import cli
+        from src.schemas.raw import RawPost
+        from src.scrape.base.protocol import SourceError
+        from src.scrape.utils.dedup import DedupIndex
+
+        def post(i: int) -> RawPost:
+            return RawPost(
+                id=f"p{i}", source="openrice", source_category="reviews", region="HK",
+                language="zh-HK", url=f"https://example.com/{i}", author_hash="0" * 64,
+                body="b", posted_at=datetime.now(timezone.utc), signal_type="experience",
+            )
+
+        class _FailsMidRun:
+            def search(self, topic, *, since, limit):
+                yield post(1)
+                yield post(2)
+                raise SourceError("security check did not clear")
+
+            def close(self) -> None:
+                pass
+
+        class _NoEmbeddings:
+            def __init__(self, *a, **k) -> None:
+                pass
+
+            def embed_posts(self, posts, **k) -> int:
+                return 0
+
+            def close(self) -> None:
+                pass
+
+        monkeypatch.setenv("AUTHOR_HASH_SALT", "t")
+        monkeypatch.setattr(cli, "_DATA_DIR", tmp_path / "data")
+        monkeypatch.setattr(cli, "_ROOT", tmp_path)
+        monkeypatch.setattr(cli, "get_scraper", lambda sid, **kw: _FailsMidRun())
+        monkeypatch.setattr(cli, "EmbeddingStore", _NoEmbeddings)
+
+        result = runner.invoke(
+            _cli_app,
+            ["analyze", "--topic", "x", "--region", "HK", "--sources", "openrice", "--since", "30d"],
+        )
+        assert "then failed: security check did not clear" in result.output
+        files = [f for f in (tmp_path / "data" / "raw" / "x" / "HK").glob("openrice_*.json")
+                 if not f.name.endswith("._run.json")]
+        assert len(files) == 1
+        assert [p["id"] for p in json.loads(files[0].read_text(encoding="utf-8"))] == ["p1", "p2"]
+        with DedupIndex(tmp_path / "data" / "dedup.sqlite") as index:
+            assert index.is_seen("openrice", "p1")
