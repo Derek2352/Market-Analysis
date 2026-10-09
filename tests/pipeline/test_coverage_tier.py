@@ -105,6 +105,11 @@ def test_robots_disallowed_source_is_flagged_in_the_coverage_note() -> None:
     assert "80% of evidence from a single source (app_store_hk)" in cov["bias_warning"]
 
 
+def test_provenance_warning_survives_an_unknown_region_code() -> None:
+    cov = _build_coverage(_cluster({"app_store_hk": 3}), region="XX")
+    assert cov["provenance_warning"].startswith("app_store_hk data collected")
+
+
 def test_robots_allowed_sources_carry_no_provenance_warning() -> None:
     cov = _build_coverage(_cluster({"lihkg": 5, "openrice": 5}), region="HK")
     assert "provenance_warning" not in cov

@@ -273,18 +273,20 @@ def _build_coverage(cluster: Cluster, region: str) -> dict[str, Any]:
     to invent this. Phase 6 adds ``category_count`` and ``coverage_tier`` so
     the UI can render a single badge per persona without counting the array.
     """
-    from src.regions.registry import get_region
+    from src.regions.registry import REGIONS, get_region
     from src.schemas.enums import SourceCategory
 
     try:
         region_cfg = get_region(region)
         source_to_cat = {s.source_id: s.category.value for s in region_cfg.sources}
-        robots_refused = {
-            s.source_id for s in region_cfg.sources if s.robots_txt_allows is False
-        }
     except KeyError:
         source_to_cat = {}
-        robots_refused = set()
+    # Source ids are global, so take robots.txt verdicts from every region:
+    # an unknown region code must not hide a disallowed-feed warning.
+    robots_refused = {
+        s.source_id for cfg in REGIONS.values() for s in cfg.sources
+        if s.robots_txt_allows is False
+    }
 
     sources_used = list(cluster.source_distribution.keys())
     present: set[str] = set()
