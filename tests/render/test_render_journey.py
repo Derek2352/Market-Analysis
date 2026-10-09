@@ -188,3 +188,26 @@ def test_journey_with_missing_stage_renders_no_data(
     out = render_journey_map(partial, persona, tmp_path / "j.png")
     assert out.exists()
     assert out.stat().st_size > 10 * 1024
+
+
+def test_header_names_the_persona_once_and_the_topic_only_when_known(journey, persona) -> None:
+    from src.render.core import get_template
+    from src.render.journey_map import _journey_context
+
+    tpl = get_template("journey_map.html")
+    html = tpl.render(**_journey_context(journey, persona, topic=""))
+    assert "<h1>阿明 — Test Commuter</h1>" in html
+    html = tpl.render(**_journey_context(journey, persona, topic="MTR Mobile"))
+    assert "<h1>阿明 — Test Commuter · MTR Mobile</h1>" in html
+
+
+def test_footnotes_show_urls_decoded() -> None:
+    """OpenRice review links carry percent-encoded Chinese titles that were
+    unreadable and long enough to overflow the footnote columns."""
+    from src.render.journey_map import _CitationLedger
+
+    ledger = _CitationLedger.empty()
+    ledger.assign("https://www.openrice.com/en/hongkong/review/%E5%B7%AE-e5872842")
+    assert ledger.as_footnotes() == [
+        {"num": 1, "text": "https://www.openrice.com/en/hongkong/review/差-e5872842"}
+    ]

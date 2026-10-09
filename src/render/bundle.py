@@ -70,15 +70,29 @@ def load_journeys_for_run(journeys_root: Path, run_id: str) -> dict[str, Journey
 
 
 def load_topic_for_run(runs_root: Path, run_id: str) -> str:
-    """Read the run.json (API-managed) to find the topic, else empty string."""
+    """Find the run's topic: the API's run.json, else the clustering file.
+
+    Runs made from the CLI (or `mkt synthesize-offline`) have no run.json;
+    their clusters_<run_id>.json under the sibling clusters/ folder records
+    the topic. Empty string if neither is found.
+    """
     run_file = runs_root / run_id / "run.json"
-    if not run_file.exists():
-        return ""
-    try:
-        payload = json.loads(run_file.read_text(encoding="utf-8"))
-    except Exception:
-        return ""
-    return (payload.get("summary") or {}).get("topic", "") or ""
+    if run_file.exists():
+        try:
+            payload = json.loads(run_file.read_text(encoding="utf-8"))
+            topic = (payload.get("summary") or {}).get("topic", "") or ""
+            if topic:
+                return topic
+        except Exception:
+            pass
+    for cluster_file in sorted((runs_root.parent / "clusters").glob(f"*/*/clusters_{run_id}.json")):
+        try:
+            topic = json.loads(cluster_file.read_text(encoding="utf-8")).get("topic", "")
+        except Exception:
+            continue
+        if topic:
+            return str(topic)
+    return ""
 
 
 # ---------------------------------------------------------------------------

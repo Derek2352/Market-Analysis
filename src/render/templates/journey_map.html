@@ -165,7 +165,7 @@
     column-count: 3; column-gap: 40px;
     font-size: 12px; color: var(--ink-muted); line-height: 1.55;
   }
-  .footnotes .fn { break-inside: avoid; margin: 0 0 4px; }
+  .footnotes .fn { break-inside: avoid; margin: 0 0 4px; overflow-wrap: anywhere; }
   .footnotes .fn .num {
     color: var(--accent); font-weight: 700; margin-right: 4px;
   }
@@ -176,7 +176,7 @@
 <header class="header">
   <div class="h-left">
     <div class="eyebrow">Journey map · {{ persona.region }}{% if coverage.label %} · {{ coverage.label }}{% endif %}</div>
-    <h1>{{ persona.name }} · {{ topic }}</h1>
+    <h1>{{ persona.name }}{% if topic and topic != persona.name %} · {{ topic }}{% endif %}</h1>
     <div class="sub">{{ subtitle }}</div>
   </div>
   <div class="h-right">

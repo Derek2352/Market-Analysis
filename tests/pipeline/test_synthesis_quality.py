@@ -58,3 +58,14 @@ def test_evidence_pack_omits_empty_distributions():
     pack = S._build_evidence_pack(_cluster(), {"p1": "a", "p2": "b"}, None, "HK")
     assert "sentiment from star ratings" not in pack.block_text
     assert "posted between" not in pack.block_text
+
+
+def test_persona_ids_are_scoped_to_the_clustering_run():
+    """Cluster ids repeat in every run of a topic and personas share one
+    folder per topic/region: an id from the cluster id alone let a new run
+    overwrite an older run's persona file."""
+    from src.pipeline.synthesize import _persona_id
+
+    assert _persona_id("cluster_000", "R1") == _persona_id("cluster_000", "R1")  # re-runs are idempotent
+    assert _persona_id("cluster_000", "R1") != _persona_id("cluster_000", "R2")
+    assert _persona_id("cluster_000", "R1") != _persona_id("cluster_001", "R1")

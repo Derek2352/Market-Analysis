@@ -186,3 +186,16 @@ def test_render_run_clear_error_when_run_id_unknown(
             journeys_root=run_data_tree["journeys_root"],
             runs_root=run_data_tree["runs_root"],
         )
+
+
+def test_topic_falls_back_to_the_runs_clustering_file(tmp_path: Path) -> None:
+    """CLI/offline runs have no API run.json; the topic is in clusters_<run>.json."""
+    from src.render.bundle import load_topic_for_run
+
+    runs = tmp_path / "data" / "runs"
+    runs.mkdir(parents=True)
+    cluster_file = tmp_path / "data" / "clusters" / "cafe_de_coral" / "HK" / "clusters_R9.json"
+    cluster_file.parent.mkdir(parents=True)
+    cluster_file.write_text('{"topic": "Cafe de Coral", "clusters": []}', encoding="utf-8")
+    assert load_topic_for_run(runs, "R9") == "Cafe de Coral"
+    assert load_topic_for_run(runs, "R0") == ""

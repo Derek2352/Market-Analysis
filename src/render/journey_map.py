@@ -11,6 +11,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
+from urllib.parse import unquote
 
 from src.render.core import (
     get_template,
@@ -118,8 +119,10 @@ class _CitationLedger:
         return self.by_key[key]
 
     def as_footnotes(self) -> list[dict]:
+        # Show URLs decoded: OpenRice review links carry percent-encoded
+        # Chinese titles that are unreadable and several times longer.
         return [
-            {"num": num, "text": key}
+            {"num": num, "text": unquote(key)}
             for key, num in self.by_key.items()
         ]
 
@@ -327,7 +330,7 @@ def render_journey_map(
     topic: str = "",
 ) -> Path:
     """Render a journey map paired with its persona to ``out_path``."""
-    ctx = _journey_context(journey, persona, topic=topic or persona.name)
+    ctx = _journey_context(journey, persona, topic=topic)
     tpl = get_template("journey_map.html")
     html = tpl.render(**ctx)
     return render_html_to_png(html, Path(out_path), viewport=JOURNEY_VIEWPORT)

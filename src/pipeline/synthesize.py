@@ -1147,7 +1147,7 @@ def _build_persona(
     cov = lambda f: "unverified" if f in unverified_fields else "ok"  # noqa: E731
 
     return Persona(
-        id=f"persona_{_make_short_hash(cluster.cluster_id)}",
+        id=_persona_id(cluster.cluster_id, run_id),
         run_id=run_id,
         cluster_id=cluster.cluster_id,
         name=str(parsed.get("name", f"Persona {cluster.cluster_id}")).strip(),
@@ -1286,6 +1286,17 @@ def _compute_confidence(
 
 def _make_short_hash(s: str) -> str:
     return hashlib.sha256(s.encode("utf-8")).hexdigest()[:12]
+
+
+def _persona_id(cluster_id: str, run_id: str | None) -> str:
+    """Stable within a run, distinct across runs.
+
+    Cluster ids (cluster_000, merged_001_002, ...) repeat in every clustering
+    run of a topic, and personas share one folder per topic/region, so an id
+    from the cluster id alone made a new run overwrite an older run's persona.
+    """
+    key = f"{run_id}:{cluster_id}" if run_id else cluster_id
+    return f"persona_{_make_short_hash(key)}"
 
 
 # ---------------------------------------------------------------------------
