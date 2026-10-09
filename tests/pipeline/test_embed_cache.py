@@ -234,3 +234,34 @@ def test_embed_cache_completely_cached_batch(tmp_path: Path):
 
         if db_path.exists():
             db_path.unlink()
+
+
+# ---------------------------------------------------------------------------
+# Cache: DuckDB stays the source of truth
+# ---------------------------------------------------------------------------
+
+def test_cache_hit_without_a_db_row_is_re_embedded(tmp_path: Path):
+    """Deleting rows (or replacing the database) while the hash cache stays
+    must not leave posts silently un-embedded and out of clustering."""
+    import numpy as np
+
+    from src.pipeline.embed import MODEL_DIM, EmbeddingStore
+
+    def fake_encode(self, texts, *, model, batch_size, progress):
+        return [np.full(MODEL_DIM, 0.1, dtype="float32") for _ in texts]
+
+    db_path = tmp_path / "drift.duckdb"
+    with patch("src.pipeline.embed.EMBEDDING_CACHE_DIR", tmp_path / "embedding_cache"), \
+            patch.object(EmbeddingStore, "_load_model", lambda self: None), \
+            patch.object(EmbeddingStore, "_encode_batch", fake_encode):
+        posts = [_make_post("drift_1", "T1", "B1"), _make_post("drift_2", "T2", "B2")]
+        store = EmbeddingStore(db_path=db_path)
+        assert store.embed_posts(posts, topic="drift", region="HK", progress=False) == 2
+        store._ensure_db().execute("DELETE FROM embeddings WHERE post_id = 'drift_1'")
+        store.close()
+
+        store2 = EmbeddingStore(db_path=db_path)
+        assert store2.embed_posts(posts, topic="drift", region="HK", progress=False) == 1
+        rows = store2._ensure_db().execute("SELECT post_id FROM embeddings ORDER BY post_id").fetchall()
+        assert [r[0] for r in rows] == ["drift_1", "drift_2"]
+        store2.close()

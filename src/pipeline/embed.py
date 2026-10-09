@@ -136,9 +136,9 @@ class EmbeddingStore:
         _log.info("embed.start", topic=topic, region=region, count=len(posts))
 
         # ── Phase 1: text-hash cache pre-filter ────────────────────────
-        # If the post text hasn't changed since the last embed run, skip
-        # everything (no DB query, no model load).  This is what does the
-        # heavy-lifting on a re-run.
+        # If the post text hasn't changed since the last embed run, skip the
+        # model entirely (one cheap DB query confirms the rows still exist).
+        # This is what does the heavy-lifting on a re-run.
         #
         # Cache can be disabled via EmbeddingStore(use_cache=False) for
         # tests and one-off runs where cache isolation is needed.
@@ -146,17 +146,30 @@ class EmbeddingStore:
         cache: dict[str, str] = {}
         if self.use_cache:
             cache = self._load_cache()
-        cache_hits = 0
+        hit_posts: list[RawPost] = []
         uncached_posts: list[RawPost] = []
         for post in posts:
             text_hash = self._hash_post_text(post)
             if text_hash in cache:
-                cache_hits += 1
+                hit_posts.append(post)
                 continue
             # Mark hash as "seen" immediately so we don't double-process
             # duplicate posts within the same batch.
             cache[text_hash] = post.id
             uncached_posts.append(post)
+
+        # The cache only records that a text was embedded once. DuckDB is the
+        # source of truth: rows can be deleted, the database replaced while
+        # the cache file stays, or another post can share the text. A cache
+        # hit without a row is re-embedded instead of silently left out of
+        # clustering. (One cheap query; the model still isn't loaded when
+        # every row exists.)
+        if hit_posts:
+            present = self._already_embedded([p.id for p in hit_posts], self._ensure_db())
+            missing = [p for p in hit_posts if p.id not in present]
+            uncached_posts.extend(missing)
+            hit_posts = [p for p in hit_posts if p.id in present]
+        cache_hits = len(hit_posts)
 
         if cache_hits:
             _log.info(
